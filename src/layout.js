@@ -1,7 +1,18 @@
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {number} width
+ * @param {number} height
+ * @returns {import("./contracts.js").Bounds}
+ */
 export function box(x, y, width, height) {
   return { x, y, width, height };
 }
 
+/**
+ * @param {import("./contracts.js").Bounds} bounds
+ * @param {number} padding
+ */
 export function inset(bounds, padding) {
   return box(
     bounds.x + padding,
@@ -11,6 +22,11 @@ export function inset(bounds, padding) {
   );
 }
 
+/**
+ * @param {import("./contracts.js").Bounds} bounds
+ * @param {number} count
+ * @param {number} [gap]
+ */
 export function row(bounds, count, gap = 24) {
   if (!Number.isInteger(count) || count < 1) {
     throw new TypeError("row count must be a positive integer");
@@ -21,6 +37,11 @@ export function row(bounds, count, gap = 24) {
   );
 }
 
+/**
+ * @param {import("./contracts.js").Bounds} bounds
+ * @param {number} count
+ * @param {number} [gap]
+ */
 export function column(bounds, count, gap = 24) {
   if (!Number.isInteger(count) || count < 1) {
     throw new TypeError("column count must be a positive integer");
@@ -31,6 +52,7 @@ export function column(bounds, count, gap = 24) {
   );
 }
 
+/** @type {Record<"left" | "right" | "top" | "bottom" | "center", (bounds: import("./contracts.js").Bounds) => import("./contracts.js").Point>} */
 export const anchor = {
   left: (bounds) => [bounds.x, bounds.y + bounds.height / 2],
   right: (bounds) => [bounds.x + bounds.width, bounds.y + bounds.height / 2],
@@ -42,11 +64,16 @@ export const anchor = {
   ],
 };
 
+/** @type {Record<import("./contracts.js").Axis, { start: "x" | "y", size: "width" | "height" }>} */
 const AXIS_PROPERTIES = {
   x: { start: "x", size: "width" },
   y: { start: "y", size: "height" },
 };
 
+/**
+ * @param {import("./contracts.js").Bounds[]} bounds
+ * @param {import("./contracts.js").Axis} axis
+ */
 function axisExtent(bounds, axis) {
   const { start, size } = AXIS_PROPERTIES[axis];
   const minimum = Math.min(...bounds.map((item) => item[start]));
@@ -54,8 +81,13 @@ function axisExtent(bounds, axis) {
   return { minimum, maximum, center: (minimum + maximum) / 2 };
 }
 
+/**
+ * @param {import("./contracts.js").Bounds[]} bounds
+ * @param {import("./contracts.js").AlignmentMode} mode
+ */
 export function alignBounds(bounds, mode) {
   if (bounds.length < 2) throw new Error("alignment requires at least two elements");
+  /** @type {Record<import("./contracts.js").AlignmentMode, { axis: import("./contracts.js").Axis, position: "start" | "center" | "end" }>} */
   const modes = {
     left: { axis: "x", position: "start" },
     "center-x": { axis: "x", position: "center" },
@@ -80,6 +112,10 @@ export function alignBounds(bounds, mode) {
   });
 }
 
+/**
+ * @param {import("./contracts.js").Bounds[]} bounds
+ * @param {import("./contracts.js").Axis} axis
+ */
 export function distributeBounds(bounds, axis) {
   if (!(axis in AXIS_PROPERTIES)) throw new Error(`unsupported distribution axis: ${axis}`);
   if (bounds.length < 3) throw new Error("distribution requires at least three elements");
@@ -100,7 +136,8 @@ export function distributeBounds(bounds, axis) {
     return result;
   }
   const firstCenter = ordered[0].item[start] + ordered[0].item[size] / 2;
-  const lastCenter = ordered.at(-1).item[start] + ordered.at(-1).item[size] / 2;
+  const last = ordered[ordered.length - 1].item;
+  const lastCenter = last[start] + last[size] / 2;
   const centerStep = (lastCenter - firstCenter) / (ordered.length - 1);
   ordered.forEach(({ item, index }, position) => {
     result[index] = { ...item, [start]: firstCenter + centerStep * position - item[size] / 2 };

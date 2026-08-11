@@ -11,6 +11,10 @@ export const ROUTING_CLEARANCE = Object.freeze({
   label: 8,
 });
 
+/**
+ * @param {{ gap?: number, spacing?: import("./contracts.js").SpacingPreset } | null | undefined} layout
+ * @param {number} fallback
+ */
 export function layoutGap(layout, fallback) {
   if (layout?.gap !== undefined) return layout.gap;
   if (layout?.spacing !== undefined) return SPACING_PRESETS[layout.spacing];

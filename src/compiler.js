@@ -7,7 +7,7 @@ import { renderFreeText, renderImage, renderSceneVisuals } from "./excalidraw-ad
 import { applyGeometryStatements } from "./geometry.js";
 import { renderAnnotation, renderConnection } from "./routing-renderer.js";
 import { splitEndpoint } from "./router.js";
-import { createSceneGraph, layoutWithAdapter } from "./scene.js";
+import { createSceneGraph, layoutWithAdapter } from "./scene.ts";
 import { buildSemanticIR } from "./semantic.js";
 import { createMeasurer } from "./measurement.js";
 import { createStyleResolver } from "./styles.js";

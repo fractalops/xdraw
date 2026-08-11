@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile, parse } from "../src/index.js";
+import { compile, parse } from "../src/index.ts";
 
 function elements(source) {
   return compile(parse(source)).toJSON().elements;

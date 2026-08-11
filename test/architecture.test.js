@@ -12,7 +12,7 @@ import {
   createLayoutAdapter,
   createSceneGraph,
   layoutWithAdapter,
-} from "../src/scene.js";
+} from "../src/scene.ts";
 import { buildSemanticIR } from "../src/semantic.js";
 
 test("built-in layout capabilities are enforced", () => {

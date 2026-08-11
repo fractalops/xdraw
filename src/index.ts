@@ -26,5 +26,24 @@ export {
   createLayoutAdapter,
   createSceneGraph,
   layoutWithAdapter,
-} from "./scene.js";
+} from "./scene.ts";
+export type {
+  AdapterRoute,
+  Bounds,
+  LayoutAdapter,
+  LayoutAdapterDefinition,
+  LayoutCapabilities,
+  LayoutCapability,
+  LayoutContext,
+  LayoutOptions,
+  LayoutRequest,
+  LayoutResponse,
+  LayoutResult,
+  Point,
+  SceneGraph,
+  SceneGraphOptions,
+  SceneVisual,
+  SemanticDocument,
+  SemanticStatement,
+} from "./contracts.ts";
 export { writeDrawing } from "./writer.js";

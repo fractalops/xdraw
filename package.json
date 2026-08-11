@@ -10,12 +10,14 @@
   "bugs": "https://github.com/fractalops/xdraw/issues",
   "homepage": "https://github.com/fractalops/xdraw#readme",
   "type": "module",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18.0"
   },
   "files": [
     "bin/",
-    "src/",
+    "lib/",
     "examples/",
     "docs/language-reference.md",
     "README.md"
@@ -24,15 +26,26 @@
     "xdraw": "./bin/xdraw.js"
   },
   "exports": {
-    ".": "./src/index.js",
-    "./excalidraw-api": "./src/excalidraw-api.js",
+    ".": {
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js",
+      "default": "./lib/index.js"
+    },
+    "./excalidraw-api": {
+      "types": "./lib/excalidraw-api.d.ts",
+      "import": "./lib/excalidraw-api.js",
+      "default": "./lib/excalidraw-api.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "node --check bin/xdraw.js && node --check src/excalidraw-api.js && node --check src/local-renderer.js",
+    "build": "node scripts/clean-lib.mjs && tsc -p tsconfig.build.json && node scripts/rewrite-declaration-imports.mjs && node --check bin/xdraw.js",
     "example:order": "node bin/xdraw.js build examples/order-flow.xdraw -o output/order-flow.excalidraw",
     "example:platform": "node bin/xdraw.js build examples/platform-overview.xdraw -o output/platform-overview.excalidraw",
     "generate:font-metrics": "node scripts/generate-font-metrics.mjs",
+    "typecheck": "npm run typecheck:core",
+    "typecheck:core": "tsc -p tsconfig.json",
+    "test:types": "npm run build && tsc -p type-tests/tsconfig.json",
     "test": "node --test",
     "test:corpus": "node --test test/corpus.test.js",
     "test:browser": "npm run build && playwright test",

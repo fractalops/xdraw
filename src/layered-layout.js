@@ -1,6 +1,6 @@
 import { anchor, box } from "./layout.js";
 import { inferredSides, splitEndpoint } from "./router.js";
-import { BUILTIN_LAYOUT_CAPABILITIES, createLayoutAdapter } from "./scene.js";
+import { BUILTIN_LAYOUT_CAPABILITIES, createLayoutAdapter } from "./scene.ts";
 
 export const LAYERED_LAYOUT_CAPABILITIES = Object.freeze({
   ...BUILTIN_LAYOUT_CAPABILITIES,

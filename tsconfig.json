@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "allowImportingTsExtensions": true,
+    "checkJs": true,
+    "lib": ["ES2024", "DOM"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2024"
+  },
+  "include": [
+    "src/contracts.ts",
+    "src/endpoints.js",
+    "src/identity.js",
+    "src/clearances.js",
+    "src/diagnostics.js",
+    "src/layout.js",
+    "src/route-quality.js",
+    "src/text-metrics.js",
+    "src/scene.ts"
+  ]
+}

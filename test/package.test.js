@@ -17,11 +17,17 @@ test("packed package installs a working xdraw executable", async () => {
   const packed = JSON.parse((await execute(
     "npm", ["pack", "--json", "--ignore-scripts", "--pack-destination", directory], { cwd: root },
   )).stdout)[0];
-  assert.ok(packed.files.every((file) => ["LICENSE", "README.md", "package.json", "bin/", "src/", "examples/", "docs/language-reference.md"]
+  assert.ok(packed.files.every((file) => ["LICENSE", "README.md", "package.json", "bin/", "lib/", "examples/", "docs/language-reference.md"]
     .some((prefix) => file.path === prefix || file.path.startsWith(prefix))));
   assert.ok(packed.files.some((file) => file.path === "LICENSE"));
-  assert.ok(packed.files.some((file) => file.path === "src/compiler.js"));
+  assert.ok(packed.files.some((file) => file.path === "lib/compiler.js"));
+  assert.ok(packed.files.some((file) => file.path === "lib/index.d.ts"));
+  assert.ok(packed.files.some((file) => file.path === "lib/excalidraw-api.js"));
+  assert.ok(packed.files.some((file) => file.path === "lib/excalidraw-api.d.ts"));
   assert.ok(packed.unpackedSize < 12_000_000, `package is unexpectedly large: ${packed.unpackedSize}`);
+  for (const declaration of ["index.d.ts", "scene.d.ts", "builtin-layouts.d.ts", "layered-layout.d.ts"]) {
+    assert.doesNotMatch(await readFile(join(root, "lib", declaration), "utf8"), /\.ts["']/);
+  }
 
   const prefix = join(directory, "installed");
   await execute("npm", [
@@ -29,6 +35,11 @@ test("packed package installs a working xdraw executable", async () => {
   ]);
   const executable = join(prefix, "node_modules", ".bin", "xdraw");
   assert.equal((await execute(executable, ["--version"])).stdout.trim(), "xdraw 0.1.0");
+  await execute(process.execPath, [
+    "--input-type=module",
+    "--eval",
+    "await import('xdraw'); await import('xdraw/excalidraw-api');",
+  ], { cwd: prefix });
 
   const source = join(directory, "installed-example.xdraw");
   await writeFile(source, 'source: card "Source"; target: card "Target"; source -> target');

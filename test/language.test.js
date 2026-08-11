@@ -8,7 +8,7 @@ import { run } from "../src/cli.js";
 import { compile } from "../src/compiler.js";
 import { parse } from "../src/parser.js";
 import { parsePartial } from "../src/partial.js";
-import { createSceneGraph } from "../src/scene.js";
+import { createSceneGraph } from "../src/scene.ts";
 import { buildSemanticIR, DiagnosticError } from "../src/semantic.js";
 import { createMeasurer } from "../src/measurement.js";
 

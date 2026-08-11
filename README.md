@@ -15,7 +15,7 @@ diagram "Order flow" {
 
 ## Install
 
-XDraw requires Node.js 22 or newer.
+XDraw requires Node.js 22.18 or newer.
 
 ```bash
 git clone https://github.com/fractalops/xdraw.git
@@ -178,6 +178,8 @@ error and return a non-zero exit code.
 ## Development
 
 ```bash
+npm run build
+npm run typecheck
 npm test
 npm run test:browser
 

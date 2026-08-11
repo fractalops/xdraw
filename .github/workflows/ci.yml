@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   verify:
-    name: Node 22
+    name: Node 22.18
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -23,7 +23,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 22.18.0
           cache: npm
 
       - name: Install dependencies
@@ -32,8 +32,14 @@ jobs:
       - name: Audit dependencies
         run: npm audit --audit-level=high
 
+      - name: Check strict core types
+        run: npm run typecheck
+
       - name: Run tests
         run: npm test
+
+      - name: Check public declarations
+        run: npm run test:types
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium

@@ -15,7 +15,7 @@ import {
   row,
   text,
   wrapText,
-} from "../src/index.js";
+} from "../src/index.ts";
 import { measureTextWidth, wrapTextToWidth } from "../src/text-metrics.js";
 
 test("text defaults to the code font", () => {

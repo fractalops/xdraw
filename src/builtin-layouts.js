@@ -1,7 +1,7 @@
 import { wrapText } from "./components.js";
 import { anchor, box, row } from "./layout.js";
 import { splitEndpoint } from "./router.js";
-import { BUILTIN_LAYOUT_CAPABILITIES, createLayoutAdapter } from "./scene.js";
+import { BUILTIN_LAYOUT_CAPABILITIES, createLayoutAdapter } from "./scene.ts";
 import { calculateRowPlan, calculateSlotWidth, resolveContainerGap } from "./measurement.js";
 import { wrapTextToWidth } from "./text-metrics.js";
 

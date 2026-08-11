@@ -1,17 +1,25 @@
+/** @param {import("./contracts.js").Route} route */
 function segments(route) {
   return route.slice(0, -1).map((start, index) => ({ start, end: route[index + 1] }));
 }
 
+/** @param {import("./contracts.js").Segment} segment */
 function orientation(segment) {
   if (segment.start[0] === segment.end[0]) return "vertical";
   if (segment.start[1] === segment.end[1]) return "horizontal";
   return "diagonal";
 }
 
+/**
+ * @param {import("./contracts.js").Point} first
+ * @param {import("./contracts.js").Point} second
+ * @param {import("./contracts.js").Point} third
+ */
 function cross(first, second, third) {
   return (second[0] - first[0]) * (third[1] - first[1]) - (second[1] - first[1]) * (third[0] - first[0]);
 }
 
+/** @param {import("./contracts.js").Segment} left @param {import("./contracts.js").Segment} right */
 function crosses(left, right) {
   const first = cross(left.start, left.end, right.start);
   const second = cross(left.start, left.end, right.end);
@@ -20,6 +28,7 @@ function crosses(left, right) {
   return first * second < 0 && third * fourth < 0;
 }
 
+/** @param {import("./contracts.js").Segment} left @param {import("./contracts.js").Segment} right */
 function sharedLength(left, right) {
   const kind = orientation(left);
   if (kind !== orientation(right) || kind === "diagonal") return 0;
@@ -30,6 +39,7 @@ function sharedLength(left, right) {
     - Math.max(Math.min(left.start[axis], left.end[axis]), Math.min(right.start[axis], right.end[axis])));
 }
 
+/** @param {import("./contracts.js").Segment} segment @param {import("./contracts.js").Bounds} bounds */
 function intersectsBounds(segment, bounds) {
   const left = bounds.x;
   const right = bounds.x + bounds.width;
@@ -46,16 +56,20 @@ function intersectsBounds(segment, bounds) {
       && Math.max(segment.start[0], segment.end[0]) > left
       && Math.min(segment.start[0], segment.end[0]) < right;
   }
+  /** @param {import("./contracts.js").Point} point */
   const inside = ([x, y]) => x > left && x < right && y > top && y < bottom;
   if (inside(segment.start) || inside(segment.end)) return true;
-  return [
+  /** @type {import("./contracts.js").Segment[]} */
+  const edges = [
     { start: [left, top], end: [right, top] },
     { start: [right, top], end: [right, bottom] },
     { start: [right, bottom], end: [left, bottom] },
     { start: [left, bottom], end: [left, top] },
-  ].some((edge) => crosses(segment, edge));
+  ];
+  return edges.some((edge) => crosses(segment, edge));
 }
 
+/** @param {import("./contracts.js").Route} route */
 function bendCount(route) {
   let count = 0;
   for (let index = 1; index < route.length - 1; index += 1) {
@@ -64,6 +78,10 @@ function bendCount(route) {
   return count;
 }
 
+/**
+ * @param {import("./contracts.js").Route[]} routes
+ * @param {import("./contracts.js").Bounds[]} [obstacles]
+ */
 export function measureRouteQuality(routes, obstacles = []) {
   const routeSegments = routes.map(segments);
   let crossings = 0;

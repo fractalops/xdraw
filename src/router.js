@@ -1,24 +1,8 @@
 import { anchor } from "./layout.js";
+import { ROUTING_CLEARANCE } from "./clearances.js";
+import { splitEndpoint } from "./endpoints.js";
 
-const PORTS = {
-  east: "right",
-  west: "left",
-  north: "top",
-  south: "bottom",
-  right: "right",
-  left: "left",
-  top: "top",
-  bottom: "bottom",
-  center: "center",
-};
-
-export function splitEndpoint(value, knownIds) {
-  if (knownIds?.has(value)) return { id: value, side: undefined };
-  const segments = value.split(".");
-  const candidate = segments.at(-1);
-  if (candidate in PORTS) return { id: segments.slice(0, -1).join("."), side: PORTS[candidate] };
-  return { id: value, side: undefined };
-}
+export { splitEndpoint };
 
 export function inferredSides(fromBounds, toBounds, context = {}) {
   const guideFrom = context.fromContainerBounds ?? fromBounds;
@@ -168,4 +152,3 @@ export function routeConnection(scene, fromId, toId, fromBounds, toBounds, start
   scene.routes.push(selected);
   return selected;
 }
-import { ROUTING_CLEARANCE } from "./clearances.js";
