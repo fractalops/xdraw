@@ -180,6 +180,9 @@ error and return a non-zero exit code.
 ```bash
 npm test
 npm run test:browser
+
+wrkflw validate .github/workflows/ci.yml
+wrkflw run --runtime emulation --job verify .github/workflows/ci.yml
 ```
 
 XDraw is available under the [MIT License](LICENSE).

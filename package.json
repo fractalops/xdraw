@@ -54,5 +54,14 @@
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2"
+  },
+  "overrides": {
+    "@excalidraw/excalidraw": {
+      "nanoid": "3.3.18"
+    },
+    "@excalidraw/mermaid-to-excalidraw": {
+      "nanoid": "6.0.1"
+    },
+    "lodash-es": "4.18.1"
   }
 }
