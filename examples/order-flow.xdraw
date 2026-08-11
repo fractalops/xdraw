@@ -1,0 +1,8 @@
+diagram "Order flow" {
+  customer: person "Customer"
+  api: system "Orders API"
+  store: database "Order data"
+
+  customer -> api "places order"
+  api -> store "saves"
+}

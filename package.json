@@ -1,0 +1,58 @@
+{
+  "name": "xdraw",
+  "version": "0.1.0",
+  "description": "Create editable Excalidraw diagrams from concise text files.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fractalops/xdraw.git"
+  },
+  "bugs": "https://github.com/fractalops/xdraw/issues",
+  "homepage": "https://github.com/fractalops/xdraw#readme",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "examples/",
+    "docs/language-reference.md",
+    "README.md"
+  ],
+  "bin": {
+    "xdraw": "./bin/xdraw.js"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./excalidraw-api": "./src/excalidraw-api.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "node --check bin/xdraw.js && node --check src/excalidraw-api.js && node --check src/local-renderer.js",
+    "example:order": "node bin/xdraw.js build examples/order-flow.xdraw -o output/order-flow.excalidraw",
+    "example:platform": "node bin/xdraw.js build examples/platform-overview.xdraw -o output/platform-overview.excalidraw",
+    "generate:font-metrics": "node scripts/generate-font-metrics.mjs",
+    "test": "node --test",
+    "test:corpus": "node --test test/corpus.test.js",
+    "test:browser": "npm run build && playwright test",
+    "build:acceptance-host": "vite build --config acceptance/vite.config.ts",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@excalidraw/excalidraw": "^0.18.1",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^24.10.1",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "elkjs": "^0.11.0",
+    "fontkit": "^2.0.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2"
+  }
+}

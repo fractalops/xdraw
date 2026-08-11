@@ -1,0 +1,28 @@
+diagram "Text behavior" {
+  subtitle "Native bound labels, rich grouped cards and free text"
+
+  lane bound "Shape-bound text" {
+    layout row gap 36
+
+    top_left: card "Top left" info {
+      text-align left
+      vertical-align top
+    }
+    centered: card "Centered" success
+    bottom_right: card "Bottom right" warning {
+      text-align right
+      vertical-align bottom
+    }
+    rich: card "Rich card" accent {
+      body "The title and body retain separate typography and move as one grouped component."
+      text-align left
+      vertical-align middle
+    }
+  }
+
+  lane free "Free text" {
+    text automatic "Auto-width text grows with its content" at (110, 570) font 18
+    text bounded "Fixed-width text wraps while remaining independent from nearby shapes." at (500, 560) width 260 align center font 18
+    text right_aligned "Right-aligned\nstandalone text" at (920, 565) width 220 align right font 18
+  }
+}

@@ -1,0 +1,70 @@
+diagram "Product delivery overview" {
+  subtitle "From an idea to a monitored release"
+  layout grid columns 2 spacing normal
+
+  lane plan "1. Plan" {
+    layout row spacing normal
+    idea: card "Prioritized idea" info
+    design: card "Technical design"
+    idea -> design "refine"
+    note scope "Agree the outcome before implementation."
+  }
+
+  lane build "2. Build" {
+    layout row spacing normal
+    code: system "Application code"
+    verify: system "Automated checks" success
+    artifact: database "Versioned artifact"
+    code -> verify "validate"
+    verify -> artifact "publish"
+  }
+
+  lane release "3. Release" {
+    layout row spacing normal
+    approve: decision "Ready to release?" {
+      when "yes" -> deploy
+      when "no" -> code
+    }
+    deploy: system "Deployment"
+    approve -> deploy "approved"
+  }
+
+  lane operate "4. Operate" {
+    layout row spacing normal
+    service: system "Running service"
+    telemetry: database "Telemetry"
+    response: card "Incident response" warning
+    service -> telemetry "emits"
+    telemetry -> response "alerts"
+  }
+
+  group architecture "Runtime architecture" {
+    layout row spacing airy
+    user: person "User"
+    gateway: system "Gateway"
+    worker: system "Worker"
+    records: database "Records"
+    user -> gateway "request"
+    gateway -> worker "dispatch"
+    worker -> records "store"
+  }
+
+  sequence {
+    participant operator "Operator"
+    participant platform "Platform"
+    participant monitor "Monitor"
+    operator -> platform "Deploy"
+    platform -> monitor "Health signal"
+    monitor -> operator "Status"
+  }
+
+  tree outcomes "Release outcome" {
+    branch healthy "Healthy" {
+      leaf continue "Continue rollout"
+    }
+    branch unhealthy "Unhealthy" {
+      leaf rollback "Roll back"
+      leaf investigate "Investigate"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+scene excalidraw::default::architecture::system_overview {
+  replace {
+    diagram "System overview" {
+      browser: person "User"
+      api: system "API"
+      data: database "Data"
+      browser -> api "request"
+      api -> data "query"
+    }
+  }
+}

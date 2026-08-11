@@ -1,0 +1,20 @@
+diagram "Native frames" {
+  subtitle "Nested ownership, clipping and inherited locking"
+
+  frame workspace "Workspace" [locked] {
+    layout row gap 220
+    request: person "Request"
+    service: system "Service"
+    request -> service "inside frame"
+
+    frame storage "Storage boundary" {
+      database: database "Records"
+    }
+
+    service -> database "crosses nested frame"
+  }
+
+  frame movable "Editable frame" {
+    draft: card "Draft"
+  }
+}

@@ -1,0 +1,35 @@
+diagram "Connection styles" {
+  subtitle "Straight, routed, explanatory, and structural relationships"
+  layout compact gap 24
+
+  lane common "Common relationships" {
+    layout row gap 160
+    straight_from: system "Straight source"
+    straight_to: system "Straight target"
+    straight_from -> straight_to "normal flow" [style=straight]
+  }
+
+  lane routed "Routed flow" {
+    layout row gap 160
+    elbow_from: system "Elbow source"
+    obstacle: card "Obstacle"
+    elbow_to: system "Elbow target"
+    elbow_from -> elbow_to "routed flow" [style=elbow]
+  }
+
+  lane explanatory "Explanatory relationships" {
+    layout row gap 140
+    curved_from: card "Finding"
+    curved_to: card "Explanation"
+    boundary: system "Boundary"
+    curved_from -> curved_to "callout" [style=curved, head=arrow, dashed]
+    curved_to -> boundary "terminates" [style=straight, head=bar]
+  }
+
+  lane structural "Structural relationship" {
+    layout row gap 120
+    relation_from: card "Parent"
+    relation_to: card "Child"
+    relation_from -> relation_to [style=line, head=none]
+  }
+}

@@ -1,0 +1,10 @@
+diagram "Styles and themes" {
+  theme { font-family normal }
+  style focus { stroke "#059669" background "#ecfdf5" text "#065f46" title-size 21 }
+  lane examples "Elements" {
+    source: system "Source system"
+    target: ellipse "Verified target" [style=focus, link="https://example.com", locked]
+    source -> target
+  }
+  text caption "Styled free text wraps at a declared width." at (100, 350) [font-family=normal, font-size=18, wrap-width=300, auto-size=false]
+}

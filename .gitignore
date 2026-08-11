@@ -1,0 +1,14 @@
+node_modules/
+dist/
+output/
+playwright-report/
+test-results/
+.DS_Store
+npm-debug.log*
+*.tgz
+.env
+.env.*
+!.env.example
+.npmrc
+*.pem
+*.key
