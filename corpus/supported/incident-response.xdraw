@@ -1,0 +1,12 @@
+diagram "Incident response" {
+  lane response "Response" {
+    layout row gap 35
+    alert: card "Alert" danger
+    triage: card "Triage" warning
+    contain: card "Contain" info
+    recover: card "Recover" success
+    alert -> triage [danger]
+    triage -> contain [dashed]
+    contain -> recover [success]
+  }
+}

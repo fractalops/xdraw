@@ -1,0 +1,16 @@
+diagram "Migration states" {
+  lane state "Dataset" {
+    layout row gap 50
+    source: card "Production" info {
+      body "Pinned source version"
+    }
+    candidate: card "Candidate" warning {
+      body "Transformation complete"
+    }
+    verified: card "Verified" success {
+      body "Evidence published"
+    }
+    source -> candidate "migrate"
+    candidate -> verified "compare" [success]
+  }
+}

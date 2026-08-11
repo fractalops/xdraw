@@ -1,0 +1,10 @@
+diagram "Layered graph" {
+  layout layered gap 28
+  request: person "Request"
+  api: system "API"
+  worker: system "Worker"
+  records: database "Records"
+  request -> api
+  api -> worker
+  worker -> records
+}

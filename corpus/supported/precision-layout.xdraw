@@ -1,0 +1,5 @@
+diagram "Deployment topology" {
+  gateway: card "Gateway" at (80, 120) size (220, 100)
+  api: card "API" at (420, 120) size (220, 100)
+  gateway.east -> api.west "HTTPS"
+}

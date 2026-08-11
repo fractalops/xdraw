@@ -1,0 +1,136 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import {
+  Drawing,
+  FONT,
+  alignBounds,
+  arrow,
+  box,
+  boundText,
+  card,
+  connect,
+  distributeBounds,
+  rectangle,
+  row,
+  text,
+  wrapText,
+} from "../src/index.js";
+import { measureTextWidth, wrapTextToWidth } from "../src/text-metrics.js";
+
+test("text defaults to the code font", () => {
+  const element = text("label", { x: 10, y: 20 }, "Hello");
+  assert.equal(element.fontFamily, FONT.code);
+});
+
+test("arrows default to XDraw's solid flow arrowhead", () => {
+  const element = arrow("flow", [0, 0], [100, 0]);
+  assert.equal(element.strokeStyle, "solid");
+  assert.equal(element.endArrowhead, "triangle");
+});
+
+test("arrows preserve an explicitly absent arrowhead", () => {
+  const element = arrow("lifeline", [0, 0], [0, 100], { endArrowhead: null });
+  assert.equal(element.endArrowhead, null);
+});
+
+test("connect composes an arrow and optional label", () => {
+  const from = box(0, 0, 100, 50);
+  const to = box(200, 0, 100, 50);
+  const elements = connect("edge", from, to, { label: "moves" });
+  assert.deepEqual(elements.map((element) => element.type), ["arrow", "text"]);
+  assert.equal(elements[0].points[1][0], 100);
+});
+
+test("wrapText splits long hyphenated labels", () => {
+  assert.equal(wrapText("Candidate-only", 10), "Candidate-\nonly");
+});
+
+test("wide Unicode text wraps by grapheme width", () => {
+  const width = 72;
+  const wrapped = wrapTextToWidth("日本語の説明🙂日本語", width, 18);
+  assert.ok(wrapped.includes("\n"));
+  assert.ok(wrapped.split("\n").every((line) => measureTextWidth(line, 18) <= width));
+});
+
+test("row creates equal deterministic boxes", () => {
+  assert.deepEqual(row(box(0, 0, 320, 50), 3, 10), [
+    box(0, 0, 100, 50),
+    box(110, 0, 100, 50),
+    box(220, 0, 100, 50),
+  ]);
+});
+
+test("alignBounds supports Excalidraw edge and center alignments", () => {
+  const bounds = [box(10, 20, 40, 30), box(100, 80, 20, 50)];
+  assert.deepEqual(alignBounds(bounds, "left").map((item) => item.x), [10, 10]);
+  assert.deepEqual(alignBounds(bounds, "right").map((item) => item.x + item.width), [120, 120]);
+  assert.deepEqual(alignBounds(bounds, "center-x").map((item) => item.x + item.width / 2), [65, 65]);
+  assert.deepEqual(alignBounds(bounds, "top").map((item) => item.y), [20, 20]);
+  assert.deepEqual(alignBounds(bounds, "bottom").map((item) => item.y + item.height), [130, 130]);
+  assert.deepEqual(alignBounds(bounds, "center-y").map((item) => item.y + item.height / 2), [75, 75]);
+});
+
+test("distributeBounds equalizes gaps and falls back to centers for overlaps", () => {
+  const horizontal = distributeBounds([
+    box(0, 0, 20, 10), box(90, 0, 40, 10), box(250, 0, 30, 10),
+  ], "x");
+  assert.equal(horizontal[1].x - (horizontal[0].x + horizontal[0].width), 95);
+  assert.equal(horizontal[2].x - (horizontal[1].x + horizontal[1].width), 95);
+
+  const overlapping = distributeBounds([
+    box(0, 0, 100, 10), box(30, 0, 100, 10), box(60, 0, 100, 10),
+  ], "x");
+  assert.deepEqual(overlapping.map((item) => item.x + item.width / 2), [50, 80, 110]);
+});
+
+test("card creates a frame with title and body", () => {
+  const elements = card("summary", box(0, 0, 300, 150), {
+    tone: "info",
+    title: "Result",
+    body: "The comparison completed.",
+  });
+  assert.deepEqual(elements.map((element) => element.id), [
+    "summary:frame",
+    "summary:title",
+    "summary:body",
+  ]);
+});
+
+test("boundText emits native container alignment metadata", () => {
+  const label = boundText("label", "shape", box(10, 20, 180, 80), "Bound label", {
+    textAlign: "right",
+    verticalAlign: "bottom",
+  });
+  assert.equal(label.containerId, "shape");
+  assert.equal(label.textAlign, "right");
+  assert.equal(label.verticalAlign, "bottom");
+  assert.equal(label.autoResize, true);
+  assert.ok(label.x + label.width <= 190);
+  assert.ok(label.y + label.height <= 100);
+});
+
+test("drawing rejects one-sided text bindings", () => {
+  const drawing = new Drawing().add(
+    rectangle("shape", box(0, 0, 100, 60)),
+    text("label", { x: 10, y: 10 }, "Label", { containerId: "shape" }),
+  );
+  assert.throws(() => drawing.toJSON(), /not registered by container/);
+});
+
+test("drawing output is deterministic and rejects duplicate ids", () => {
+  const first = new Drawing().add(text("one", { x: 0, y: 0 }, "One"));
+  const second = new Drawing().add(text("one", { x: 0, y: 0 }, "One"));
+  assert.deepEqual(first.toJSON(), second.toJSON());
+
+  const invalid = new Drawing().add(
+    text("duplicate", { x: 0, y: 0 }, "One"),
+    text("duplicate", { x: 10, y: 10 }, "Two"),
+  );
+  assert.throws(() => invalid.toJSON(), /duplicate element id/);
+});
+
+test("drawing rejects non-positive shape dimensions", () => {
+  const drawing = new Drawing().add(rectangle("bad", { x: 0, y: 0, width: -1, height: 20 }));
+  assert.throws(() => drawing.toJSON(), /must have positive width and height/);
+});

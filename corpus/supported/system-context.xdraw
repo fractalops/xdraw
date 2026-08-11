@@ -1,0 +1,10 @@
+diagram "Data platform context" {
+  analyst: person "Analyst"
+  group platform "Data platform" {
+    layout row gap 70
+    ingest: system "Ingestion"
+    warehouse: database "Warehouse"
+    ingest -> warehouse "loads"
+  }
+  analyst -> platform "verifies data"
+}

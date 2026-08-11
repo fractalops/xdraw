@@ -1,0 +1,10 @@
+diagram "Approval process" {
+  lane owner "Owner" { submit: card "Submit" }
+  lane reviewer "Reviewer" {
+    layout row gap 60
+    assess: decision "Assess"
+    approve: card "Approve" success
+    assess -> approve
+  }
+  submit.south -> assess.north "request review"
+}

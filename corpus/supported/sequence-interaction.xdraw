@@ -1,0 +1,10 @@
+diagram "Checkout interaction" {
+  sequence {
+    participant customer "Customer"
+    participant store "Store"
+    participant payment "Payment service"
+    customer -> store "Place order"
+    store -> payment "Authorize payment"
+    payment -> store "Payment approved"
+  }
+}

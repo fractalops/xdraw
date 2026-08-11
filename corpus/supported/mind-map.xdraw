@@ -1,0 +1,7 @@
+diagram "Language design" {
+  tree root "XDraw" {
+    branch syntax "Syntax" { leaf ids "Stable IDs"; leaf strings "Readable strings" }
+    branch layout "Layout" { leaf row "Rows"; leaf graph "Graphs" }
+    branch output "Output" { leaf excalidraw "Excalidraw"; leaf svg "SVG" }
+  }
+}

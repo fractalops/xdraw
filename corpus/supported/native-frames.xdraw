@@ -1,0 +1,11 @@
+diagram "Native frames" {
+  frame workspace "Workspace" [locked] {
+    request: person "Request"
+    service: system "Service"
+    request -> service
+    frame data "Data" {
+      records: database "Records"
+    }
+    service -> records
+  }
+}

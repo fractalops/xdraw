@@ -1,0 +1,10 @@
+diagram "Release gates" {
+  lane gates "Quality gates" {
+    layout row gap 30
+    build: card "Build" accent
+    unit: card "Unit" info
+    acceptance: card "Acceptance" warning
+    deploy: card "Deploy" success
+    build -> unit -> acceptance -> deploy
+  }
+}

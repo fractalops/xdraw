@@ -1,0 +1,20 @@
+[
+  { "id": "linear-flow", "status": "supported", "file": "supported/linear-flow.xdraw", "tests": ["row layout", "chained connection", "tones"] },
+  { "id": "migration-states", "status": "supported", "file": "supported/migration-states.xdraw", "tests": ["multiline body", "labelled connection", "semantic status"] },
+  { "id": "incident-response", "status": "supported", "file": "supported/incident-response.xdraw", "tests": ["four nodes", "danger and warning tones", "dashed connection"] },
+  { "id": "data-pipeline", "status": "supported", "file": "supported/data-pipeline.xdraw", "tests": ["data flow", "connection labels", "multiple lanes"] },
+  { "id": "decision-path", "status": "supported", "file": "supported/decision-path.xdraw", "tests": ["branch represented as lanes", "decision outcomes"] },
+  { "id": "release-gates", "status": "supported", "file": "supported/release-gates.xdraw", "tests": ["quality gates", "compact cards", "accent tone"] },
+  { "id": "sequence-interaction", "status": "supported", "file": "supported/sequence-interaction.xdraw", "tests": ["participants", "ordered messages", "vertical lifelines"] },
+  { "id": "mind-map", "status": "supported", "file": "supported/mind-map.xdraw", "tests": ["tree layout", "recursive branches"] },
+  { "id": "system-context", "status": "supported", "file": "supported/system-context.xdraw", "tests": ["nested groups", "system and person node kinds"] },
+  { "id": "swimlane-process", "status": "supported", "file": "supported/swimlane-process.xdraw", "tests": ["cross-lane connections", "explicit ports"] },
+  { "id": "annotated-investigation", "status": "supported", "file": "supported/annotated-investigation.xdraw", "tests": ["notes", "callouts", "attachment anchors"] },
+  { "id": "precision-layout", "status": "supported", "file": "supported/precision-layout.xdraw", "tests": ["explicit placement", "size escape hatch", "ports"] },
+  { "id": "styled-elements", "status": "supported", "file": "supported/styled-elements.xdraw", "tests": ["named styles", "style precedence", "ellipse", "text controls", "link and lock"] },
+  { "id": "native-frames", "status": "supported", "file": "supported/native-frames.xdraw", "tests": ["native frame elements", "nested membership", "locking", "cross-frame connectors"] },
+  { "id": "layered-graph", "status": "supported", "file": "supported/layered-graph.xdraw", "tests": ["general layered layout", "deterministic ranks", "flat graph routing"] },
+  { "id": "connector-depth", "status": "supported", "file": "supported/connector-depth.xdraw", "tests": ["explicit waypoints", "endpoint labels", "semantic junction"] },
+  { "id": "reusable-components", "status": "supported", "file": "supported/reusable-components.xdraw", "tests": ["three reusable definitions", "parameter binding", "hygienic identifiers"] },
+  { "id": "portable-assets", "status": "supported", "file": "supported/portable-assets.xdraw", "tests": ["local asset", "offline file embedding", "image and icon"] }
+]

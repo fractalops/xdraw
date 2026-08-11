@@ -1,0 +1,13 @@
+diagram "Release decision" {
+  lane assess "Assessment" {
+    layout row gap 70
+    evidence: card "Evidence" info
+    decision: card "Review" warning
+    evidence -> decision
+  }
+  lane outcomes "Outcomes" {
+    layout row gap 70
+    hold: card "Hold" danger
+    release: card "Release" success
+  }
+}

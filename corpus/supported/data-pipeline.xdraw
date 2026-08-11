@@ -1,0 +1,15 @@
+diagram "Data pipeline" {
+  subtitle "Two independently readable stages"
+  lane ingest "Ingestion" {
+    layout row gap 80
+    source: card "Source" info
+    raw: card "Raw" neutral
+    source -> raw "load"
+  }
+  lane transform "Transformation" {
+    layout row gap 80
+    enriched: card "Enriched" warning
+    curated: card "Curated" success
+    enriched -> curated "publish"
+  }
+}

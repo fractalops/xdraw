@@ -1,0 +1,21 @@
+diagram "Styled elements" {
+  theme {
+    font-family normal
+  }
+
+  style focus {
+    stroke "#059669"
+    background "#ecfdf5"
+    text "#065f46"
+    title-size 21
+  }
+
+  lane examples "Examples" {
+    layout row gap 48
+    source: system "Source system"
+    target: ellipse "Verified target" [style=focus, link="https://example.com", locked]
+    source -> target "verified"
+  }
+
+  text caption "Named styles and local controls share one precedence model." at (110, 360) [font-family=normal, font-size=16, wrap-width=520, auto-size=false]
+}

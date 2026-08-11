@@ -1,0 +1,19 @@
+diagram "Reusable components" {
+  component service(name) {
+    api: system "{name} API"
+    store: database "{name} store"
+    api -> store
+  }
+  component actor(name) {
+    user: person "{name}"
+  }
+  component queue(name) {
+    broker: ellipse "{name} queue"
+  }
+  use service orders [name="Orders"]
+  use service claims [name="Claims"]
+  use actor customer [name="Customer"]
+  use actor operator [name="Operator"]
+  use queue commands [name="Commands"]
+  use queue events [name="Events"]
+}

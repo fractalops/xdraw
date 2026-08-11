@@ -1,0 +1,10 @@
+diagram "Request lifecycle" {
+  subtitle "A compact end-to-end flow"
+  lane flow "Processing" {
+    layout row gap 55
+    request: card "Request" info
+    validate: card "Validate" warning
+    publish: card "Publish" success
+    request -> validate -> publish
+  }
+}
