@@ -1,3 +1,5 @@
+import { generateNKeysBetween } from "fractional-indexing";
+
 import { nonceFor } from "./identity.js";
 import { tone } from "./components.js";
 
@@ -39,13 +41,23 @@ function sceneId(value) {
   return id;
 }
 
-function taggedDrawing(drawing) {
+function taggedDrawing(drawing, { afterIndex = null } = {}) {
   const result = structuredClone(drawing);
-  result.elements = (result.elements ?? []).map((element) => ({
+  const elements = result.elements ?? [];
+  const indices = generateNKeysBetween(afterIndex, null, elements.length);
+  result.elements = elements.map((element, position) => ({
     ...element,
+    index: indices[position],
     customData: { ...(element.customData ?? {}), xdrawId: element.id },
   }));
   return result;
+}
+
+function lastOrderingKey(elements) {
+  const indices = elements
+    .map((element) => element.index)
+    .filter((index) => typeof index === "string" && index.length > 0);
+  return indices.length ? indices.sort().at(-1) : null;
 }
 
 function semanticElement(content, target) {
@@ -227,7 +239,9 @@ export class ExcalidrawApiClient {
       semanticUpdates(content, semanticElement(content, target), properties)
     ));
     const removed = deletes.flatMap((target) => deletionElements(content, semanticElement(content, target)));
-    const additions = drawing ? taggedDrawing(drawing) : undefined;
+    const additions = drawing
+      ? taggedDrawing(drawing, { afterIndex: lastOrderingKey(content.elements) })
+      : undefined;
     const existingIds = new Set(content.elements.map((item) => item.id));
     const collision = additions?.elements.find((item) => existingIds.has(item.id));
     if (collision) throw new Error(`added XDraw element '${collision.id}' already exists in the scene`);

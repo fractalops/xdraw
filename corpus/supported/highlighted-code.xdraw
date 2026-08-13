@@ -1,0 +1,13 @@
+diagram "Highlighted code" {
+  subtitle "Editable source with token-level color"
+
+  query: code """
+    SELECT status, COUNT(*) AS total
+    FROM jobs
+    GROUP BY status
+  """ {
+    title "Job totals"
+    language sql
+    highlight true
+  }
+}

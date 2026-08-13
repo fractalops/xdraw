@@ -5,6 +5,8 @@ import {
   wrapTextToWidth,
 } from "./text-metrics.js";
 import { layoutGap } from "./clearances.js";
+import { codeBlockRequiredWidth, measureCodeBlock } from "./code-block.js";
+import { arrangedItems, childSections } from "./layout-items.js";
 
 function bodyOf(node) {
   return node.statements?.find((item) => item.type === "body")?.value;
@@ -12,10 +14,6 @@ function bodyOf(node) {
 
 function nodeStatements(statements) {
   return statements.filter((item) => item.type === "node");
-}
-
-function childSections(statements) {
-  return statements.filter((item) => ["group", "lane", "frame", "tree", "sequence"].includes(item.type));
 }
 
 function connectionLabels(connection) {
@@ -28,6 +26,9 @@ export function resolveContainerGap(node, layout, diagnostics = null) {
   const connections = node.statements.filter((item) => item.type === "connection");
   if (!connections.length) return requested;
   const labels = connections.flatMap(connectionLabels);
+  if (!labels.length && layout?.ownsChildren) {
+    return Math.max(requested, layout.kind === "column" ? 36 : 40);
+  }
   if (layout?.kind === "column") {
     const labelHeight = labels.reduce((height, label) => {
       const width = measureConnectorLabelWidth(label);
@@ -65,6 +66,43 @@ export function calculateRowPlan(totalWidth, count, gap, label, minimumWidth = 1
     rows: Math.ceil(count / columns),
     slotWidth: calculateSlotWidth(totalWidth, columns, gap, label),
   };
+}
+
+function arrangedItemMinimumWidth(item) {
+  if (item.size?.[0]) return item.size[0];
+  if (item.type === "layout-text") {
+    return item.width ?? Math.min(220, Math.max(100, String(item.value).length * 10 + 20));
+  }
+  if (item.type === "code") return codeBlockRequiredWidth(item);
+  return 120;
+}
+
+function completeArrangedRow(totalWidth, gap, items, minimums) {
+  const required = minimums.reduce((sum, width) => sum + width, 0) + gap * Math.max(0, items.length - 1);
+  const extra = Math.max(0, totalWidth - required) / items.length;
+  return { items, widths: minimums.map((width) => width + extra) };
+}
+
+export function calculateArrangedRows(totalWidth, items, gap) {
+  const rows = [];
+  let rowItems = [];
+  let minimums = [];
+  let used = 0;
+  for (const item of items) {
+    const minimum = Math.min(totalWidth, arrangedItemMinimumWidth(item));
+    const required = minimum + (rowItems.length ? gap : 0);
+    if (rowItems.length && used + required > totalWidth) {
+      rows.push(completeArrangedRow(totalWidth, gap, rowItems, minimums));
+      rowItems = [];
+      minimums = [];
+      used = 0;
+    }
+    rowItems.push(item);
+    minimums.push(minimum);
+    used += minimum + (rowItems.length > 1 ? gap : 0);
+  }
+  if (rowItems.length) rows.push(completeArrangedRow(totalWidth, gap, rowItems, minimums));
+  return rows;
 }
 
 function nodeMinimumHeight(node) {
@@ -105,6 +143,15 @@ export function createMeasurer(styles = null) {
     }, width);
   });
 
+  const measureLayoutText = (statement, width) => {
+    const style = styles?.resolveText(statement) ?? {};
+    const fontSize = style.fontSize ?? statement.fontSize ?? 18;
+    const lineHeight = style.lineHeight ?? 1.25;
+    const wrapWidth = Math.min(statement.width ?? style.wrapWidth ?? width, width);
+    const lines = wrapTextToWidth(statement.value, wrapWidth, fontSize, style.fontFamily).split("\n").length;
+    return Math.max(fontSize * lineHeight, lines * fontSize * lineHeight);
+  };
+
   const measureTree = (tree, width) => {
     const levels = new Map();
     const visit = (node, depth = 0) => {
@@ -114,10 +161,21 @@ export function createMeasurer(styles = null) {
       node.statements?.forEach((child) => visit(child, depth + 1));
     };
     visit(tree);
+    const direction = tree.direction ?? "down";
+    const siblingGap = tree.siblingGap ?? 45;
+    const levelGap = tree.levelGap ?? 45;
+    if (direction === "right") {
+      const slotWidth = calculateSlotWidth(width - 90, levels.size, levelGap, "tree levels", 120);
+      const height = Math.max(...[...levels].map(([, items]) => {
+        const itemHeight = Math.max(...items.map((item) => measureNode(item, slotWidth)));
+        return items.length * itemHeight + Math.max(0, items.length - 1) * siblingGap;
+      }));
+      return Math.max(320, 125 + height);
+    }
     return 95 + [...levels].reduce((sum, [depth, items]) => {
-      const slotWidth = calculateSlotWidth(width - 90, items.length, 45, `tree level ${depth}`);
+      const slotWidth = calculateSlotWidth(width - 90, items.length, siblingGap, `tree level ${depth}`);
       const height = Math.max(...items.map((item) => measureNode(item, slotWidth)));
-      return sum + height + 45;
+      return sum + height + levelGap;
     }, 0);
   };
 
@@ -132,9 +190,17 @@ export function createMeasurer(styles = null) {
   };
 
   const measureSection = (section, width, y = 0) => {
+    if (section.type === "code") return measureCodeBlock(section);
     if (section.type === "tree") return measureTree(section, width);
     if (section.type === "sequence") return measureSequence(section, width);
     return measureContainer(section, width, y);
+  };
+
+  const measureArrangedItem = (item, width, y) => {
+    if (item.type === "node") return measureNode(item, item.size?.[0] ?? width);
+    if (item.type === "layout-text") return measureLayoutText(item, width);
+    if (item.type === "code") return measureCodeBlock(item);
+    return measureSection(item, width, y);
   };
 
   const measureContainer = (node, width, y = 0) => cached(containerCache, node, `${width}:${y}`, () => {
@@ -150,6 +216,31 @@ export function createMeasurer(styles = null) {
       return Math.max(bottom, item.at[1] + itemHeight - y);
     }, 0);
     const automaticStart = explicit.length ? Math.max(76, explicitBottom + gap) : 76;
+    if (layout?.ownsChildren) {
+      const items = arrangedItems(node.statements);
+      let arrangedHeight = 0;
+      if (items.length && layout.kind === "column") {
+        arrangedHeight = items.reduce((sum, item, itemIndex) => (
+          sum + measureArrangedItem(item, item.size?.[0] ?? contentWidth, y + automaticStart + sum)
+          + (itemIndex < items.length - 1 ? gap : 0)
+        ), 0);
+      } else if (items.length) {
+        const rows = calculateArrangedRows(contentWidth, items, gap);
+        for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+          const row = rows[rowIndex];
+          arrangedHeight += Math.max(...row.items.map((item, itemIndex) => (
+            measureArrangedItem(item, row.widths[itemIndex], y + automaticStart + arrangedHeight)
+          )));
+          if (rowIndex < rows.length - 1) arrangedHeight += gap;
+        }
+      }
+      const contentBottom = Math.max(
+        88,
+        explicitBottom + (explicit.length ? 24 : 0),
+        automaticStart + arrangedHeight + (items.length ? 35 : 0),
+      );
+      return Math.max(220, contentBottom);
+    }
     let nodeHeight = 0;
     if (automatic.length) {
       if (layout?.kind === "column") {
@@ -185,5 +276,15 @@ export function createMeasurer(styles = null) {
     return Math.max(220, contentBottom + childrenHeight + noteHeight);
   });
 
-  return { measureNode, measureContainer, measureSection, measureSequence, measureTree, stats };
+  return {
+    measureNode,
+    measureLayoutText,
+    measureArrangedItem,
+    measureCodeBlock,
+    measureContainer,
+    measureSection,
+    measureSequence,
+    measureTree,
+    stats,
+  };
 }

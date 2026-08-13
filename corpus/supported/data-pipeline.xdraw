@@ -1,15 +1,23 @@
+use "xdraw/palette" as palette
+use "xdraw/process" as process
+use "xdraw/cards" as cards
+
 diagram "Data pipeline" {
   subtitle "Two independently readable stages"
-  lane ingest "Ingestion" {
-    layout row gap 80
-    source: card "Source" info
-    raw: card "Raw" neutral
-    source -> raw "load"
+
+  ingest: process.lane "Ingestion" {
+    arrange row { gap 80 }
+
+    source: cards.card "Source" { style palette.info }
+    raw: cards.card "Raw" { style palette.neutral }
+    load: source -> raw "load"
   }
-  lane transform "Transformation" {
-    layout row gap 80
-    enriched: card "Enriched" warning
-    curated: card "Curated" success
-    enriched -> curated "publish"
+
+  transform: process.lane "Transformation" {
+    arrange row { gap 80 }
+
+    enriched: cards.card "Enriched" { style palette.warning }
+    curated: cards.card "Curated" { style palette.success }
+    publish: enriched -> curated "publish"
   }
 }

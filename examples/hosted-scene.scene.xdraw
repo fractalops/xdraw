@@ -1,9 +1,10 @@
 scene excalidraw::default::architecture::system_overview {
   replace {
+    use "xdraw/architecture" as arch
     diagram "System overview" {
-      browser: person "User"
-      api: system "API"
-      data: database "Data"
+      browser: arch.person "User"
+      api: arch.system "API"
+      data: arch.database "Data"
       browser -> api "request"
       api -> data "query"
     }

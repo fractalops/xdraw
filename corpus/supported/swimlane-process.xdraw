@@ -1,10 +1,19 @@
+use "xdraw/palette" as palette
+use "xdraw/process" as process
+use "xdraw/cards" as cards
+
 diagram "Approval process" {
-  lane owner "Owner" { submit: card "Submit" }
-  lane reviewer "Reviewer" {
-    layout row gap 60
-    assess: decision "Assess"
-    approve: card "Approve" success
-    assess -> approve
+  owner: process.lane "Owner" {
+    submit: cards.card "Submit"
   }
-  submit.south -> assess.north "request review"
+
+  reviewer: process.lane "Reviewer" {
+    arrange row { gap 60 }
+
+    assess: diamond "Assess"
+    approve: cards.card "Approve" { style palette.success }
+    accepted: assess -> approve "yes"
+  }
+
+  review_request: owner.submit@bottom -> reviewer.assess@top "request review"
 }

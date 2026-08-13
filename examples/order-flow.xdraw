@@ -1,7 +1,9 @@
+use "xdraw/architecture" as arch
+
 diagram "Order flow" {
-  customer: person "Customer"
-  api: system "Orders API"
-  store: database "Order data"
+  customer: arch.person "Customer"
+  api: arch.system "Orders API"
+  store: arch.database "Order data"
 
   customer -> api "places order"
   api -> store "saves"

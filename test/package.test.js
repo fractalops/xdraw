@@ -17,7 +17,7 @@ test("packed package installs a working xdraw executable", async () => {
   const packed = JSON.parse((await execute(
     "npm", ["pack", "--json", "--ignore-scripts", "--pack-destination", directory], { cwd: root },
   )).stdout)[0];
-  assert.ok(packed.files.every((file) => ["LICENSE", "README.md", "package.json", "bin/", "lib/", "examples/", "docs/language-reference.md"]
+  assert.ok(packed.files.every((file) => ["LICENSE", "README.md", "package.json", "bin/", "lib/", "examples/", "docs/"]
     .some((prefix) => file.path === prefix || file.path.startsWith(prefix))));
   assert.ok(packed.files.some((file) => file.path === "LICENSE"));
   assert.ok(packed.files.some((file) => file.path === "lib/compiler.js"));
@@ -31,7 +31,8 @@ test("packed package installs a working xdraw executable", async () => {
 
   const prefix = join(directory, "installed");
   await execute("npm", [
-    "install", "--prefix", prefix, "--ignore-scripts", "--no-audit", "--no-fund", join(directory, packed.filename),
+    "install", "--prefix", prefix, "--ignore-scripts", "--no-audit", "--no-fund",
+    "--install-strategy=nested", join(directory, packed.filename),
   ]);
   const executable = join(prefix, "node_modules", ".bin", "xdraw");
   assert.equal((await execute(executable, ["--version"])).stdout.trim(), "xdraw 0.1.0");
@@ -42,7 +43,13 @@ test("packed package installs a working xdraw executable", async () => {
   ], { cwd: prefix });
 
   const source = join(directory, "installed-example.xdraw");
-  await writeFile(source, 'source: card "Source"; target: card "Target"; source -> target');
+  await writeFile(source, 'diagram "Installed" { source: rectangle "Source"; target: rectangle "Target"; source -> target }');
   await execute(executable, ["build", source]);
   assert.equal(JSON.parse(await readFile(join(dirname(source), "installed-example.excalidraw"), "utf8")).type, "excalidraw");
+
+  const highlighted = join(directory, "installed-highlighted.xdraw");
+  await writeFile(highlighted, 'diagram "Installed" { source: code "const value = 42" { language typescript; highlight true } }');
+  await execute(executable, ["build", highlighted]);
+  const highlightedDrawing = JSON.parse(await readFile(join(dirname(highlighted), "installed-highlighted.excalidraw"), "utf8"));
+  assert.ok(highlightedDrawing.elements.some((element) => element.id.startsWith("source:source:")));
 });

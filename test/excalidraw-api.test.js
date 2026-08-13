@@ -121,6 +121,30 @@ test("replace creates a missing scene and PUTs the complete tagged drawing", asy
   assert.equal(remote.calls.at(-1).body.elements[0].customData.xdrawId, "api");
 });
 
+test("replace assigns deterministic Excalidraw ordering keys", async () => {
+  const remote = fakeFetch([
+    ...inventoryRoutes(),
+    {
+      method: "POST",
+      path: "/api/v1/scenes",
+      payload: { metadata: { id: "scene-new" } },
+    },
+    { method: "PUT", path: "/api/v1/scenes/scene-new/content", payload: {} },
+  ]);
+  const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
+  await client.applyReplace(resource(), drawing([
+    { id: "first", type: "rectangle", index: "stale" },
+    { id: "second", type: "rectangle" },
+    { id: "third", type: "rectangle" },
+  ]));
+
+  const indices = remote.calls.at(-1).body.elements.map((element) => element.index);
+  assert.ok(indices.every((index) => typeof index === "string" && index.length > 0));
+  assert.deepEqual(indices, [...indices].sort());
+  assert.equal(new Set(indices).size, indices.length);
+  assert.notEqual(indices[0], "stale");
+});
+
 test("replace resolves normalized scene names and never reads existing content", async () => {
   const remote = fakeFetch([
     ...inventoryRoutes([{ metadata: { id: "scene-1", name: "System overview" } }]),
@@ -204,6 +228,29 @@ test("add rejects collisions with live or deleted historical element IDs", async
     () => client.applyPatch(resource(), { drawing: drawing([{ id: "review", type: "text", version: 1 }]) }),
     /already exists in the scene/,
   );
+});
+
+test("patch additions receive ordering keys after the existing scene", async () => {
+  const content = drawing([
+    { id: "existing-a", type: "rectangle", version: 1, index: "a0" },
+    { id: "existing-b", type: "rectangle", version: 1, index: "a1" },
+  ]);
+  const remote = fakeFetch([
+    ...inventoryRoutes([{ metadata: { id: "scene-1", name: "System overview" } }]),
+    { method: "GET", path: "/api/v1/scenes/scene-1/content", payload: content },
+    { method: "PATCH", path: "/api/v1/scenes/scene-1/content", payload: {} },
+  ]);
+  const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
+  await client.applyPatch(resource(), {
+    drawing: drawing([
+      { id: "added-a", type: "ellipse", version: 1 },
+      { id: "added-b", type: "text", version: 1 },
+    ]),
+  });
+
+  const additions = remote.calls.at(-1).body.elements;
+  assert.ok(additions[0].index > "a1");
+  assert.ok(additions[1].index > additions[0].index);
 });
 
 test("pull returns editable scene content without mutation", async () => {

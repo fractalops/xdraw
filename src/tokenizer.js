@@ -1,4 +1,4 @@
-const SYMBOLS = new Set(["{", "}", "[", "]", "(", ")", ":", ",", ";", "="]);
+const SYMBOLS = new Set(["{", "}", "(", ")", ":", ",", ";", "@", "$"]);
 
 function lineStarts(source) {
   const starts = [0];
@@ -62,6 +62,11 @@ export function tokenize(source) {
     }
     if (source.startsWith("->", offset)) {
       tokens.push(token(source, starts, "arrow", "->", offset, offset + 2));
+      offset += 2;
+      continue;
+    }
+    if (source.startsWith("--", offset)) {
+      tokens.push(token(source, starts, "line", "--", offset, offset + 2));
       offset += 2;
       continue;
     }

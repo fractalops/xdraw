@@ -137,3 +137,24 @@ export function arrow(id, start, end, options = {}) {
   }
   return element;
 }
+
+export function freedraw(id, at, inputPoints, options = {}) {
+  const absolutePoints = inputPoints.map(([x, y]) => [at[0] + x, at[1] + y]);
+  const xs = absolutePoints.map(([x]) => x);
+  const ys = absolutePoints.map(([, y]) => y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  const points = absolutePoints.map(([pointX, pointY]) => [pointX - x, pointY - y]);
+  return {
+    ...baseElement(id, "freedraw", {
+      x,
+      y,
+      width: Math.max(...xs) - x,
+      height: Math.max(...ys) - y,
+    }, { ...options, roundness: false }),
+    points,
+    pressures: options.pressures ?? [],
+    simulatePressure: options.simulatePressure ?? true,
+    lastCommittedPoint: null,
+  };
+}

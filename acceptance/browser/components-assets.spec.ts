@@ -1,27 +1,20 @@
-import { readFile } from "node:fs/promises";
-
-import { expect, test, type FrameLocator, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { endpointLabelBounds } from "../../src/connector-labels.js";
-
-async function downloadDrawing(page: Page, app: FrameLocator) {
-  const pending = page.waitForEvent("download");
-  await app.getByRole("button", { name: "Download" }).click();
-  const download = await pending;
-  const file = await download.path();
-  if (!file) throw new Error("download did not produce a local file");
-  return JSON.parse(await readFile(file, "utf8"));
-}
+import { downloadDrawing, openDiagram } from "./helpers";
 
 test("renders reusable components and movable waypoint labels", async ({ page }) => {
-  const source = `diagram "Reusable connector" {
-    component service(name) { node: system "{name}" }
-    use service source [name="Source"]
-    use service target [name="Target"]
-    source.node.east -> target.node.west "calls" [via="420,180;480,180", start-label="caller", end-label="callee"]
+  const source = `use "xdraw/architecture" as arch
+  diagram "Reusable connector" {
+    service: component(name) { node: arch.system "\${name}" }
+    source: service("Source")
+    target: service("Target")
+    source.node@right -> target.node@left "calls" {
+      via ((420, 180), (480, 180))
+      start-label "caller"
+      end-label "callee"
+    }
   }`;
-  await page.goto(`http://127.0.0.1:4173/host.html?source=${encodeURIComponent(source)}`);
-  await expect(page.locator("#status")).toHaveAttribute("data-phase", "ready");
-  const app = page.frameLocator("#app");
+  const app = await openDiagram(page, source);
   const before = await downloadDrawing(page, app);
   const arrow = before.elements.find((item: any) => item.id === "document:connection:0:0");
   const startLabel = before.elements.find((item: any) => item.id === `${arrow.id}:start-label`);
@@ -65,10 +58,11 @@ test("renders reusable components and movable waypoint labels", async ({ page })
 test("renders an embedded image without network access", async ({ page }) => {
   const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60"><rect width="120" height="60" fill="#2563eb"/></svg>';
   const data = `data:image/svg+xml,${encodeURIComponent(svg)}`;
-  const source = `diagram "Offline image" { asset mark "${data}"; image hero mark at (100,100) size (360,180) [alt="Blue mark"] }`;
-  await page.goto(`http://127.0.0.1:4173/host.html?source=${encodeURIComponent(source)}`);
-  await expect(page.locator("#status")).toHaveAttribute("data-phase", "ready");
-  const app = page.frameLocator("#app");
+  const source = `diagram "Offline image" {
+    mark: asset "${data}"
+    hero: image(mark) { at (100, 100); size (360, 180); alt "Blue mark" }
+  }`;
+  const app = await openDiagram(page, source);
   const drawing = await downloadDrawing(page, app);
   expect(Object.keys(drawing.files)).toHaveLength(1);
   expect(drawing.elements.find((item: any) => item.id === "hero").type).toBe("image");

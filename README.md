@@ -1,19 +1,22 @@
-# XDraw
+<p align="center">
+  <img src="docs/images/xdraw-logo.png" alt="XDraw" width="620">
+</p>
 
-XDraw turns concise text into editable Excalidraw diagrams.
+<p align="center">
+  Describe diagrams in text. Keep editing them in Excalidraw.
+</p>
 
-```xdraw
-diagram "Order flow" {
-  customer: person "Customer"
-  api: system "Orders API"
-  store: database "Order data"
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#language">Language</a> ·
+  <a href="#hosted-scenes">Hosted scenes</a> ·
+  <a href="docs/language-reference.md">Reference</a>
+</p>
 
-  customer -> api "places order"
-  api -> store "saves"
-}
-```
+XDraw compiles a small, readable language into editable `.excalidraw` files,
+PNG previews, and SVG previews.
 
-## Install
+## Quick Start
 
 XDraw requires Node.js 22.18 or newer.
 
@@ -22,145 +25,69 @@ git clone https://github.com/fractalops/xdraw.git
 cd xdraw
 npm install
 npm link
-xdraw --version
 ```
 
-## Build a Diagram
+Create `order-flow.xdraw`:
 
-Save the example above as `order-flow.xdraw`, then run:
+```xdraw
+use "xdraw/architecture" as arch
+
+diagram "Order flow" {
+  customer: arch.person "Customer"
+  api: arch.system "Orders API"
+  store: arch.database "Order data"
+
+  customer -> api "places order"
+  api -> store "saves"
+}
+```
+
+Build it:
 
 ```bash
-xdraw check order-flow.xdraw
 xdraw build order-flow.xdraw
 ```
 
-`check` validates the source without writing output. `build` creates
-`order-flow.excalidraw` beside the source file. Open it in
+This creates `order-flow.excalidraw` beside the source. Open it in
 [Excalidraw](https://excalidraw.com) to continue editing.
 
-Choose another output path with `-o` or `--output`:
+Use `-o` to create a preview or choose another destination:
 
 ```bash
-xdraw build order-flow.xdraw -o ~/Desktop/order-flow.excalidraw
+xdraw build order-flow.xdraw -o output/order-flow.png
+cat order-flow.xdraw | xdraw build -o output/order-flow.excalidraw
 ```
 
-## Input and Output
+## Language
 
-XDraw accepts files, standard input, and inline expressions:
+The declaration form, core primitives, and composition rules fit on one
+runnable cheatsheet:
+
+![XDraw quick reference](docs/images/readme-cheatsheet.png)
 
 ```bash
-cat order-flow.xdraw | xdraw build -o order-flow.excalidraw
-xdraw build < order-flow.xdraw > order-flow.excalidraw
-xdraw build -e 'a: card "Source"; b: card "Target"; a -> b' -o quick.excalidraw
+xdraw build examples/readme-cheatsheet.xdraw
 ```
 
-Use `-o -` to write generated Excalidraw JSON to standard output.
+Continue with the [full cheatsheet](examples/xdraw-cheatsheet.xdraw), browse
+the runnable [`examples/`](examples/), or read the
+[language reference](docs/language-reference.md).
 
-## Language Tour
+## Hosted Scenes
 
-Group related nodes in a frame:
-
-```xdraw
-diagram "Platform" {
-  frame platform "Platform" {
-    web: system "Web app"
-    api: system "API"
-    web -> api
-  }
-}
-```
-
-Model a decision:
-
-```xdraw
-diagram "Release decision" {
-  request: card "Request"
-  approved: decision "Approved?" {
-    when "yes" -> release
-    when "no" -> revise
-  }
-  release: card "Release" success
-  revise: card "Revise" warning
-  request -> approved
-}
-```
-
-Reuse a component:
-
-```xdraw
-diagram "Services" {
-  component service(name) {
-    api: system "{name} API"
-    data: database "{name} data"
-    api -> data
-  }
-
-  use service orders [name="Orders"]
-  use service billing [name="Billing"]
-}
-```
-
-See the [language reference](docs/language-reference.md) for the complete
-syntax. The files in [`examples/`](examples/) are complete and buildable.
-
-## Excalidraw+
-
-XDraw can replace or selectively update hosted Excalidraw+ scenes through the
-Excalidraw+ REST API. Set a personal API key with scene, collection, and
-content read/write permissions:
+XDraw can replace a complete Excalidraw+ scene or patch elements identified by
+stable XDraw IDs while preserving unrelated canvas edits.
 
 ```bash
 export EXCALIDRAW_API_KEY="your-api-key"
-```
-
-Create `architecture.scene.xdraw`:
-
-```xdraw
-scene excalidraw::default::architecture::system_overview {
-  replace {
-    diagram "System overview" {
-      api: system "API"
-      data: database "Data"
-      api -> data
-    }
-  }
-}
-```
-
-Apply it:
-
-```bash
 xdraw apply architecture.scene.xdraw
+xdraw pull <scene-id> -o output/architecture.excalidraw
 ```
 
-After replacement, a patch can update known DSL IDs while preserving unrelated
-elements and manual canvas edits:
+See the [Excalidraw+ guide](docs/excalidraw-plus-integration.md) for scene
+documents, patching, permissions, and API configuration.
 
-```xdraw
-scene excalidraw::default::architecture::system_overview {
-  patch {
-    update api {
-      tone warning
-      title "API v2"
-    }
-    add {
-      note review "Requires review" at (80, 80)
-    }
-  }
-}
-```
-
-Download or preview a hosted scene using the scene ID returned by `apply`:
-
-```bash
-xdraw pull <scene-id> -o architecture.excalidraw
-xdraw inspect <scene-id> -o architecture.png
-xdraw inspect <scene-id> -o architecture.svg
-```
-
-The Excalidraw+ REST API is public beta and may change.
-
-## Commands
+## CLI
 
 ```text
 xdraw build [<file>|-] [-o <output>]
@@ -168,12 +95,20 @@ xdraw check [<file>|-]
 xdraw apply [<file>|-]
 xdraw pull <scene-id> [-o <output>]
 xdraw inspect <scene-id> [-o <png|svg>]
-xdraw --help
-xdraw --version
 ```
 
-`build`, `check`, and `apply` also accept `-e <source>`. Errors go to standard
-error and return a non-zero exit code.
+`build`, `check`, and `apply` accept files, standard input, or inline source
+with `-e`. Run `xdraw --help` for all options.
+
+## Acknowledgements
+
+XDraw builds on [Excalidraw](https://github.com/excalidraw/excalidraw) and its
+open scene format. Automatic layout is powered by
+[ELK](https://github.com/kieler/elkjs), code highlighting by
+[Shiki](https://github.com/shikijs/shiki), freehand geometry by
+[Perfect Freehand](https://github.com/steveruizok/perfect-freehand), and local
+preview rendering by [resvg-js](https://github.com/yisibl/resvg-js). Thanks to
+the maintainers and contributors of these projects.
 
 ## Development
 
@@ -182,9 +117,6 @@ npm run build
 npm run typecheck
 npm test
 npm run test:browser
-
-wrkflw validate .github/workflows/ci.yml
-wrkflw run --runtime emulation --job verify .github/workflows/ci.yml
 ```
 
 XDraw is available under the [MIT License](LICENSE).

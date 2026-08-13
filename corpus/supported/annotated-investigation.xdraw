@@ -1,7 +1,14 @@
+use "xdraw/annotations" as annotations
+use "xdraw/cards" as cards
+
 diagram "Investigation" {
-  source: card "Source snapshot"
-  target: card "Candidate output"
-  source -> target "compare"
-  note mismatch "Three records differ" at target.south
-  callout owner "Confirm expected semantics" -> mismatch
+  source: cards.card "Source snapshot"
+  target: cards.card "Candidate output"
+  compare: source -> target "compare"
+
+  mismatch: annotations.note "Three records differ" {
+    attach target@bottom
+  }
+  owner: annotations.callout "Confirm expected semantics"
+  assignment: owner -> mismatch
 }

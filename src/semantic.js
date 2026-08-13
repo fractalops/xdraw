@@ -1,11 +1,28 @@
+import { HIGHLIGHT_LANGUAGES } from "./language-registry.js";
+import {
+  MAX_CODE_LINE_CHARACTERS,
+  MAX_CODE_LINES,
+  MAX_CODE_SOURCE_CHARACTERS,
+} from "./code-policy.js";
+import {
+  hasValidFreedrawPoints,
+  hasValidFreedrawPressures,
+  isFinitePoint,
+  MAX_DOCUMENT_FREEDRAW_POINTS,
+  MAX_FREEDRAW_COORDINATE,
+  MAX_FREEDRAW_POINTS,
+} from "./freedraw-policy.js";
+
 const PORTS = new Set([
   "north", "south", "east", "west", "top", "bottom", "left", "right", "center",
 ]);
 
 const DEFINITIONS = new Set([
-  "lane", "group", "frame", "tree", "branch", "leaf", "participant", "note", "callout", "node", "text", "image", "icon",
+  "lane", "group", "frame", "tree", "branch", "leaf", "participant", "note", "callout", "node", "text", "layout-text", "code", "image", "icon", "freedraw",
 ]);
 const SPACING = new Set(["tight", "normal", "airy"]);
+const CODE_GEOMETRY_OPERATIONS = new Set(["alignment", "distribution", "offset", "snap"]);
+const FREEDRAW_GEOMETRY_OPERATIONS = new Set(["alignment", "distribution", "offset", "rotation", "snap"]);
 
 function endpointId(value, definitions) {
   if (definitions?.has(value)) return value;
@@ -135,6 +152,7 @@ export function validateSemanticDocument(document) {
   const references = [];
   const styles = new Map();
   let theme;
+  let freedrawPointCount = 0;
 
   collectStatements(document.statements, (statement, context) => {
     if (statement.type === "style") {
@@ -169,7 +187,9 @@ export function validateSemanticDocument(document) {
       references.push({ endpoint: statement.target, node: statement, kind: statement.type });
     }
     if (["alignment", "distribution", "offset", "match-size", "rotation", "snap"].includes(statement.type)) {
-      for (const id of statement.ids) references.push({ id, node: statement, kind: "geometry operation" });
+      for (const id of statement.ids) {
+        references.push({ id, node: statement, kind: "geometry operation", operation: statement.type });
+      }
       if (new Set(statement.ids).size !== statement.ids.length) {
         diagnostics.push(diagnostic("XD1101", `${statement.type} contains duplicate node ids`, statement));
       }
@@ -199,6 +219,9 @@ export function validateSemanticDocument(document) {
       if (statement.spacing !== undefined && statement.gap !== undefined) {
         diagnostics.push(diagnostic("XD1211", "layout may use spacing or gap, not both", statement));
       }
+      if (statement.width !== undefined && (!(statement.width > 0) || !Number.isFinite(statement.width))) {
+        diagnostics.push(diagnostic("XD1213", "layout width must be a positive finite number", statement));
+      }
     }
     if (statement.type === "note" && !statement.target && !statement.at && context !== "container") {
       diagnostics.push(diagnostic("XD1212", "an unanchored note must be declared inside a lane, group, or frame", statement));
@@ -224,6 +247,61 @@ export function validateSemanticDocument(document) {
     if (statement.type === "text" && statement.width !== undefined && !(statement.width > 0)) {
       diagnostics.push(diagnostic("XD1204", "text width must be positive", statement));
     }
+    if (statement.type === "code") {
+      if (typeof statement.value !== "string") {
+        diagnostics.push(diagnostic("XD1214", "code source must be text", statement));
+      }
+      if (statement.title !== undefined && typeof statement.title !== "string") {
+        diagnostics.push(diagnostic("XD1219", "code title must be text", statement));
+      }
+      if (typeof statement.lineNumbers !== "boolean") {
+        diagnostics.push(diagnostic("XD1215", "code line-numbers must be true or false", statement));
+      }
+      if (typeof statement.highlight !== "boolean") {
+        diagnostics.push(diagnostic("XD1216", "code highlight must be true or false", statement));
+      }
+      if (statement.highlight && !HIGHLIGHT_LANGUAGES.includes(statement.language)) {
+        diagnostics.push(diagnostic(
+          "XD1217",
+          "highlighted code language must be sql, typescript, or xdraw",
+          statement,
+        ));
+      }
+      if (typeof statement.value === "string") {
+        const lines = statement.value.split("\n");
+        if (statement.value.length > MAX_CODE_SOURCE_CHARACTERS
+            || lines.length > MAX_CODE_LINES
+            || lines.some((line) => line.length > MAX_CODE_LINE_CHARACTERS)) {
+          diagnostics.push(diagnostic("XD1218", "code source exceeds the supported size", statement));
+        }
+      }
+    }
+    if (statement.type === "freedraw") {
+      const points = statement.points;
+      if (!isFinitePoint(statement.at)) {
+        diagnostics.push(diagnostic("XD1220", "freedraw at must be a finite coordinate pair", statement));
+      }
+      if (!hasValidFreedrawPoints(points)) {
+        diagnostics.push(diagnostic("XD1221", "freedraw points must contain at least two finite coordinate pairs", statement));
+      } else {
+        freedrawPointCount += points.length;
+        if (points.length > MAX_FREEDRAW_POINTS) {
+          diagnostics.push(diagnostic("XD1222", `freedraw may contain at most ${MAX_FREEDRAW_POINTS} points`, statement));
+        }
+        if (points.some((point) => point.some((value) => Math.abs(value) > MAX_FREEDRAW_COORDINATE))) {
+          diagnostics.push(diagnostic("XD1223", "freedraw coordinates exceed the supported range", statement));
+        }
+        if (new Set(points.map((point) => `${point[0]},${point[1]}`)).size < 2) {
+          diagnostics.push(diagnostic("XD1224", "freedraw requires at least two distinct points", statement));
+        }
+      }
+      if (!hasValidFreedrawPressures(statement.pressures, points?.length)) {
+        diagnostics.push(diagnostic("XD1225", "freedraw pressures must be empty or contain one value from 0 to 1 per point", statement));
+      }
+      if (typeof statement.simulatePressure !== "boolean") {
+        diagnostics.push(diagnostic("XD1226", "freedraw simulate-pressure must be true or false", statement));
+      }
+    }
     if (statement.type === "node" && statement.size) {
       const [width, height] = statement.size;
       if (!(width > 0) || !(height > 0)) {
@@ -236,7 +314,7 @@ export function validateSemanticDocument(document) {
 
   collectStatements(document.statements, (statement) => {
     const styleName = statement.attributes?.style;
-    if (["node", "text"].includes(statement.type) && styleName && !styles.has(styleName)) {
+    if (["node", "text", "layout-text"].includes(statement.type) && styleName && !styles.has(styleName)) {
       diagnostics.push(diagnostic("XD1004", `unknown style '${styleName}'`, statement));
     }
   });
@@ -249,14 +327,28 @@ export function validateSemanticDocument(document) {
         `${reference.kind} references unknown node: ${id}`,
         reference.node,
       ));
-    } else if (reference.kind === "geometry operation"
-      && !["node", "participant", "branch", "leaf"].includes(definitions.get(id).type)) {
-      diagnostics.push(diagnostic(
-        "XD1105",
-        `geometry operations require node targets; '${id}' is ${definitions.get(id).type}`,
-        reference.node,
-      ));
+    } else if (reference.kind === "geometry operation") {
+      const targetType = definitions.get(id).type;
+      const supportedNode = ["node", "participant", "branch", "leaf"].includes(targetType);
+      const supportedCode = targetType === "code" && CODE_GEOMETRY_OPERATIONS.has(reference.operation);
+      const supportedFreedraw = targetType === "freedraw" && FREEDRAW_GEOMETRY_OPERATIONS.has(reference.operation);
+      if (!supportedNode && !supportedCode && !supportedFreedraw) {
+        diagnostics.push(diagnostic(
+          "XD1105",
+          ["code", "freedraw"].includes(targetType)
+            ? `${reference.operation} does not support ${targetType} targets`
+            : `geometry operations require node or movable code targets; '${id}' is ${targetType}`,
+          reference.node,
+        ));
+      }
     }
+  }
+  if (freedrawPointCount > MAX_DOCUMENT_FREEDRAW_POINTS) {
+    diagnostics.push(diagnostic(
+      "XD1227",
+      `document may contain at most ${MAX_DOCUMENT_FREEDRAW_POINTS} freedraw points`,
+      document,
+    ));
   }
   return diagnostics;
 }

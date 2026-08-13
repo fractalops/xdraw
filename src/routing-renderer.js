@@ -82,7 +82,9 @@ export function renderConnection(drawing, state, connection, index) {
     const start = anchor[startSide](fromBounds);
     const end = anchor[endSide](toBounds);
     if (waypoints) {
-      state.diagnostics?.warn("XD2003", "connection via disables automatic obstacle routing", connection);
+      if (!connection.generatedRoute) {
+        state.diagnostics?.warn("XD2003", "connection via disables automatic obstacle routing", connection);
+      }
       if (isCollinear([start, ...waypoints, end])) {
         state.diagnostics?.warn("XD2002", "connection waypoints are collinear and do not change the route", connection);
       }

@@ -5,10 +5,10 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
 import "./viewer.css";
 
-import { compile } from "../src/compiler.js";
+import { compileAsync } from "../src/compiler.js";
 import { synchronizeEndpointLabels } from "../src/connector-labels.js";
 import { resolveAssets } from "../src/assets.js";
-import { parse } from "../src/parser.js";
+import { parseSource } from "../src/source-language.js";
 
 const browserFilesystem = {
   async readBinary(path: string) {
@@ -25,10 +25,11 @@ function Viewer() {
 
   useEffect(() => {
     let active = true;
-    resolveAssets(parse(source), browserFilesystem)
-      .then((document) => {
+    resolveAssets(parseSource(source), browserFilesystem)
+      .then(async (document) => {
         if (!active) return;
-        const compiled = compile(document).toJSON();
+        const compiled = (await compileAsync(document)).toJSON();
+        if (!active) return;
         setScene(restore({
           elements: compiled.elements as any,
           appState: compiled.appState as any,

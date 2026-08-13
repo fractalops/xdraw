@@ -176,7 +176,13 @@ export interface TextVisual extends SceneVisualBase {
   options?: Record<string, unknown>;
 }
 
-export type SceneVisual = ContainerVisual | NodeVisual | ArrowVisual | TextVisual;
+export interface CodeVisual extends SceneVisualBase {
+  type: "code";
+  block: SemanticStatement & { id: string };
+  bounds: Bounds;
+}
+
+export type SceneVisual = ContainerVisual | NodeVisual | ArrowVisual | TextVisual | CodeVisual;
 
 export interface SceneObjectRecord {
   id: string;
@@ -188,6 +194,9 @@ export interface SceneObjectRecord {
 
 export interface Measurer {
   measureNode(node: SemanticStatement, width: number): number;
+  measureLayoutText(node: SemanticStatement, width: number): number;
+  measureArrangedItem(node: SemanticStatement, width: number, y: number): number;
+  measureCodeBlock(node: SemanticStatement): number;
   measureContainer(node: SemanticStatement, width: number, y?: number): number;
   measureSection(node: SemanticStatement, width: number, y?: number): number;
   measureSequence(node: SemanticStatement, width: number): number;
@@ -196,7 +205,9 @@ export interface Measurer {
 
 export interface StyleResolver {
   diagnostics?: DiagnosticCollector;
+  resolveFreedraw(statement: SemanticStatement): Record<string, unknown>;
   resolveNode(node: SemanticStatement): Record<string, unknown>;
+  resolveText(node: SemanticStatement): Record<string, unknown>;
 }
 
 export interface SceneGraphOptions {

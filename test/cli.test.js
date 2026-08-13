@@ -15,19 +15,19 @@ test("CLI exposes help and version without Node-specific invocation", async () =
 test("CLI checks source and chooses a neighboring output by default", async () => {
   const directory = await mkdtemp(join(tmpdir(), "xdraw-cli-"));
   const input = join(directory, "hello.xdraw");
-  await writeFile(input, 'a: card "A"; b: card "B"; a -> b');
+  await writeFile(input, 'diagram "Hello" { a: rectangle "A"; b: rectangle "B"; a -> b }');
   assert.equal(await run(["check", input]), `OK ${input}`);
   assert.equal(await run(["build", input]), `Created ${join(directory, "hello.excalidraw")}`);
   assert.equal(JSON.parse(await readFile(join(directory, "hello.excalidraw"), "utf8")).type, "excalidraw");
 });
 
 test("CLI emits Excalidraw JSON on standard output", async () => {
-  const output = await run(["build", "--expression", 'a: card "A"', "--output", "-"]);
+  const output = await run(["build", "--expression", 'diagram "Hello" { a: rectangle "A" }', "--output", "-"]);
   assert.equal(JSON.parse(output).type, "excalidraw");
 });
 
 test("CLI reads redirected or piped source without requiring a dash", async () => {
-  const source = 'a: card "Source"; b: card "Target"; a -> b';
+  const source = 'diagram "Flow" { a: rectangle "Source"; b: rectangle "Target"; a -> b }';
   const implicit = await run(["build"], { stdin: Readable.from([source]) });
   const explicit = await run(["build", "-"], { stdin: Readable.from([source]) });
   assert.equal(JSON.parse(implicit).type, "excalidraw");
@@ -39,10 +39,22 @@ test("CLI writes piped source to an explicit output path", async () => {
   const directory = await mkdtemp(join(tmpdir(), "xdraw-stdin-"));
   const output = join(directory, "piped.excalidraw");
   const result = await run(["build", "--output", output], {
-    stdin: Readable.from(['a: card "Piped"']),
+    stdin: Readable.from(['diagram "Piped" { a: rectangle "Piped" }']),
   });
   assert.equal(result, `Created ${output}`);
   assert.equal(JSON.parse(await readFile(output, "utf8")).type, "excalidraw");
+});
+
+test("CLI renders local PNG and SVG previews from the build command", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "xdraw-preview-"));
+  const source = 'diagram "Preview" { a: rectangle "A" }';
+  const pngPath = join(directory, "preview.png");
+  const svgPath = join(directory, "preview.svg");
+  await run(["build", "-e", source, "-o", pngPath]);
+  await run(["build", "-e", source, "-o", svgPath]);
+  const png = await readFile(pngPath);
+  assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.match(await readFile(svgPath, "utf8"), /^<svg /);
 });
 
 test("CLI shows help instead of waiting for interactive stdin", async () => {
@@ -95,7 +107,7 @@ test("CLI applies source-authoritative scene replacement", async () => {
   const created = fakeRemote();
   assert.equal(await run(["apply", "-e", `
     scene excalidraw::default::architecture::system_overview {
-      replace { diagram "System overview" { a: card "A" } }
+      replace { diagram "System overview" { a: rectangle "A" } }
     }
   `], {
     remoteFactory: async () => created,
@@ -103,16 +115,16 @@ test("CLI applies source-authoritative scene replacement", async () => {
   assert.equal(created.closed, true);
 });
 
-test("CLI resolves relative imports inside replacement scene documents", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "xdraw-scene-import-"));
-  await writeFile(join(directory, "shared.xdraw"), 'component service(name) { api: system "{name}" }');
+test("CLI resolves assets inside replacement scene documents", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "xdraw-scene-assets-"));
+  await writeFile(join(directory, "mark.svg"), '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"/>');
   const input = join(directory, "architecture.scene.xdraw");
   await writeFile(input, `
     scene excalidraw::default::architecture::system_overview {
       replace {
-        diagram "Imported" {
-          import "shared.xdraw"
-          use service orders [name="Orders"]
+        diagram "Assets" {
+          mark: asset "mark.svg"
+          logo: image(mark) { at (80, 80); size (40, 20) }
         }
       }
     }
@@ -143,7 +155,7 @@ test("CLI applies selective patches from XDraw source", async () => {
       patch {
         update api { tone warning }
         delete obsolete
-        add { note review "Requires review" at (80, 80) }
+        add { review: rectangle "Requires review" { at (80, 80) } }
       }
     }
   `;

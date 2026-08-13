@@ -1,0 +1,227 @@
+use "xdraw/architecture" as arch
+use "xdraw/cards" as cards
+use "xdraw/containers" as containers
+use "xdraw/palette" as palette
+use "xdraw/process" as process
+
+diagram "How XDraw works" {
+  subtitle "Describe the drawing in a small language, compile it, then keep editing in Excalidraw"
+
+  default: theme {
+    font-family normal
+  }
+
+  arrange grid { columns 1; gap 38; width 2200 }
+
+  journey: process.lane "One idea, left to right" {
+    arrange row { gap 145 }
+
+    intent: cards.card "Describe the intent" {
+      body "Name the things people should see and how they relate."
+      style palette.info
+      size (240, 135)
+    }
+
+    source: code """
+      use "xdraw/architecture" as arch
+
+      diagram "Order flow" {
+        user: arch.person "User"
+        api: arch.system "API"
+        user -> api "request"
+      }
+    """ {
+      language xdraw
+      line-numbers false
+      highlight true
+    }
+
+    compiler: arch.system "XDraw compiler" {
+      body "1. Parse + validate\n2. Measure + arrange\n3. Emit editable elements"
+      style palette.accent
+      size (290, 175)
+    }
+
+    scene: cards.card "Editable scene" {
+      body "A portable .excalidraw file with shapes, text, frames and connectors."
+      style palette.success
+      size (250, 150)
+    }
+
+    canvas: arch.system "Excalidraw" {
+      body "Open the scene, move things by hand and continue collaborating visually."
+      size (250, 150)
+    }
+
+    align center-y (intent, source, compiler, scene, canvas)
+
+    express: intent@right -> source@left "express"
+    build: source@right -> compiler@left "xdraw build"
+    generate: compiler@right -> scene@left ".excalidraw"
+    edit: scene@right -> canvas@left "open + edit"
+  }
+
+  reading: containers.section "How to read an XDraw source file" {
+    arrange row { gap 26 }
+
+    declarations: code """
+      # 1. Declare elements
+      api: rectangle "API"
+      store: arch.database "Data"
+    """ {
+      language xdraw
+      line-numbers false
+      highlight true
+    }
+    containment: code """
+      # 2. Create structure
+      platform: frame "Platform" {
+        api: arch.system "API"
+      }
+    """ {
+      language xdraw
+      line-numbers false
+      highlight true
+    }
+    arrangement: code """
+      # 3. Arrange automatically
+      arrange row { gap 80 }
+    """ {
+      language xdraw
+      line-numbers false
+      highlight true
+    }
+    references: code """
+      # 4. Address precisely
+      platform.api@right
+      namespace.child@anchor
+    """ {
+      language xdraw
+      line-numbers false
+      highlight true
+    }
+    relationships: code """
+      # 5. Connect relationships
+      api@right -> store@left "writes"
+      a -- b "related"
+    """ {
+      language xdraw
+      line-numbers false
+      highlight true
+    }
+  }
+
+  scale: containers.section "The same model scales to richer diagrams" {
+    arrange row { gap 26 }
+
+    components: cards.card "Reuse components" {
+      body "Define a parameterized structure once, then create isolated instances."
+      style palette.accent
+      size (255, 125)
+    }
+    layouts: cards.card "Choose a layout" {
+      body "Use rows and grids for structure, trees for hierarchy and layered for graphs."
+      style palette.info
+      size (255, 125)
+    }
+    sequences: cards.card "Model interactions" {
+      body "Sequence participants and messages use the same declarations and arrows."
+      style palette.neutral
+      size (255, 125)
+    }
+    annotations: cards.card "Add evidence" {
+      body "Attach notes and callouts; embed safe images and reusable icons."
+      style palette.warning
+      size (255, 125)
+    }
+    precision: cards.card "Refine deliberately" {
+      body "Align, distribute, resize, offset, rotate, snap or guide a connector via points."
+      style palette.success
+      size (255, 125)
+    }
+    patching: cards.card "Patch hosted scenes" {
+      body "Replace a whole drawing or update known source IDs without erasing manual edits."
+      style palette.accent
+      size (255, 125)
+    }
+  }
+
+  editing: process.lane "Edit an existing Excalidraw+ scene" {
+    arrange row { gap 160 }
+
+    address: cards.card "Address the scene" {
+      body "Use provider::workspace::collection::scene to identify the hosted drawing."
+      style palette.info
+      size (230, 150)
+    }
+
+    ownership: cards.card "Choose ownership" {
+      body "replace owns the whole scene. patch changes known source IDs and leaves unrelated elements alone."
+      style palette.warning
+      size (260, 150)
+    }
+
+    change: code """
+      # Patch known XDraw IDs
+      scene excalidraw::default::examples::overview {
+        patch {
+          update api { title "API v2" }
+          delete legacy
+          add { review: rectangle "Review" }
+        }
+      }
+    """ {
+      language xdraw
+      line-numbers false
+      highlight true
+    }
+
+    apply: cards.card "Apply the scene document" {
+      body "xdraw apply edit.scene.xdraw"
+      style palette.accent
+      size (230, 120)
+    }
+
+    continue: cards.card "Continue visually" {
+      body "The hosted scene stays editable. A patch preserves manual work outside the addressed IDs."
+      style palette.success
+      size (240, 150)
+    }
+
+    align center-y (address, ownership, change, apply, continue)
+
+    address@right -> ownership@left "select mode"
+    ownership@right -> change@left "describe edit"
+    change@right -> apply@left "apply"
+    apply@right -> continue@left "preserve"
+  }
+
+  workflow: process.lane "A predictable workflow" {
+    arrange row { gap 170 }
+
+    author: cards.card "Author" {
+      body "diagram.xdraw"
+      style palette.info
+      size (240, 105)
+    }
+    check: cards.card "Validate" {
+      body "xdraw check diagram.xdraw"
+      style palette.warning
+      size (280, 105)
+    }
+    local: cards.card "Build locally" {
+      body "xdraw build diagram.xdraw"
+      style palette.success
+      size (280, 105)
+    }
+    hosted: cards.card "Update Excalidraw+" {
+      body "xdraw apply diagram.scene.xdraw"
+      style palette.accent
+      size (300, 105)
+    }
+
+    author -> check "check"
+    check -> local "build"
+    local -> hosted "optional apply"
+  }
+}

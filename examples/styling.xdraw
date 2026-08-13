@@ -1,10 +1,15 @@
+use "xdraw/architecture" as arch
+use "xdraw/containers" as containers
+
 diagram "Styles and themes" {
-  theme { font-family normal }
-  style focus { stroke "#059669" background "#ecfdf5" text "#065f46" title-size 21 }
-  lane examples "Elements" {
-    source: system "Source system"
-    target: ellipse "Verified target" [style=focus, link="https://example.com", locked]
+  base: theme { font-family normal }
+  focus: style { stroke "#059669"; background "#ecfdf5"; text-color "#065f46"; title-size 21 }
+  examples: containers.section "Elements" {
+    source: arch.system "Source system"
+    target: ellipse "Verified target" { style focus; link "https://example.com"; locked true }
     source -> target
   }
-  text caption "Styled free text wraps at a declared width." at (100, 350) [font-family=normal, font-size=18, wrap-width=300, auto-size=false]
+  caption: text "Styled free text wraps at a declared width." {
+    at (100, 350); font-family normal; font-size 18; wrap-width 300; auto-size false
+  }
 }

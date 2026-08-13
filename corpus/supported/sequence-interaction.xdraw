@@ -1,10 +1,13 @@
+use "xdraw/sequence" as seq
+
 diagram "Checkout interaction" {
-  sequence {
-    participant customer "Customer"
-    participant store "Store"
-    participant payment "Payment service"
-    customer -> store "Place order"
-    store -> payment "Authorize payment"
-    payment -> store "Payment approved"
+  checkout: seq.diagram {
+    customer: seq.participant "Customer"
+    store: seq.participant "Store"
+    payment: seq.participant "Payment service"
+
+    place_order: customer -> store "Place order"
+    authorize: store -> payment "Authorize payment"
+    approved: payment -> store "Payment approved"
   }
 }

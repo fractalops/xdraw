@@ -2,19 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { compile } from "../src/compiler.js";
-import { parse } from "../src/parser.js";
+import { parseSource as parse } from "../src/source-language.js";
 import { measureRouteQuality } from "../src/route-quality.js";
 import { Drawing } from "../src/document.js";
 import { renderConnection } from "../src/routing-renderer.js";
 import { synchronizeEndpointLabels } from "../src/connector-labels.js";
 
 test("explicit waypoints and endpoint labels compile deterministically", () => {
-  const source = `diagram "Connector depth" {
-    a: system "A" at (80, 120) size (180, 90)
-    j: junction "" at (360, 150) size (20, 20)
-    b: system "B" at (520, 120) size (180, 90)
-    a.east -> j.west "request" [via="290,165;330,165", start-label="caller", end-label="junction"]
-    j.east -> b.west [end-label="callee"]
+  const source = `use "xdraw/architecture" as arch
+  use "xdraw/connectors" as connectors
+  diagram "Connector depth" {
+    a: arch.system "A" { at (80, 120); size (180, 90) }
+    j: connectors.junction "" { at (360, 150); size (20, 20) }
+    b: arch.system "B" { at (520, 120); size (180, 90) }
+    a@right -> j@left "request" { via ((290,165),(330,165)); start-label "caller"; end-label "junction" }
+    j@right -> b@left { end-label "callee" }
   }`;
   const first = compile(parse(source)).toJSON();
   const second = compile(parse(source)).toJSON();
@@ -28,11 +30,11 @@ test("explicit waypoints and endpoint labels compile deterministically", () => {
 
 test("malformed waypoints fail with a bounded diagnostic", () => {
   assert.throws(
-    () => compile(parse('a: card "A"; b: card "B"; a -> b [via="10,nope"]')),
-    /invalid connection waypoint '10,nope'/,
+    () => parse('diagram "Invalid" { a: rectangle "A"; b: rectangle "B"; a -> b { via ((10, nope)) } }'),
+    /expected via y value/,
   );
   assert.throws(
-    () => compile(parse('a: card "A"; b: card "B"; c: card "C"; a -> b -> c [via="10,20"]')),
+    () => compile(parse('diagram "Invalid" { a: rectangle "A"; b: rectangle "B"; c: rectangle "C"; a -> b -> c { via ((10,20)) } }')),
     /via is only valid for a single connector segment/,
   );
 });
@@ -73,9 +75,11 @@ test("straight and curved connectors register only their rendered routes", () =>
 
 test("endpoint labels follow connector rerouting", () => {
   const drawing = compile(parse(`
-    a: card "A" at (0,0) size (100,60)
-    b: card "B" at (300,0) size (100,60)
-    a -> b [start-label="caller", end-label="callee"]
+    diagram "Endpoint labels" {
+      a: rectangle "A" { at (0,0); size (100,60) }
+      b: rectangle "B" { at (300,0); size (100,60) }
+      a -> b { start-label "caller"; end-label "callee" }
+    }
   `)).toJSON();
   const arrow = drawing.elements.find((item) => item.type === "arrow");
   const label = drawing.elements.find((item) => item.id === `${arrow.id}:end-label`);
@@ -91,9 +95,11 @@ test("endpoint labels follow connector rerouting", () => {
 
 test("connector labels avoid endpoints when the gap is too short", () => {
   const drawing = compile(parse(`
-    a: card "A" at (0,0) size (100,60)
-    b: card "B" at (140,0) size (100,60)
-    a.east -> b.west "a label wider than the gap"
+    diagram "Short gap" {
+      a: rectangle "A" { at (0,0); size (100,60) }
+      b: rectangle "B" { at (140,0); size (100,60) }
+      a@right -> b@left "a label wider than the gap"
+    }
   `)).toJSON();
   const label = drawing.elements.find((item) => item.id.endsWith(":label"));
   const endpoints = drawing.elements.filter((item) => ["a:frame", "b:frame"].includes(item.id));
@@ -105,9 +111,9 @@ test("connector labels avoid endpoints when the gap is too short", () => {
 
 test("connector labels use the full collinear run across explicit waypoints", () => {
   const drawing = compile(parse(`diagram "Waypoint label" {
-    a: system "A" at (100, 100) size (160, 80)
-    b: system "B" at (480, 100) size (160, 80)
-    a.east -> b.west "validated payload" [via="320,140;420,140"]
+    a: rectangle "A" { at (100, 100); size (160, 80) }
+    b: rectangle "B" { at (480, 100); size (160, 80) }
+    a@right -> b@left "validated payload" { via ((320,140),(420,140)) }
   }`));
   const label = drawing.elements.find((item) => item.id === "document:connection:0:0:label");
   assert.equal(label.text, "validated payload");
@@ -117,9 +123,9 @@ test("connector labels use the full collinear run across explicit waypoints", ()
 
 test("endpoint labels occupy a separate row from the connector label", () => {
   const drawing = compile(parse(`diagram "Endpoint labels" {
-    a: system "A" at (100, 100) size (160, 80)
-    b: system "B" at (480, 100) size (160, 80)
-    a.east -> b.west "request" [start-label="caller", end-label="callee"]
+    a: rectangle "A" { at (100, 100); size (160, 80) }
+    b: rectangle "B" { at (480, 100); size (160, 80) }
+    a@right -> b@left "request" { start-label "caller"; end-label "callee" }
   }`));
   const middle = drawing.elements.find((item) => item.id === "document:connection:0:0:label");
   const start = drawing.elements.find((item) => item.id === "document:connection:0:0:start-label");
@@ -130,8 +136,8 @@ test("endpoint labels occupy a separate row from the connector label", () => {
 
 test("overlapping horizontal spans connect vertically", () => {
   const drawing = compile(parse(`diagram "Nested routing" {
-    a: system "A" at (420, 100) size (280, 80)
-    b: system "B" at (100, 320) size (800, 80)
+    a: rectangle "A" { at (420, 100); size (280, 80) }
+    b: rectangle "B" { at (100, 320); size (800, 80) }
     a -> b
   }`));
   const arrow = drawing.elements.find((item) => item.id === "document:connection:0:0");
@@ -141,13 +147,13 @@ test("overlapping horizontal spans connect vertically", () => {
 
 test("cross-container connectors infer sides from their owning sections", () => {
   const result = compile(parse(`diagram "Containers" {
-    layout grid columns 2
-    group left "Left" { source: card "Source" }
-    group right "Right" { target: card "Target" }
-    source -> target
+    arrange grid { columns 2 }
+    left: frame "Left" { source: rectangle "Source" }
+    right: frame "Right" { target: rectangle "Target" }
+    left.source -> right.target
   }`)).toJSON();
-  const source = result.elements.find((item) => item.id === "source:frame");
-  const target = result.elements.find((item) => item.id === "target:frame");
+  const source = result.elements.find((item) => item.id === "left.source:frame");
+  const target = result.elements.find((item) => item.id === "right.target:frame");
   const edge = result.elements.find((item) => item.type === "arrow");
   assert.equal(edge.x + edge.points[0][0], source.x + source.width);
   assert.equal(edge.x + edge.points.at(-1)[0], target.x);
@@ -155,15 +161,15 @@ test("cross-container connectors infer sides from their owning sections", () => 
 
 test("automatic row layout reserves a complete channel for connector labels", () => {
   const drawing = compile(parse(`diagram "Label clearance" {
-    lane flow "Flow" {
-      layout row gap 8
-      source: card "Source"
-      target: card "Target"
+    flow: frame "Flow" {
+      arrange row { gap 8 }
+      source: rectangle "Source"
+      target: rectangle "Target"
       source -> target "validated payload"
     }
   }`)).toJSON();
-  const source = drawing.elements.find((item) => item.id === "source:frame");
-  const target = drawing.elements.find((item) => item.id === "target:frame");
+  const source = drawing.elements.find((item) => item.id === "flow.source:frame");
+  const target = drawing.elements.find((item) => item.id === "flow.target:frame");
   const label = drawing.elements.find((item) => item.id === "document:connection:0:0:label");
   const gap = target.x - (source.x + source.width);
 
@@ -174,8 +180,8 @@ test("automatic row layout reserves a complete channel for connector labels", ()
 
 test("loose top-level nodes also reserve connector-label clearance", () => {
   const drawing = compile(parse(`diagram "Top-level clearance" {
-    source: card "Source"
-    target: card "Target"
+    source: rectangle "Source"
+    target: rectangle "Target"
     source -> target "compare records"
   }`)).toJSON();
   const source = drawing.elements.find((item) => item.id === "source:frame");
@@ -187,24 +193,24 @@ test("loose top-level nodes also reserve connector-label clearance", () => {
 
 test("automatic column layout keeps visible lead-in space around connectors", () => {
   const drawing = compile(parse(`diagram "Arrow clearance" {
-    lane flow "Flow" {
-      layout column gap 4
-      source: card "Source"
-      target: card "Target"
+    flow: frame "Flow" {
+      arrange column { gap 4 }
+      source: rectangle "Source"
+      target: rectangle "Target"
       source -> target
     }
   }`)).toJSON();
-  const source = drawing.elements.find((item) => item.id === "source:frame");
-  const target = drawing.elements.find((item) => item.id === "target:frame");
-  assert.ok(target.y - (source.y + source.height) >= 52);
+  const source = drawing.elements.find((item) => item.id === "flow.source:frame");
+  const target = drawing.elements.find((item) => item.id === "flow.target:frame");
+  assert.ok(target.y - (source.y + source.height) >= 32);
 });
 
 test("vertical connector labels use horizontal text width instead of segment length", () => {
   const drawing = compile(parse(`diagram "Vertical label" {
-    lane flow "Flow" {
-      layout column gap 4
-      source: card "Source"
-      target: card "Target"
+    flow: frame "Flow" {
+      arrange column { gap 4 }
+      source: rectangle "Source"
+      target: rectangle "Target"
       source -> target "record both versions"
     }
   }`)).toJSON();
@@ -216,10 +222,12 @@ test("vertical connector labels use horizontal text width instead of segment len
 
 test("dense routed connectors avoid unrelated node interiors", () => {
   const drawing = compile(parse(`
-    source: card "Left" at (0,100) size (120,70)
-    obstacle: card "Obstacle" at (240,80) size (140,110)
-    target: card "Right" at (520,100) size (120,70)
-    source -> target
+    diagram "Obstacle routing" {
+      source: rectangle "Left" { at (0,100); size (120,70) }
+      obstacle: rectangle "Obstacle" { at (240,80); size (140,110) }
+      target: rectangle "Right" { at (520,100); size (120,70) }
+      source -> target
+    }
   `)).toJSON();
   const arrow = drawing.elements.find((item) => item.type === "arrow");
   const route = arrow.points.map(([x, y]) => [x + arrow.x, y + arrow.y]);

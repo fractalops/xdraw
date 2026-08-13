@@ -1,3 +1,5 @@
+import { hasValidFreedrawPoints, hasValidFreedrawPressures } from "./freedraw-policy.js";
+
 function flatten(elements) {
   return elements.flat(Infinity).filter(Boolean);
 }
@@ -12,9 +14,10 @@ export class Drawing {
       gridModeEnabled: options.gridModeEnabled ?? false,
       viewBackgroundColor: options.backgroundColor ?? "#eef2f7",
     };
-    Object.defineProperty(this, "diagnostics", {
-      value: options.diagnostics ?? [],
-      enumerable: false,
+    Object.defineProperties(this, {
+      diagnostics: { value: options.diagnostics ?? [], enumerable: false },
+      syntaxHighlighting: { value: options.syntaxHighlighting ?? false, enumerable: false },
+      highlightRunsUsed: { value: 0, writable: true, enumerable: false },
     });
   }
 
@@ -39,6 +42,17 @@ export class Drawing {
       if (["diamond", "ellipse", "frame", "image", "rectangle"].includes(element.type)
         && (!(element.width > 0) || !(element.height > 0))) {
         throw new Error(`element ${element.id} must have positive width and height`);
+      }
+      if (element.type === "freedraw") {
+        if (!hasValidFreedrawPoints(element.points)) {
+          throw new Error(`freedraw ${element.id} has invalid points`);
+        }
+        if (!hasValidFreedrawPressures(element.pressures, element.points.length)) {
+          throw new Error(`freedraw ${element.id} has invalid pressures`);
+        }
+        if (typeof element.simulatePressure !== "boolean") {
+          throw new Error(`freedraw ${element.id} has invalid simulatePressure`);
+        }
       }
     }
     const byId = new Map(this.elements.map((element) => [element.id, element]));

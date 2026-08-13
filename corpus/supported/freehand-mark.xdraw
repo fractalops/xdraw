@@ -1,0 +1,10 @@
+diagram "Freehand mark" {
+  mark: freedraw {
+    at (120, 100)
+    points ((0, 30), (35, 0), (75, 55), (115, 10))
+    pressures (0.2, 0.5, 0.9, 0.3)
+    simulate-pressure false
+    stroke "#7c3aed"
+    stroke-width 8
+  }
+}

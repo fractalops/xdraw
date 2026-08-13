@@ -1,7 +1,35 @@
+use "xdraw/containers" as containers
+use "xdraw/palette" as palette
+use "xdraw/cards" as cards
+
 diagram "Language design" {
-  tree root "XDraw" {
-    branch syntax "Syntax" { leaf ids "Stable IDs"; leaf strings "Readable strings" }
-    branch layout "Layout" { leaf row "Rows"; leaf graph "Graphs" }
-    branch output "Output" { leaf excalidraw "Excalidraw"; leaf svg "SVG" }
+  map: containers.section "XDraw" {
+    arrange tree {
+      root root
+      direction right
+      level-gap 90
+      sibling-gap 28
+    }
+
+    root: cards.card "XDraw" { style palette.accent }
+    syntax: cards.card "Syntax"
+    layout: cards.card "Layout"
+    output: cards.card "Output"
+    ids: cards.card "Stable IDs"
+    strings: cards.card "Readable strings"
+    row: cards.card "Rows"
+    graph: cards.card "Graphs"
+    excalidraw: cards.card "Excalidraw"
+    svg: cards.card "SVG"
+
+    root -> syntax
+    root -> layout
+    root -> output
+    syntax -> ids
+    syntax -> strings
+    layout -> row
+    layout -> graph
+    output -> excalidraw
+    output -> svg
   }
 }

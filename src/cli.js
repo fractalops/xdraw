@@ -2,12 +2,11 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, resolve } from "node:path";
 
 import { resolveAssets } from "./assets.js";
-import { compile } from "./compiler.js";
+import { compileAsync } from "./compiler.js";
 import { ExcalidrawApiClient } from "./excalidraw-api.js";
-import { loadDocument, loadParsedDocument } from "./expander.js";
 import { RootedFileSystem } from "./filesystem.js";
 import { renderScenePng, renderSceneSvg } from "./local-renderer.js";
-import { parse } from "./parser.js";
+import { parseSource } from "./source-language.js";
 import { formatSceneResource, parseSceneDocument } from "./scene-document.js";
 import { writeDrawing } from "./writer.js";
 import { formatDiagnostic } from "./diagnostics.js";
@@ -15,13 +14,10 @@ import { formatDiagnostic } from "./diagnostics.js";
 const HELP = `XDraw creates editable Excalidraw diagrams from concise text files.
 
 Usage:
-  xdraw build <file> [-o <output>]
   xdraw build [<file>|-] [-o <output>]
   xdraw build -e <source> [-o <output>]
-  xdraw check <file>
   xdraw check [<file>|-]
   xdraw check -e <source>
-  xdraw apply <file>
   xdraw apply [<file>|-]
   xdraw apply -e <source>
   xdraw pull <scene-id> [-o <output>]
@@ -30,8 +26,8 @@ Usage:
   xdraw --version
 
 Commands:
-  build    Create an editable .excalidraw file.
-  check    Validate source, imports, assets, and generated geometry.
+  build    Create an editable .excalidraw file or a PNG/SVG preview.
+  check    Validate source, assets, references, layout, and geometry.
   apply    Apply a replace or patch scene document to Excalidraw+.
   pull     Download an Excalidraw+ scene as editable JSON.
   inspect  Save a local PNG or SVG preview of an Excalidraw+ scene.
@@ -48,7 +44,7 @@ Options:
 
 Examples:
   xdraw build architecture.xdraw
-  xdraw build architecture.xdraw -o ~/Desktop/architecture.excalidraw
+  xdraw build architecture.xdraw -o output/architecture.excalidraw
   xdraw build < architecture.xdraw > architecture.excalidraw
   cat architecture.xdraw | xdraw build -o architecture.excalidraw
   xdraw check architecture.xdraw
@@ -125,17 +121,22 @@ function parseArguments(argv) {
 async function loadInput(input, expression, stdin) {
   if (expression !== undefined) {
     const filesystem = new RootedFileSystem(process.cwd());
-    return resolveAssets(parse(expression), filesystem);
+    return resolveAssets(parseSource(expression), filesystem);
   }
   if (input === undefined || input === "-") {
     const filesystem = new RootedFileSystem(process.cwd());
     const source = await readStdin(stdin);
     if (!source.trim()) throw new Error("stdin did not contain XDraw source");
-    return resolveAssets(parse(source), filesystem);
+    return resolveAssets(parseSource(source), filesystem);
   }
   const entry = resolve(input);
   const filesystem = new RootedFileSystem(dirname(entry));
-  return resolveAssets(await loadDocument(basename(entry), filesystem), filesystem);
+  try {
+    return resolveAssets(parseSource(await readFile(entry, "utf8")), filesystem);
+  } catch (error) {
+    if (error?.name === "XDrawSyntaxError") error.message = `${basename(entry)}: ${error.message}`;
+    throw error;
+  }
 }
 
 async function withRemote(options, remoteFactory, action) {
@@ -147,29 +148,23 @@ async function withRemote(options, remoteFactory, action) {
 async function loadSceneInput(input, expression, stdin) {
   let source;
   let filesystem;
-  let sourcePath;
   if (expression !== undefined) {
     source = expression;
     filesystem = new RootedFileSystem(process.cwd());
-    sourcePath = "inline.scene.xdraw";
   } else if (input === undefined || input === "-") {
     source = await readStdin(stdin);
     filesystem = new RootedFileSystem(process.cwd());
-    sourcePath = "stdin.scene.xdraw";
   } else {
     const entry = resolve(input);
     source = await readFile(entry, "utf8");
     filesystem = new RootedFileSystem(dirname(entry));
-    sourcePath = basename(entry);
   }
   if (!source.trim()) throw new Error("scene document input is empty");
   const document = parseSceneDocument(source);
   if (document.operation.type === "replace") {
-    const loaded = await loadParsedDocument(document.operation.diagram, sourcePath, filesystem);
-    document.operation.diagram = await resolveAssets(loaded, filesystem);
+    document.operation.diagram = await resolveAssets(document.operation.diagram, filesystem);
   } else if (document.operation.additions) {
-    const loaded = await loadParsedDocument(document.operation.additions, sourcePath, filesystem);
-    document.operation.additions = await resolveAssets(loaded, filesystem);
+    document.operation.additions = await resolveAssets(document.operation.additions, filesystem);
   }
   return document;
 }
@@ -190,14 +185,14 @@ export async function run(argv, {
     return withRemote(options, remoteFactory, async (remote) => {
       const resource = formatSceneResource(scene.resource);
       if (scene.operation.type === "replace") {
-        const drawing = compile(scene.operation.diagram);
+        const drawing = await compileAsync(scene.operation.diagram);
         if (drawing.diagnostics.length) stderr.write(`${drawing.diagnostics.map(formatDiagnostic).join("\n")}\n`);
         const result = await remote.applyReplace(scene.resource, drawing.toJSON());
         return `${result.created ? "Created" : "Replaced"} ${resource} (${result.added} elements)`;
       }
       let drawing;
       if (scene.operation.additions) {
-        const compiled = compile(scene.operation.additions);
+        const compiled = await compileAsync(scene.operation.additions);
         if (compiled.diagnostics.length) stderr.write(`${compiled.diagnostics.map(formatDiagnostic).join("\n")}\n`);
         drawing = compiled.toJSON();
       }
@@ -241,7 +236,7 @@ export async function run(argv, {
   }
 
   const document = await loadInput(options.input, options.expression, stdin);
-  const drawing = compile(document);
+  const drawing = await compileAsync(document);
   if (drawing.diagnostics.length) {
     stderr.write(`${drawing.diagnostics.map(formatDiagnostic).join("\n")}\n`);
   }
@@ -254,6 +249,9 @@ export async function run(argv, {
   if (target === "-") return JSON.stringify(drawing.toJSON(), null, 2);
   const resolvedTarget = resolve(target);
   await mkdir(dirname(resolvedTarget), { recursive: true });
-  await writeDrawing(drawing, resolvedTarget);
+  const extension = extname(resolvedTarget).toLocaleLowerCase();
+  if (extension === ".png") await writeFile(resolvedTarget, renderScenePng(drawing.toJSON()));
+  else if (extension === ".svg") await writeFile(resolvedTarget, `${renderSceneSvg(drawing.toJSON())}\n`, "utf8");
+  else await writeDrawing(drawing, resolvedTarget);
   return `Created ${resolvedTarget}`;
 }

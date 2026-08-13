@@ -1,302 +1,389 @@
 # XDraw Language Reference
 
-XDraw source uses UTF-8 text. Statements may be separated by newlines or
-semicolons. A `#` starts a line comment. Identifiers must match
-`[A-Za-z_][A-Za-z0-9_.-]*`. Quoted strings support `\n`, `\t`, `\"`, and
-`\\`; triple-quoted strings preserve multiline text.
-
-A file may contain an explicit `diagram` or an implicit list of statements:
+An XDraw file contains optional standard-library imports followed by one
+diagram. Newlines and semicolons separate statements. `#` starts a comment.
 
 ```xdraw
+use "xdraw/cards" as cards
+
 diagram "Simple flow" {
-  source: card "Source"
-  target: card "Target"
+  source: cards.card "Source"
+  target: cards.card "Target"
   source -> target
 }
 ```
 
-## Nodes
+Identifiers start with a letter or underscore and may contain letters,
+numbers, `_`, `-`, and `.`. Strings use double quotes. Triple-quoted strings
+preserve multiline content.
 
-Declare a node as `<id>: <kind> <title> [tone]`:
+## Declarations
+
+Every addressable element uses this form:
+
+```text
+<id>: <constructor> [arguments] ["label"] [{ properties and children }]
+```
+
+The ID is stable in the generated scene. Constructors determine what is
+drawn. A block configures the element and may contain nested elements.
 
 ```xdraw
-diagram "Node types" {
-  task: card "Task"
-  owner: person "Owner"
-  service: system "Service"
-  records: database "Records"
-  choice: decision "Approved?"
+diagram "Core shapes" {
+  task: rectangle "Task"
   milestone: ellipse "Complete"
-  join: junction ""
+  choice: diamond "Approved?"
+  boundary: frame "Boundary" { item: rectangle "Contained" }
+  caption: text "Independent text" { at (80, 420) }
 }
 ```
 
-Kinds are `card`, `person`, `system`, `database`, `decision`, `ellipse`, and
-`junction`. Tones are `neutral`, `info`, `success`, `warning`, `danger`, and
-`accent`.
+Core constructors are `rectangle`, `ellipse`, `diamond`, `frame`, `group`,
+`freedraw`, `text`, `code`, `style`, `theme`, `asset`, `image`, and
+`component`. A `group` is an invisible selection and layout boundary.
 
-Cards may contain supporting text and alignment:
+The built-in standard libraries add semantic shapes and specialized layouts.
+The importable set is fixed:
+
+- `xdraw/cards`: `card`
+- `xdraw/architecture`: `person`, `system`, `database`
+- `xdraw/process`: `lane`
+- `xdraw/containers`: `section`
+- `xdraw/sequence`: `diagram`, `participant`
+- `xdraw/annotations`: `note`, `callout`
+- `xdraw/connectors`: `junction`
+- `xdraw/assets`: `icon`
+- `xdraw/palette`: `neutral`, `info`, `success`, `warning`, `danger`, `accent`
+
+Imports require an alias and constructor names remain qualified. Local file
+imports and user-defined constructor libraries are not supported.
+
+`subtitle` adds one line of supporting text below the diagram title:
 
 ```xdraw
-diagram "Card text" {
-  status: card "Approved" success {
-    body "The request can proceed."
-    text-align center
-    vertical-align middle
+diagram "Deployment" {
+  subtitle "Services and their release path"
+  api: rectangle "API"
+}
+```
+
+## Properties
+
+Properties live inside the declaration block:
+
+```xdraw
+use "xdraw/cards" as cards
+use "xdraw/palette" as palette
+
+diagram "Properties" {
+  request: cards.card "Request" {
+    body "Supporting detail"
+    style palette.info
+    at (80, 120)
+    size (240, 120)
+    align left
+    vertical-align top
   }
 }
 ```
 
-`text-align` accepts `left`, `center`, or `right`. `vertical-align` accepts
-`top`, `middle`, or `bottom`.
+Common visual properties include `style`, `stroke`, `background`,
+`text-color`, `stroke-width`, `roughness`, `fill-style`, `opacity`,
+`font-family`, `font-size`, `title-size`, `body-size`, `line-height`, `wrap-width`,
+`auto-size`, `locked`, and `link`. Properties are validated against the
+element they configure.
+
+Named styles and the optional document theme use the same property syntax:
+
+```xdraw
+diagram "Styled" {
+  default: theme { font-family normal }
+  focus: style { stroke "#059669"; background "#ecfdf5" }
+  target: rectangle "Target" { style focus }
+}
+```
+
+## Freehand Drawing
+
+`freedraw` creates a native, editable Excalidraw freehand element. `at` places
+the stroke and each point is relative to that origin.
+
+```xdraw
+diagram "Signature" {
+  mark: freedraw {
+    at (120, 100)
+    points ((0, 20), (30, 0), (70, 45), (110, 10))
+    stroke "#2563eb"
+    stroke-width 6
+  }
+}
+```
+
+Without `pressures`, Excalidraw simulates pen pressure. To preserve measured
+pressure, provide one value from `0` to `1` per point and disable simulation:
+
+```xdraw
+diagram "Measured stroke" {
+  mark: freedraw {
+    at (120, 100)
+    points ((0, 20), (30, 0), (70, 45), (110, 10))
+    pressures (0.2, 0.5, 0.9, 0.3)
+    simulate-pressure false
+  }
+}
+```
+
+Freehand elements support `align`, `distribute`, `offset`, `rotate`, and
+`snap`. They do not support `match-size` because resizing a stroke must also
+transform its point geometry.
+
+## Namespaces and Anchors
+
+A block-bodied declaration creates a namespace. Local references work inside
+the block; outside references use the qualified source ID.
+
+```xdraw
+diagram "Namespaces" {
+  source: frame "Source" { api: rectangle "API" }
+  target: frame "Target" { store: ellipse "Store" }
+  source.api@right -> target.store@left "copies"
+}
+```
+
+`.` separates namespace segments. `@` selects `top`, `right`, `bottom`,
+`left`, or `center` without confusing an anchor with a child ID.
 
 ## Connections
 
-Connect existing IDs with `->`. Ports are `north`, `east`, `south`, and
-`west`:
+`->` creates an arrow and `--` creates a line. A connection may have a stable
+source ID, a label, and properties:
 
 ```xdraw
 diagram "Connections" {
-  source: system "Source"
-  transform: system "Transform"
-  target: database "Target"
-  source.east -> transform.west -> target.west "flows"
+  source: rectangle "Source"
+  target: rectangle "Target"
+  request: source@right -> target@left "request" {
+    route elbow
+    stroke-style dashed
+    head triangle
+    start-label "caller"
+    end-label "callee"
+  }
 }
 ```
 
-Connection attributes appear in brackets:
+Routes are `auto`, `straight`, `elbow`, and `curved`. `via ((x, y), (x, y))`
+adds explicit waypoints. Arrowheads include `arrow`, `bar`, `dot`, `circle`,
+`triangle`, `diamond`, their `_outline` variants, and the crow-foot variants.
+Use `head none` for no arrowhead.
+
+## Arrangement
+
+An arrangement owns the direct visual children of its enclosing scope:
 
 ```xdraw
-diagram "Connection options" {
-  a: card "A"
-  b: card "B"
-  a -> b "request" [style=elbow, dashed, head=arrow, width=3]
-}
-```
+use "xdraw/containers" as containers
 
-Styles are `auto`, `straight`, `elbow`, `curved`, and `line`; `auto` is the
-default. Arrowheads are `arrow`, `bar`, `dot`, `circle`, `circle_outline`,
-`triangle`, `triangle_outline`,
-`diamond`, `diamond_outline`, `crowfoot_one`, `crowfoot_many`, and
-`crowfoot_one_or_many`. Use `head=none` for no arrowhead.
-
-Use `via="x,y;x,y"` for explicit waypoints. `start-label` and `end-label` add
-endpoint labels.
-
-## Containers and Layout
-
-`lane`, `group`, and `frame` contain statements. Frames become native
-Excalidraw frames:
-
-```xdraw
 diagram "Delivery" {
-  layout grid columns 2 spacing normal
-
-  lane build "Build" {
-    layout row spacing normal
-    code: system "Code"
-    test: system "Tests"
+  arrange grid { columns 2; gap 30 }
+  build: containers.section "Build" {
+    arrange row { gap 80 }
+    code: rectangle "Code"
+    test: rectangle "Tests"
     code -> test
   }
-
-  frame release "Release" [locked] {
-    artifact: database "Artifact"
-    deploy: system "Deploy"
-    artifact -> deploy
+  release: frame "Release" {
+    arrange column { gap 24 }
+    approve: diamond "Approved?"
+    deploy: rectangle "Deploy"
   }
 }
 ```
 
-Document layouts are `compact`, `grid`, and `layered`. Container layouts are
-`row` and `column`. Spacing presets are `tight`, `normal`, and `airy`. Use
-`gap <number>` when a precise minimum gap is required.
+Use `row` or `column` inside containers. Documents also support `compact`,
+`grid`, and `layered`. Options include `gap`, `columns`, `width`, and spacing
+presets `tight`, `normal`, and `airy`.
 
-## Decisions
-
-A decision may declare labelled branches to existing nodes:
+Tree arrangement derives a hierarchy from local arrows:
 
 ```xdraw
-diagram "Approval" {
-  review: decision "Approved?" {
-    when "yes" -> publish
-    when "no" -> revise
-  }
-  publish: card "Publish" success
-  revise: card "Revise" warning
-}
-```
+use "xdraw/cards" as cards
+use "xdraw/containers" as containers
 
-## Trees and Sequences
-
-Trees use recursive branches and leaves:
-
-```xdraw
 diagram "Outcomes" {
-  tree result "Result" {
-    branch accepted "Accepted" {
-      leaf publish "Publish"
-    }
-    branch rejected "Rejected" {
-      leaf revise "Revise"
-    }
+  outcomes: containers.section "Outcomes" {
+    arrange tree { root result; direction right; level-gap 90; sibling-gap 28 }
+    result: cards.card "Result"
+    accepted: cards.card "Accepted"
+    rejected: cards.card "Rejected"
+    result -> accepted
+    result -> rejected
   }
 }
 ```
 
-Sequences declare participants before messages:
+A tree rejects cycles, multiple parents, and nodes unreachable from its root.
+
+Use `group` when elements should move and arrange together without a visible
+container:
 
 ```xdraw
-diagram "Request sequence" {
-  sequence {
-    participant user "User"
-    participant api "API"
-    participant store "Database"
+diagram "Grouped" {
+  pair: group {
+    arrange row { gap 40 }
+    first: rectangle "First"
+    second: rectangle "Second"
+  }
+}
+```
+
+## Sequences and Annotations
+
+```xdraw
+use "xdraw/annotations" as annotations
+use "xdraw/sequence" as seq
+
+diagram "Interaction" {
+  interaction: seq.diagram {
+    user: seq.participant "User"
+    api: seq.participant "API"
     user -> api "Submit"
-    api -> store "Save"
-    store -> api "Saved"
+    api -> user "Accepted"
   }
+  note: annotations.note "Review the response" { attach interaction.api@bottom }
 }
 ```
 
-## Notes and Callouts
+Notes attach with `attach <id>@<anchor>`. A callout is a warning-styled card
+that can be connected with the normal arrow syntax.
 
-Attach annotations to a node port or place them explicitly:
+## Components
+
+Components are document-scoped templates. `$name` supplies a parameter to a
+property and `${name}` interpolates it into a string.
 
 ```xdraw
-diagram "Annotations" {
-  service: system "Service"
-  note owner "Owned by the platform team" at service.right
-  callout review "Review before release" at (700, 260) -> service.bottom
+use "xdraw/architecture" as arch
+use "xdraw/palette" as palette
+
+diagram "Services" {
+  service: component(name, visual_style) {
+    api: arch.system "${name} API" { style $visual_style }
+    store: arch.database "${name} data"
+    api -> store
+  }
+  orders: service("Orders", palette.info)
+  billing: service("Billing", palette.warning)
 }
 ```
 
-## Text
+Component instances receive isolated qualified IDs such as `orders.api`.
 
-Standalone text can auto-size or wrap to a fixed width:
+## Text and Images
+
+Free text may auto-size or wrap:
 
 ```xdraw
 diagram "Text" {
-  text caption "Short label" at (100, 200)
-  text summary "A longer explanation that wraps." at (100, 260) width 240 align left font 18
+  short: text "Short label" { at (100, 200) }
+  summary: text "A longer explanation that wraps." {
+    at (100, 260); wrap-width 240; align left; font-size 18
+  }
 }
 ```
 
-## Styles
-
-Define a theme or reusable named style, then apply it with `style=<name>`:
+Code blocks preserve relative indentation, use a monospace font, and never
+wrap their source text. Use `title` for a human-facing heading and `language`
+for the source-language label. Line numbers are shown by default. Set
+`highlight true` for SQL, TypeScript, or XDraw highlighting.
+Large blocks fall back to plain monospace text to keep the scene responsive.
+The CLI prepares highlighting automatically. Programmatic callers use
+`compileAsync()` for highlighted output; synchronous `compile()` preserves the
+code as plain editable text.
 
 ```xdraw
-diagram "Styles" {
-  theme { font-family normal }
-  style focus {
-    stroke "#059669"
-    background "#ecfdf5"
-    text "#065f46"
+diagram "Example" {
+  sample: code """
+    function greet(name: string) {
+      return `Hello, ${name}`
+    }
+  """ {
+    title "Greeting function"
+    language typescript
+    line-numbers false
+    highlight true
   }
-  target: system "Verified target" [style=focus]
 }
 ```
 
-Supported properties are `stroke`, `background`, `text`, `text-color`,
-`stroke-width`, `stroke-style`, `fill-style`, `roughness`, `opacity`,
-`font-family`, `font-size`, `title-size`, `body-size`, `line-height`, `padding`,
-`link`, `locked`, `auto-size`, and `wrap-width`. Local attributes override a
-named style.
-
-## Components and Imports
-
-Components accept named parameters and receive isolated IDs at each use site:
-
-```xdraw
-diagram "Services" {
-  component service(name) {
-    api: system "{name} API"
-    store: database "{name} data"
-    api -> store
-  }
-  use service orders [name="Orders"]
-  use service billing [name="Billing"]
-}
-```
-
-Use `import "relative/file.xdraw"` to load definitions from another file.
-Imports resolve relative to the declaring file and may not escape the input
-root.
-
-## Images
-
-Declare a PNG, GIF, JPEG, or safe SVG asset, then place an image or icon:
+Assets are safe PNG, GIF, JPEG, or SVG files. Paths resolve relative to the
+source file and are embedded in the output.
 
 ```text
-asset logo "assets/logo.svg"
-image brand logo at (80, 80) size (240, 120) [fit=contain, alt="Product logo"]
-icon mark logo at (340, 80) size (64, 64)
-```
+use "xdraw/assets" as assets
 
-Asset paths resolve relative to the declaring file. `fit` accepts `contain`,
-`cover`, or `fill`. Assets are embedded in the generated document.
+diagram "Assets" {
+  logo: asset "assets/logo.svg"
+  hero: image(logo) { at (80, 80); size (240, 120); fit contain; alt "Logo" }
+  mark: assets.icon(logo) { at (340, 80); size (64, 64) }
+}
+```
 
 ## Precision Geometry
 
-Use explicit geometry only where automatic layout is insufficient:
+Use explicit geometry when automatic arrangement is insufficient:
 
 ```xdraw
 diagram "Pinned layout" {
-  first: card "First" at (100, 80) size (240, 100)
-  second: card "Second" at (460, 80) size (240, 100)
-  first.east -> second.west
-  align top (first, second)
+  first: rectangle "First" { at (100, 80); size (240, 100) }
+  second: rectangle "Second" { at (460, 120); size (240, 100) }
+  third: rectangle "Third" { at (820, 160); size (240, 100) }
+  align top (first, second, third)
+  distribute x (first, second, third)
   match-size (first, second) both
+  offset (third) by (0, 20)
+  rotate (third) 5
+  snap (first, second) to 10
 }
 ```
 
 Alignment modes are `left`, `center-x`, `right`, `top`, `center-y`, and
-`bottom`. Use `distribute x (...)` or `distribute y (...)` for even spacing.
-Other operations are `offset (...) by (x, y)`, `rotate (...) <degrees>`, and
-`snap (...) to <grid-size>`. `match-size` accepts `width`, `height`, or `both`.
+`bottom`. Distribution axes are `x` and `y`. `match-size` accepts `width`,
+`height`, or `both`.
 
 ## Hosted Scene Documents
 
-A scene resource is
-`<provider>::<workspace>::<collection>::<scene>`. Excalidraw+ uses the
-provider `excalidraw`; `default` selects the workspace associated with the API
-key. Collection and scene segments may be IDs or unambiguous names.
-
-Replace a complete hosted scene:
+A scene resource is `<provider>::<workspace>::<collection>::<scene>`.
+Excalidraw+ uses the provider `excalidraw`; `default` selects the workspace
+associated with the API key.
 
 ```xdraw
 scene excalidraw::default::architecture::system_overview {
   replace {
+    use "xdraw/architecture" as arch
     diagram "System overview" {
-      api: system "API"
-      data: database "Data"
+      api: arch.system "API"
+      data: arch.database "Data"
       api -> data
     }
   }
 }
 ```
 
-Patch known DSL IDs while preserving unrelated elements:
+Patch known source IDs while preserving unrelated elements:
 
 ```xdraw
 scene excalidraw::default::architecture::system_overview {
   patch {
-    update api {
-      tone warning
-      title "API v2"
-    }
+    update api { tone warning; title "API v2" }
     delete data
-    add {
-      note review "Requires review" at (80, 80)
-    }
+    add { review: rectangle "Requires review" { at (80, 80) } }
   }
 }
 ```
 
 Patch properties are `tone`, `title`, `stroke`, `background`, `text`,
-`stroke-width`, `opacity`, `x`, `y`, `width`, `height`, and `angle`. Angles are
-in degrees. `update` and `delete` fail when the target ID is absent or
-ambiguous.
+`stroke-width`, `opacity`, `x`, `y`, `width`, `height`, and `angle`.
 
 ## Validation
 
@@ -305,5 +392,5 @@ xdraw check diagram.xdraw
 xdraw build diagram.xdraw
 ```
 
-Validation covers syntax, imports, assets, references, style compatibility,
-layout, and generated geometry.
+Validation covers syntax, assets, references, styles, layout, and generated
+geometry.

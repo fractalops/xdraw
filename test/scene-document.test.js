@@ -1,15 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { compile } from "../src/compiler.js";
 import { formatSceneResource, parseSceneDocument } from "../src/scene-document.js";
 
 test("scene documents make replacement explicit", () => {
   const document = parseSceneDocument(`
     scene excalidraw::default::architecture::system_overview {
       replace {
+        use "xdraw/architecture" as arch
         diagram "System overview" {
-          api: system "API"
-          data: database "Data"
+          api: arch.system "API"
+          data: arch.database "Data"
           api -> data
         }
       }
@@ -27,7 +29,7 @@ test("scene documents express selective updates without JSON", () => {
       patch {
         update api { tone warning title "API v2" }
         delete obsolete
-        add { note review "Requires review" at (80, 80) }
+        add { review: rectangle "Requires review" { at (80, 80) } }
       }
     }
   `);
@@ -36,6 +38,24 @@ test("scene documents express selective updates without JSON", () => {
   }]);
   assert.deepEqual(document.operation.deletes, ["obsolete"]);
   assert.equal(document.operation.additions.statements[0].id, "review");
+  assert.equal(document.operation.additions.title, undefined);
+});
+
+test("scene additions support imported constructors without synthetic titles", () => {
+  const document = parseSceneDocument(`
+    scene excalidraw::default::examples::overview {
+      patch {
+        add {
+          use "xdraw/architecture" as arch
+          api: arch.system "API"
+        }
+      }
+    }
+  `);
+  const drawing = compile(document.operation.additions).toJSON();
+  assert.equal(document.operation.additions.title, undefined);
+  assert.equal(drawing.elements.some((element) => element.id === "document:title"), false);
+  assert.ok(drawing.elements.some((element) => element.id === "api:frame"));
 });
 
 test("scene documents reject ambiguous or empty operations", () => {

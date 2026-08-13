@@ -4,17 +4,18 @@ import test from "node:test";
 import { resolveAssets } from "../src/assets.js";
 import { compile } from "../src/compiler.js";
 import { MemoryFileSystem } from "../src/filesystem.js";
-import { parse } from "../src/parser.js";
+import { parseSource as parse } from "../src/source-language.js";
 import { buildSemanticIR } from "../src/semantic.js";
 
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="red"/></svg>';
 
 test("local assets become deterministic offline Excalidraw files", async () => {
   const filesystem = new MemoryFileSystem({ "logo.svg": SVG });
-  const source = `diagram "Assets" {
-    asset logo "logo.svg"
-    image hero logo at (100, 100) size (240, 120) [fit=contain, alt="Company logo"]
-    icon mark logo at (380, 100) size (60, 60) [fit=contain]
+  const source = `use "xdraw/assets" as assets
+  diagram "Assets" {
+    logo: asset "logo.svg"
+    hero: image(logo) { at (100, 100); size (240, 120); fit contain; alt "Example logo" }
+    mark: assets.icon(logo) { at (380, 100); size (60, 60); fit contain }
   }`;
   const first = compile(await resolveAssets(parse(source), filesystem)).toJSON();
   const second = compile(await resolveAssets(parse(source), filesystem)).toJSON();
@@ -23,7 +24,7 @@ test("local assets become deterministic offline Excalidraw files", async () => {
   assert.match(Object.values(first.files)[0].dataURL, /^data:image\/svg\+xml;base64,/);
   const hero = first.elements.find((item) => item.id === "hero");
   assert.equal(hero.type, "image");
-  assert.equal(hero.customData.description, "Company logo");
+  assert.equal(hero.customData.description, "Example logo");
   assert.equal(hero.fileId, first.elements.find((item) => item.id === "mark").fileId);
 });
 
@@ -33,7 +34,7 @@ test("asset limits and malformed content fail with bounded messages", async () =
     "large.svg": SVG,
   });
   await assert.rejects(
-    () => resolveAssets(parse('asset bad "active.svg"; image x bad at (0,0) size (10,10)'), filesystem),
+    () => resolveAssets(parse('diagram "Unsafe" { bad: asset "active.svg"; x: image(bad) { at (0,0); size (10,10) } }'), filesystem),
     /may not contain executable or remote content/,
   );
   for (const active of [
@@ -42,12 +43,12 @@ test("asset limits and malformed content fail with bounded messages", async () =
     '<svg width="10" height="10"><style>@import url(https://example.com/x.css)</style></svg>',
   ]) {
     await assert.rejects(
-      () => resolveAssets(parse('asset bad "active.svg"'), new MemoryFileSystem({ "active.svg": active })),
+      () => resolveAssets(parse('diagram "Unsafe" { bad: asset "active.svg" }'), new MemoryFileSystem({ "active.svg": active })),
       /may not contain executable or remote content/,
     );
   }
   await assert.rejects(
-    () => resolveAssets(parse('asset big "large.svg"; image x big at (0,0) size (10,10)'), filesystem, { fileBytes: 10 }),
+    () => resolveAssets(parse('diagram "Large" { big: asset "large.svg"; x: image(big) { at (0,0); size (10,10) } }'), filesystem, { fileBytes: 10 }),
     /exceeds the 10-byte file limit/,
   );
 });
@@ -55,7 +56,7 @@ test("asset limits and malformed content fail with bounded messages", async () =
 test("asset files survive the semantic IR boundary", async () => {
   const filesystem = new MemoryFileSystem({ "logo.svg": SVG });
   const resolved = await resolveAssets(
-    parse('asset logo "logo.svg"; image hero logo at (0,0) size (80,40)'),
+    parse('diagram "Boundary" { logo: asset "logo.svg"; hero: image(logo) { at (0,0); size (80,40) } }'),
     filesystem,
   );
   const drawing = compile(buildSemanticIR(resolved)).toJSON();
@@ -67,7 +68,7 @@ test("images reject non-positive target dimensions", async () => {
   const filesystem = new MemoryFileSystem({ "logo.svg": SVG });
   for (const size of ["(-10,20)", "(0,20)"]) {
     const resolved = await resolveAssets(
-      parse(`asset logo "logo.svg"; image hero logo at (0,0) size ${size}`),
+      parse(`diagram "Dimensions" { logo: asset "logo.svg"; hero: image(logo) { at (0,0); size ${size} } }`),
       filesystem,
     );
     assert.throws(() => compile(resolved), /requires finite positive dimensions/);
@@ -77,7 +78,7 @@ test("images reject non-positive target dimensions", async () => {
 test("data URL assets require no filesystem access", async () => {
   const data = `data:image/svg+xml,${encodeURIComponent(SVG)}`;
   const document = await resolveAssets(
-    parse(`asset inline "${data}"; image picture inline at (0,0) size (80,40)`),
+    parse(`diagram "Inline" { inline: asset "${data}"; picture: image(inline) { at (0,0); size (80,40) } }`),
     new MemoryFileSystem(),
   );
   assert.equal(Object.keys(compile(document).toJSON().files).length, 1);
@@ -86,15 +87,15 @@ test("data URL assets require no filesystem access", async () => {
 test("asset paths and nested image membership stay within their declared boundaries", async () => {
   const filesystem = new MemoryFileSystem({ "logo.svg": SVG });
   await assert.rejects(
-    () => resolveAssets(parse('asset bad "/tmp/logo.svg"'), filesystem),
+    () => resolveAssets(parse('diagram "Absolute" { bad: asset "/tmp/logo.svg" }'), filesystem),
     /path must be relative/,
   );
   const source = `diagram "Nested" {
-    asset logo "logo.svg"
-    frame panel "Panel" [locked] { image nested logo at (100,100) size (80,40) }
+    logo: asset "logo.svg"
+    panel: frame "Panel" { locked true; nested: image(logo) { at (100,100); size (80,40) } }
   }`;
   const drawing = compile(await resolveAssets(parse(source), filesystem)).toJSON();
-  const nested = drawing.elements.find((item) => item.id === "nested");
+  const nested = drawing.elements.find((item) => item.id === "panel.nested");
   assert.equal(nested.frameId, "panel");
   assert.equal(nested.locked, true);
 });

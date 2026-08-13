@@ -1,13 +1,20 @@
+use "xdraw/palette" as palette
+use "xdraw/process" as process
+use "xdraw/cards" as cards
+
 diagram "Release decision" {
-  lane assess "Assessment" {
-    layout row gap 70
-    evidence: card "Evidence" info
-    decision: card "Review" warning
+  assess: process.lane "Assessment" {
+    arrange row { gap 70 }
+
+    evidence: cards.card "Evidence" { style palette.info }
+    decision: cards.card "Review" { style palette.warning }
     evidence -> decision
   }
-  lane outcomes "Outcomes" {
-    layout row gap 70
-    hold: card "Hold" danger
-    release: card "Release" success
+
+  outcomes: process.lane "Outcomes" {
+    arrange row { gap 70 }
+
+    hold: cards.card "Hold" { style palette.danger }
+    release: cards.card "Release" { style palette.success }
   }
 }

@@ -1,0 +1,27 @@
+diagram "Code blocks" {
+  subtitle "Editable source text with preserved indentation"
+  arrange grid { columns 2; gap 32 }
+
+  typescript: code """
+    type Status = "queued" | "complete"
+
+    function label(status: Status) {
+      return `State: ${status}`
+    }
+  """ {
+    language typescript
+    highlight true
+  }
+
+  sql: code """
+    SELECT
+      customer_id,
+      COUNT(*) AS order_count
+    FROM orders
+    GROUP BY customer_id
+  """ {
+    language sql
+    line-numbers false
+    highlight true
+  }
+}

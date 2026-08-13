@@ -9,14 +9,12 @@ function elements(source) {
 
 test("geometry transforms compose in source order", () => {
   const result = elements(`diagram "Transforms" {
-    lane flow "Flow" {
-      a: card "A" size (180, 90)
-      b: card "B" size (240, 120)
-      offset (b) by (13, 17)
-      match-size (a, b) both
-      snap (b) to 20
-      rotate (b) 90
-    }
+    a: rectangle "A" { at (80, 80); size (180, 90) }
+    b: rectangle "B" { at (360, 80); size (240, 120) }
+    offset (b) by (13, 17)
+    match-size (a, b) both
+    snap (b) to 20
+    rotate (b) 90
   }`);
   const a = result.find((element) => element.id === "a:frame");
   const b = result.find((element) => element.id === "b:frame");
@@ -27,21 +25,25 @@ test("geometry transforms compose in source order", () => {
 });
 
 test("invalid geometry policies fail with semantic diagnostics", () => {
-  assert.throws(() => compile(parse('diagram "Bad" { a: card "A" snap (a) to 0 }')), /snap grid must be positive/);
-  assert.throws(() => compile(parse('diagram "Bad" { a: card "A" match-size (a) depth }')), /unsupported size axis/);
+  assert.throws(() => compile(parse('diagram "Bad" { a: rectangle "A"; snap (a) to 0 }')), /snap grid must be positive/);
+  assert.throws(() => compile(parse('diagram "Bad" { a: rectangle "A"; match-size (a) depth }')), /unsupported size axis/);
   assert.throws(
-    () => compile(parse('diagram "Bad" { text caption "Caption" at (0, 0) offset (caption) by (1, 1) }')),
-    /geometry operations require node targets; 'caption' is text/,
+    () => compile(parse('diagram "Bad" { caption: text "Caption" { at (0, 0) }; offset (caption) by (1, 1) }')),
+    /geometry operations require node or movable code targets; 'caption' is text/,
   );
   assert.throws(
-    () => compile(parse('diagram "Bad" { frame f "F" { a: card "A" } offset (f) by (1, 1) }')),
-    /geometry operations require node targets; 'f' is frame/,
+    () => compile(parse('diagram "Bad" { f: frame "F" { a: rectangle "A" }; offset (f) by (1, 1) }')),
+    /geometry operations require node or movable code targets; 'f' is frame/,
+  );
+  assert.throws(
+    () => compile(parse('diagram "Bad" { sample: code "value"; match-size (sample, sample) both }')),
+    /match-size does not support code targets/,
   );
 });
 
 test("rotation moves rich-card parts around one semantic centre", () => {
-  const base = elements('diagram "Base" { lane l "L" { a: card "A" { body "Body" } } }');
-  const rotated = elements('diagram "Rotated" { lane l "L" { a: card "A" { body "Body" } rotate (a) 90 } }');
+  const base = elements('use "xdraw/cards" as cards diagram "Base" { a: cards.card "A" { body "Body" } }');
+  const rotated = elements('use "xdraw/cards" as cards diagram "Rotated" { a: cards.card "A" { body "Body" }; rotate (a) 90 }');
   const baseFrame = base.find((element) => element.id === "a:frame");
   const baseBody = base.find((element) => element.id === "a:body");
   const frame = rotated.find((element) => element.id === "a:frame");
@@ -60,10 +62,10 @@ test("rotation moves rich-card parts around one semantic centre", () => {
 
 test("layered layout is deterministic and separates graph ranks", () => {
   const source = `diagram "Layered" {
-    layout layered gap 28
-    a: card "A"
-    b: card "B"
-    c: card "C"
+    arrange layered { gap 28 }
+    a: rectangle "A"
+    b: rectangle "B"
+    c: rectangle "C"
     a -> b
     b -> c
   }`;
@@ -79,10 +81,10 @@ test("layered layout is deterministic and separates graph ranks", () => {
 
 test("layered layout preserves dotted identifiers and explicit ports", () => {
   const result = elements(`diagram "Dotted" {
-    layout layered
-    service.api: system "API"
-    service.db: database "DB"
-    service.api.east -> service.db.west
+    arrange layered {}
+    service.api: rectangle "API"
+    service.db: rectangle "DB"
+    service.api@right -> service.db@left
   }`);
   const api = result.find((element) => element.id === "service.api:frame");
   const database = result.find((element) => element.id === "service.db:frame");
@@ -91,16 +93,16 @@ test("layered layout preserves dotted identifiers and explicit ports", () => {
 
 test("flat layered layout rejects nested diagrams before placement", () => {
   assert.throws(
-    () => compile(parse('diagram "Nested" { layout layered frame f "F" { a: card "A" } }')),
+    () => compile(parse('diagram "Nested" { arrange layered {}; f: frame "F" { a: rectangle "A" } }')),
     /layered layout cannot draw nested containers/,
   );
 });
 
 for (const count of [10, 50, 200]) {
   test(`layered layout places ${count} nodes within its acceptance budget`, () => {
-    const nodes = Array.from({ length: count }, (_, index) => `n${index}: card "Node ${index}"`).join("\n");
+    const nodes = Array.from({ length: count }, (_, index) => `n${index}: rectangle "Node ${index}"`).join("\n");
     const edges = Array.from({ length: count - 1 }, (_, index) => `n${Math.floor(index / 2)} -> n${index + 1}`).join("\n");
-    const source = `diagram "Scale ${count}" { layout layered gap 12 ${nodes} ${edges} }`;
+    const source = `diagram "Scale ${count}" { arrange layered { gap 12 } ${nodes} ${edges} }`;
     const started = performance.now();
     const result = compile(parse(source)).toJSON();
     const elapsed = performance.now() - started;

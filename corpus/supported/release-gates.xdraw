@@ -1,10 +1,15 @@
+use "xdraw/palette" as palette
+use "xdraw/process" as process
+use "xdraw/cards" as cards
+
 diagram "Release gates" {
-  lane gates "Quality gates" {
-    layout row gap 30
-    build: card "Build" accent
-    unit: card "Unit" info
-    acceptance: card "Acceptance" warning
-    deploy: card "Deploy" success
+  gates: process.lane "Quality gates" {
+    arrange row { gap 30 }
+
+    build: cards.card "Build" { style palette.accent }
+    unit: cards.card "Unit" { style palette.info }
+    acceptance: cards.card "Acceptance" { style palette.warning }
+    deploy: cards.card "Deploy" { style palette.success }
     build -> unit -> acceptance -> deploy
   }
 }

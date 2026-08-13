@@ -1,4 +1,4 @@
-import { parse } from "./parser.js";
+import { parseSource } from "./source-language.js";
 import { SyntaxError, tokenize } from "./tokenizer.js";
 
 const UPDATE_PROPERTIES = new Set([
@@ -12,6 +12,27 @@ function attachSource(document, source, tokens) {
     tokens: { value: tokens, enumerable: false },
   });
   return document;
+}
+
+function parseAdditions(source) {
+  const tokens = tokenize(source);
+  let index = 0;
+  let importsEnd = 0;
+  while (tokens[index]?.type === "identifier" && tokens[index].value === "use") {
+    index += 1;
+    if (tokens[index]?.type !== "string") break;
+    index += 1;
+    if (tokens[index]?.type !== "identifier" || tokens[index].value !== "as") break;
+    index += 1;
+    if (tokens[index]?.type !== "identifier") break;
+    importsEnd = tokens[index].end;
+    index += 1;
+  }
+  const imports = source.slice(0, importsEnd);
+  const statements = source.slice(importsEnd);
+  const additions = parseSource(`${imports}\ndiagram "" {${statements}}`);
+  additions.title = undefined;
+  return additions;
 }
 
 export function formatSceneResource(resource) {
@@ -60,9 +81,6 @@ export function parseSceneDocument(source) {
   let operation;
   if (mode === "replace") {
     const start = tokens[index];
-    if (!peek("identifier", "diagram")) {
-      throw new SyntaxError("replace must contain one diagram", source, start.offset);
-    }
     let depth = 0;
     let end = start;
     while (!peek("eof")) {
@@ -75,7 +93,9 @@ export function parseSceneDocument(source) {
       end = current;
       index += 1;
     }
-    const diagram = parse(source.slice(start.offset, end.end));
+    const content = source.slice(start.offset, end.end);
+    if (!content.trim()) throw new SyntaxError("replace must contain one diagram", source, start.offset);
+    const diagram = parseSource(content);
     operation = { type: "replace", diagram };
   } else {
     const updates = [];
@@ -123,7 +143,7 @@ export function parseSceneDocument(source) {
         if (!close) throw new SyntaxError("unterminated add block", source, open.offset);
         const content = source.slice(contentStart, close.offset);
         if (!content.trim()) throw new SyntaxError("add block must contain diagram elements", source, contentStart);
-        additions = parse(content);
+        additions = parseAdditions(content);
       } else {
         throw new SyntaxError(`unknown patch action '${action}'`, source, tokens[index - 1].offset);
       }

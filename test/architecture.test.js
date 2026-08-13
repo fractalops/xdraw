@@ -5,7 +5,7 @@ import test from "node:test";
 import { BUILTIN_LAYOUT } from "../src/builtin-layouts.js";
 import { createMeasurer } from "../src/measurement.js";
 import { createStyleResolver } from "../src/styles.js";
-import { parse } from "../src/parser.js";
+import { parseSource as parse } from "../src/source-language.js";
 import {
   assertLayoutCapabilities,
   BUILTIN_LAYOUT_CAPABILITIES,
@@ -28,7 +28,7 @@ test("built-in layout capabilities are enforced", () => {
 });
 
 test("layout adapters may return routes only when they declare ownership", () => {
-  const document = buildSemanticIR(parse('diagram "Routes" { item: card "Item" }'));
+  const document = buildSemanticIR(parse('diagram "Routes" { item: rectangle "Item" }'));
   const state = createSceneGraph(document, {
     diagramWidth: 1120, contentWidth: 1120, annotationGutterWidth: 0, measurer: createMeasurer(),
   });
@@ -78,7 +78,7 @@ test("tree layouts register one routing obstacle per frame", async () => {
 });
 
 test("layout requirements are derived from the semantic input", () => {
-  const document = buildSemanticIR(parse('diagram "Fixed" { item: card "Item" at (10, 20) }'));
+  const document = buildSemanticIR(parse('diagram "Fixed" { item: rectangle "Item" { at (10, 20) } }'));
   const state = createSceneGraph(document, {
     diagramWidth: 1120,
     contentWidth: 1120,
@@ -97,7 +97,7 @@ test("layout requirements are derived from the semantic input", () => {
 });
 
 test("layout populates a measured scene before Excalidraw adaptation", () => {
-  const document = buildSemanticIR(parse('diagram "Scene" { lane flow "Flow" { item: card "Item" } }'));
+  const document = buildSemanticIR(parse('diagram "Scene" { flow: frame "Flow" { item: rectangle "Item" } }'));
   const state = createSceneGraph(document, {
     diagramWidth: 1120,
     contentWidth: 1120,
@@ -112,7 +112,7 @@ test("layout populates a measured scene before Excalidraw adaptation", () => {
   });
 
   assert.ok(state.objects.get("flow").bounds);
-  assert.ok(state.objects.get("item").bounds);
+  assert.ok(state.objects.get("flow.item").bounds);
   assert.ok(state.visuals.length >= 2);
   assert.ok(state.visuals.every((visual) => visual.origin?.start?.line > 0));
   assert.equal(result.placements, state.bounds);
@@ -120,7 +120,8 @@ test("layout populates a measured scene before Excalidraw adaptation", () => {
 });
 
 test("scene graph supplies resolved styles for adapter-generated node visuals", () => {
-  const document = buildSemanticIR(parse('diagram "Scene" { item: system "Item" }'));
+  const document = buildSemanticIR(parse(`use "xdraw/architecture" as arch
+    diagram "Scene" { item: arch.system "Item" }`));
   const styles = createStyleResolver(document);
   const state = createSceneGraph(document, {
     diagramWidth: 1120,

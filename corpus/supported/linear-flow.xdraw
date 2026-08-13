@@ -1,10 +1,16 @@
+use "xdraw/palette" as palette
+use "xdraw/process" as process
+use "xdraw/cards" as cards
+
 diagram "Request lifecycle" {
   subtitle "A compact end-to-end flow"
-  lane flow "Processing" {
-    layout row gap 55
-    request: card "Request" info
-    validate: card "Validate" warning
-    publish: card "Publish" success
+
+  flow: process.lane "Processing" {
+    arrange row { gap 55 }
+
+    request: cards.card "Request" { style palette.info }
+    validate: cards.card "Validate" { style palette.warning }
+    publish: cards.card "Publish" { style palette.success }
     request -> validate -> publish
   }
 }

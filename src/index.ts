@@ -4,16 +4,15 @@ export {
   ExcalidrawApiClient,
 } from "./excalidraw-api.js";
 export { resolveAssets } from "./assets.js";
-export { FONT, arrow, diamond, ellipse, frame, image, rectangle, text } from "./elements.js";
+export { FONT, arrow, diamond, ellipse, frame, freedraw, image, rectangle, text } from "./elements.js";
 export { alignBounds, anchor, box, column, distributeBounds, inset, row } from "./layout.js";
 export { boundText, card, connect, fitTextSize, heading, lane, tone, wrapText } from "./components.js";
-export { compile } from "./compiler.js";
+export { compile, compileAsync } from "./compiler.js";
 export { MemoryFileSystem, RootedFileSystem } from "./filesystem.js";
-export { expandDocument, loadDocument, loadParsedDocument } from "./expander.js";
 export { createMeasurer } from "./measurement.js";
 export { createStyleResolver } from "./styles.js";
 export { LAYERED_LAYOUT, LAYERED_LAYOUT_CAPABILITIES } from "./layered-layout.js";
-export { parse } from "./parser.js";
+export { parseSource as parse, parseSource, parseSyntax } from "./source-language.js";
 export { formatSceneResource, parseSceneDocument } from "./scene-document.js";
 export { renderScenePng, renderSceneSvg } from "./local-renderer.js";
 export { measureRouteQuality } from "./route-quality.js";

@@ -1,16 +1,25 @@
+use "xdraw/palette" as palette
+use "xdraw/process" as process
+use "xdraw/cards" as cards
+
 diagram "Migration states" {
-  lane state "Dataset" {
-    layout row gap 50
-    source: card "Production" info {
+  state: process.lane "Dataset" {
+    arrange row { gap 50 }
+
+    source: cards.card "Production" {
       body "Pinned source version"
+      style palette.info
     }
-    candidate: card "Candidate" warning {
+    candidate: cards.card "Candidate" {
       body "Transformation complete"
+      style palette.warning
     }
-    verified: card "Verified" success {
+    verified: cards.card "Verified" {
       body "Evidence published"
+      style palette.success
     }
-    source -> candidate "migrate"
-    candidate -> verified "compare" [success]
+
+    migrate: source -> candidate "migrate"
+    compare: candidate -> verified "compare" { style palette.success }
   }
 }

@@ -2,8 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { compile } from "../src/compiler.js";
-import { parse } from "../src/parser.js";
+import { parseSource } from "../src/source-language.js";
 import { measureTextWidth } from "../src/text-metrics.js";
+
+const imports = `use "xdraw/process" as process
+use "xdraw/cards" as cards
+use "xdraw/annotations" as annotations`;
 
 test("font-aware metrics distinguish proportional and code fonts", () => {
   assert.ok(measureTextWidth("W", 20, 1) > measureTextWidth("i", 20, 1));
@@ -12,64 +16,58 @@ test("font-aware metrics distinguish proportional and code fonts", () => {
 });
 
 test("spacing presets express layout density without numeric geometry", () => {
-  const tight = compile(parse(`diagram "Spacing" {
-    lane flow "Flow" {
-      layout row spacing tight
-      a: card "A"
-      b: card "B"
-    }
-  }`)).toJSON();
-  const airy = compile(parse(`diagram "Spacing" {
-    lane flow "Flow" {
-      layout row spacing airy
-      a: card "A"
-      b: card "B"
-    }
-  }`)).toJSON();
-  const tightA = tight.elements.find((item) => item.id === "a:frame");
-  const tightB = tight.elements.find((item) => item.id === "b:frame");
-  const airyA = airy.elements.find((item) => item.id === "a:frame");
-  const airyB = airy.elements.find((item) => item.id === "b:frame");
+  const drawing = (spacing) => compile(parseSource(`${imports}
+    diagram "Spacing" {
+      flow: process.lane "Flow" {
+        arrange row { spacing ${spacing} }
+        a: cards.card "A"
+        b: cards.card "B"
+      }
+    }`)).toJSON();
+  const tight = drawing("tight");
+  const airy = drawing("airy");
+  const tightA = tight.elements.find((item) => item.id === "flow.a:frame");
+  const tightB = tight.elements.find((item) => item.id === "flow.b:frame");
+  const airyA = airy.elements.find((item) => item.id === "flow.a:frame");
+  const airyB = airy.elements.find((item) => item.id === "flow.b:frame");
   assert.ok(airyB.x - (airyA.x + airyA.width) > tightB.x - (tightA.x + tightA.width));
 });
 
-test("numeric gaps remain compatible but report automatic correction", () => {
-  const drawing = compile(parse(`diagram "Warnings" {
-    lane flow "Flow" {
-      layout row gap 8
-      a: card "A"
-      b: card "B"
-      a -> b "a connector label"
-    }
-  }`));
+test("small numeric gaps report automatic correction", () => {
+  const drawing = compile(parseSource(`${imports}
+    diagram "Warnings" {
+      flow: process.lane "Flow" {
+        arrange row { gap 8 }
+        a: cards.card "A"
+        b: cards.card "B"
+        a -> b "a connector label"
+      }
+    }`));
   assert.ok(drawing.diagnostics.some((item) => item.code === "XD2001" && item.severity === "warning"));
-  drawing.toJSON();
 });
 
 test("container notes participate in layout without manual coordinates", () => {
-  const result = compile(parse(`diagram "Notes" {
-    lane flow "Flow" {
-      a: card "A"
-      note caveat "This applies to the whole flow."
-    }
-  }`)).toJSON();
+  const result = compile(parseSource(`${imports}
+    diagram "Notes" {
+      flow: process.lane "Flow" {
+        a: cards.card "A"
+        caveat: annotations.note "This applies to the whole flow."
+      }
+    }`)).toJSON();
   const lane = result.elements.find((item) => item.id === "flow:frame");
-  const note = result.elements.find((item) => item.id === "caveat:frame");
+  const note = result.elements.find((item) => item.id === "flow.caveat:frame");
   assert.ok(note.x >= lane.x && note.y >= lane.y);
   assert.ok(note.x + note.width <= lane.x + lane.width);
   assert.ok(note.y + note.height <= lane.y + lane.height);
 });
 
-test("decision branches lower to labeled routed connections", () => {
-  const result = compile(parse(`diagram "Decision" {
-    lane flow "Flow" {
-      gate: decision "Approved?" {
-        when "yes" -> release
-        when "no" -> revise
-      }
-      release: card "Release"
-      revise: card "Revise"
-    }
+test("decision branches use ordinary labeled connections", () => {
+  const result = compile(parseSource(`diagram "Decision" {
+    gate: diamond "Approved?"
+    release: rectangle "Release"
+    revise: rectangle "Revise"
+    gate -> release "yes"
+    gate -> revise "no"
   }`)).toJSON();
   const labels = result.elements.filter((item) => item.type === "text").map((item) => item.text);
   assert.ok(labels.includes("yes"));
@@ -77,26 +75,12 @@ test("decision branches lower to labeled routed connections", () => {
   assert.equal(result.elements.filter((item) => item.type === "arrow").length, 2);
 });
 
-test("routing escape hatches emit compatibility warnings", () => {
-  const drawing = compile(parse(`diagram "Routing" {
-    a: card "A" at (100, 100)
-    b: card "B" at (500, 100)
-    a.east -> b.west [via="340,155"]
+test("explicit waypoints report that automatic routing is disabled", () => {
+  const drawing = compile(parseSource(`diagram "Routing" {
+    a: rectangle "A" { at (100, 100) }
+    b: rectangle "B" { at (500, 100) }
+    a@right -> b@left { via ((340, 155)) }
   }`));
   assert.ok(drawing.diagnostics.some((item) => item.code === "XD2003"));
   assert.ok(drawing.diagnostics.some((item) => item.code === "XD2002"));
-});
-
-test("route-around constraints bind to semantic obstacle ids", () => {
-  const result = compile(parse(`diagram "Routing" {
-    a: card "A" at (100, 100)
-    obstacle: card "Obstacle" at (380, 80) size (220, 150)
-    b: card "B" at (760, 100)
-    a.east -> b.west [route=around obstacle]
-  }`)).toJSON();
-  assert.equal(result.elements.filter((item) => item.type === "arrow").length, 1);
-  assert.throws(
-    () => compile(parse('a: card "A"; b: card "B"; a -> b [route=around missing]')),
-    /unknown node: missing/,
-  );
 });

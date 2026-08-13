@@ -3,7 +3,7 @@ import { BUILTIN_LAYOUT } from "./builtin-layouts.js";
 import { LAYERED_LAYOUT } from "./layered-layout.js";
 import { heading } from "./components.js";
 import { text } from "./elements.js";
-import { renderFreeText, renderImage, renderSceneVisuals } from "./excalidraw-adapter.js";
+import { renderFreedraw, renderFreeText, renderImage, renderSceneVisuals } from "./excalidraw-adapter.js";
 import { applyGeometryStatements } from "./geometry.js";
 import { renderAnnotation, renderConnection } from "./routing-renderer.js";
 import { splitEndpoint } from "./router.js";
@@ -15,29 +15,26 @@ import { expandDocument } from "./expander.js";
 import { createDiagnosticCollector } from "./diagnostics.js";
 import { measureTextWidth } from "./text-metrics.js";
 import { layoutGap } from "./clearances.js";
+import { SECTION_TYPES } from "./layout-items.js";
+import { prepareDocumentSyntaxHighlighting } from "./syntax-highlighter.js";
 
+const FREEDRAW_TYPES = new Set(["freedraw"]);
+const IMAGE_TYPES = new Set(["image", "icon"]);
+const TEXT_TYPES = new Set(["text"]);
 
 function containsAnnotations(statements) {
   return statements.some((item) => item.type === "callout" || (item.type === "note" && item.target)
     || (item.statements && containsAnnotations(item.statements)));
 }
 
-function freeTextStatements(statements, result = [], frameId = null, locked = false) {
+function collectDetachedStatements(statements, acceptedTypes, result = [], frameId = null, locked = false) {
   for (const statement of statements) {
-    if (statement.type === "text") result.push({ statement, frameId, locked });
+    if (acceptedTypes.has(statement.type)) result.push({ statement, frameId, locked });
     const childFrame = statement.type === "frame" ? statement.id : frameId;
     const childLocked = locked || (statement.type === "frame" && statement.attributes?.locked === true);
-    if (statement.statements) freeTextStatements(statement.statements, result, childFrame, childLocked);
-  }
-  return result;
-}
-
-function imageStatements(statements, result = [], frameId = null, locked = false) {
-  for (const statement of statements) {
-    if (["image", "icon"].includes(statement.type)) result.push({ statement, frameId, locked });
-    const childFrame = statement.type === "frame" ? statement.id : frameId;
-    const childLocked = locked || (statement.type === "frame" && statement.attributes?.locked === true);
-    if (statement.statements) imageStatements(statement.statements, result, childFrame, childLocked);
+    if (statement.statements) {
+      collectDetachedStatements(statement.statements, acceptedTypes, result, childFrame, childLocked);
+    }
   }
   return result;
 }
@@ -47,21 +44,38 @@ function registerBounds(state, id, bounds) {
   state.place(id, bounds);
 }
 
-export function compile(document) {
+function renderDetached(drawing, items, render) {
+  items.forEach(({ statement, frameId, locked }) => {
+    const start = drawing.elements.length;
+    render(statement);
+    for (const element of drawing.elements.slice(start)) {
+      element.frameId = frameId;
+      if (locked) element.locked = true;
+    }
+  });
+}
+
+export function compile(document, options = {}) {
   const files = document.assetFiles ?? {};
   const scene = document.type === "semantic-document" ? document : buildSemanticIR(expandDocument(document));
   const diagnostics = createDiagnosticCollector();
-  const drawing = new Drawing({ backgroundColor: "#eef2f7", files, diagnostics: diagnostics.diagnostics });
+  const drawing = new Drawing({
+    backgroundColor: "#eef2f7",
+    files,
+    diagnostics: diagnostics.diagnostics,
+    syntaxHighlighting: options.syntaxHighlighting,
+  });
   const documentLayout = scene.statements.find((item) => item.type === "layout");
   if (documentLayout && !["compact", "grid", "layered"].includes(documentLayout.kind)) throw new Error(`unsupported document layout: ${documentLayout.kind}`);
   if (documentLayout?.columns !== undefined && documentLayout.kind !== "grid") throw new Error("layout columns is supported only by document grid layout");
   const annotationGutterWidth = containsAnnotations(scene.statements) ? 250 : 0;
   const gridColumns = documentLayout?.kind === "grid" ? documentLayout.columns ?? 2 : undefined;
   const gridGap = layoutGap(documentLayout, 24);
-  const diagramWidth = documentLayout?.kind === "grid"
+  const inferredDiagramWidth = documentLayout?.kind === "grid"
     ? Math.max(1900, 140 + gridColumns * 680 + (gridColumns - 1) * gridGap + annotationGutterWidth)
     : documentLayout?.kind === "layered" ? 1900
       : documentLayout?.kind === "compact" ? 1240 : 1120;
+  const diagramWidth = documentLayout?.width ?? inferredDiagramWidth;
   const contentWidth = diagramWidth - annotationGutterWidth;
   const sectionGap = layoutGap(documentLayout, documentLayout?.kind === "compact" ? 22 : 35);
   const styles = createStyleResolver(scene);
@@ -80,7 +94,7 @@ export function compile(document) {
   }
 
   const adapter = documentLayout?.kind === "layered" ? LAYERED_LAYOUT : BUILTIN_LAYOUT;
-  const containers = scene.statements.filter((item) => ["lane", "group", "frame", "tree", "sequence"].includes(item.type));
+  const containers = scene.statements.filter((item) => SECTION_TYPES.has(item.type));
   const loose = scene.statements.filter((item) => item.type === "node");
   const topLevelConnections = scene.statements.filter((item) => item.type === "connection");
   const looseIds = new Set(loose.map((item) => item.id));
@@ -113,25 +127,45 @@ export function compile(document) {
   renderSceneVisuals(drawing, state.visuals);
   state.connections.push(...topLevelConnections.filter((item) => !syntheticConnections.includes(item)));
   state.annotations.push(...scene.statements.filter((item) => ["note", "callout"].includes(item.type)));
-  applyGeometryStatements(drawing, state, scene.statements);
-  freeTextStatements(scene.statements).forEach(({ statement, frameId, locked }) => {
-    const start = drawing.elements.length;
-    renderFreeText(drawing, statement, styles.resolveText(statement));
-    for (const element of drawing.elements.slice(start)) {
-      element.frameId = frameId;
-      if (locked) element.locked = true;
-    }
+  collectDetachedStatements(scene.statements, FREEDRAW_TYPES).forEach(({ statement, frameId, locked }) => {
+    const element = renderFreedraw(drawing, statement, styles.resolveFreedraw(statement));
+    element.frameId = frameId;
+    if (locked) element.locked = true;
+    registerBounds(state, statement.id, {
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+    });
   });
-  imageStatements(scene.statements).forEach(({ statement, frameId, locked }) => {
-    const start = drawing.elements.length;
-    renderImage(drawing, statement);
-    for (const element of drawing.elements.slice(start)) {
-      element.frameId = frameId;
-      if (locked) element.locked = true;
+  applyGeometryStatements(drawing, state, scene.statements);
+  renderDetached(
+    drawing,
+    collectDetachedStatements(scene.statements, TEXT_TYPES),
+    (statement) => renderFreeText(drawing, statement, styles.resolveText(statement)),
+  );
+  renderDetached(
+    drawing,
+    collectDetachedStatements(scene.statements, IMAGE_TYPES),
+    (statement) => renderImage(drawing, statement),
+  );
+  const annotationIds = new Set(state.annotations.map((annotation) => annotation.id));
+  const referencedAnnotations = new Set(state.connections.flatMap((connection) => (
+    connection.nodes
+      .map((endpoint) => splitEndpoint(endpoint, annotationIds).id)
+      .filter((id) => annotationIds.has(id))
+  )));
+  state.annotations.forEach((annotation, index) => {
+    if (referencedAnnotations.has(annotation.id)) {
+      renderAnnotation(drawing, state, annotation, index, registerBounds);
     }
   });
   state.connections.forEach((connection, index) => renderConnection(drawing, state, connection, index));
-  state.annotations.forEach((annotation, index) => renderAnnotation(drawing, state, annotation, index, registerBounds));
+  state.annotations.forEach((annotation, index) => {
+    if (!referencedAnnotations.has(annotation.id)) {
+      renderAnnotation(drawing, state, annotation, index, registerBounds);
+    }
+  });
   for (const element of drawing.elements.filter((item) => item.type === "text" && item.autoResize === false)) {
     const measured = Math.max(...String(element.text).split("\n").map((line) => (
       measureTextWidth(line, element.fontSize, element.fontFamily)
@@ -141,4 +175,9 @@ export function compile(document) {
     }
   }
   return drawing;
+}
+
+export async function compileAsync(document) {
+  await prepareDocumentSyntaxHighlighting(document);
+  return compile(document, { syntaxHighlighting: true });
 }

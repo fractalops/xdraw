@@ -1,11 +1,17 @@
+use "xdraw/architecture" as arch
+
 diagram "Native frames" {
-  frame workspace "Workspace" [locked] {
-    request: person "Request"
-    service: system "Service"
+  workspace: frame "Workspace" {
+    locked true
+
+    request: arch.person "Request"
+    service: arch.system "Service"
     request -> service
-    frame data "Data" {
-      records: database "Records"
+
+    data: frame "Data" {
+      records: arch.database "Records"
     }
-    service -> records
+
+    service -> data.records
   }
 }

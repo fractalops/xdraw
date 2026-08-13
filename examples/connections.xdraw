@@ -1,35 +1,39 @@
+use "xdraw/architecture" as arch
+use "xdraw/cards" as cards
+use "xdraw/containers" as containers
+
 diagram "Connection styles" {
   subtitle "Straight, routed, explanatory, and structural relationships"
-  layout compact gap 24
+  arrange compact { gap 24 }
 
-  lane common "Common relationships" {
-    layout row gap 160
-    straight_from: system "Straight source"
-    straight_to: system "Straight target"
-    straight_from -> straight_to "normal flow" [style=straight]
+  common: containers.section "Common relationships" {
+    arrange row { gap 160 }
+    straight_from: arch.system "Straight source"
+    straight_to: arch.system "Straight target"
+    straight_from -> straight_to "normal flow" { route straight }
   }
 
-  lane routed "Routed flow" {
-    layout row gap 160
-    elbow_from: system "Elbow source"
-    obstacle: card "Obstacle"
-    elbow_to: system "Elbow target"
-    elbow_from -> elbow_to "routed flow" [style=elbow]
+  routed: containers.section "Routed flow" {
+    arrange row { gap 160 }
+    elbow_from: arch.system "Elbow source"
+    obstacle: cards.card "Obstacle"
+    elbow_to: arch.system "Elbow target"
+    elbow_from -> elbow_to "routed flow" { route elbow }
   }
 
-  lane explanatory "Explanatory relationships" {
-    layout row gap 140
-    curved_from: card "Finding"
-    curved_to: card "Explanation"
-    boundary: system "Boundary"
-    curved_from -> curved_to "callout" [style=curved, head=arrow, dashed]
-    curved_to -> boundary "terminates" [style=straight, head=bar]
+  explanatory: containers.section "Explanatory relationships" {
+    arrange row { gap 140 }
+    curved_from: cards.card "Finding"
+    curved_to: cards.card "Explanation"
+    boundary: arch.system "Boundary"
+    curved_from -> curved_to "callout" { route curved; head arrow; stroke-style dashed }
+    curved_to -> boundary "terminates" { route straight; head bar }
   }
 
-  lane structural "Structural relationship" {
-    layout row gap 120
-    relation_from: card "Parent"
-    relation_to: card "Child"
-    relation_from -> relation_to [style=line, head=none]
+  structural: containers.section "Structural relationship" {
+    arrange row { gap 120 }
+    relation_from: cards.card "Parent"
+    relation_to: cards.card "Child"
+    relation_from -- relation_to { head none }
   }
 }

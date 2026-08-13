@@ -1,9 +1,13 @@
-const defaultSource = `diagram "Browser acceptance" {
-  lane flow "Verification flow" {
-    layout row gap 80
-    source: card "XDraw source" info
-    preview: card "Progressive preview" warning
-    final: card "Editable canvas" success
+const defaultSource = `use "xdraw/cards" as cards
+use "xdraw/process" as process
+use "xdraw/palette" as palette
+
+diagram "Browser acceptance" {
+  flow: process.lane "Verification flow" {
+    arrange row { gap 80 }
+    source: cards.card "XDraw source" { style palette.info }
+    preview: cards.card "Progressive preview" { style palette.warning }
+    final: cards.card "Editable canvas" { style palette.success }
     source -> preview -> final
   }
 }`;

@@ -6,14 +6,15 @@ import { compile, parse } from "../src/index.ts";
 function frameDiagram() {
   return compile(parse(`
     diagram "Native frames" {
-      frame outer "Workspace" [locked] {
-        a: card "Outer node"
-        c: card "Second outer node"
+      outer: frame "Workspace" {
+        locked true
+        a: rectangle "Outer node"
+        c: rectangle "Second outer node"
         a -> c
-        frame inner "Detail" {
-          b: card "Inner node"
+        inner: frame "Detail" {
+          b: rectangle "Inner node"
         }
-        a -> b
+        a -> inner.b
       }
     }
   `)).toJSON();
@@ -23,12 +24,12 @@ test("native frames preserve nested membership, ordering and inherited locks", (
   const result = frameDiagram();
   const byId = new Map(result.elements.map((element) => [element.id, element]));
   assert.equal(byId.get("outer").type, "frame");
-  assert.equal(byId.get("inner").type, "frame");
-  assert.equal(byId.get("inner").frameId, "outer");
-  assert.equal(byId.get("a:frame").frameId, "outer");
-  assert.equal(byId.get("b:frame").frameId, "inner");
-  assert.equal(byId.get("a:title").locked, true);
-  assert.equal(byId.get("inner").locked, true);
+  assert.equal(byId.get("outer.inner").type, "frame");
+  assert.equal(byId.get("outer.inner").frameId, "outer");
+  assert.equal(byId.get("outer.a:frame").frameId, "outer");
+  assert.equal(byId.get("outer.inner.b:frame").frameId, "outer.inner");
+  assert.equal(byId.get("outer.a:title").locked, true);
+  assert.equal(byId.get("outer.inner").locked, true);
   assert.deepEqual(result.appState.frameRendering, { enabled: true, clip: true, name: true, outline: true });
 
   const descendants = new Set(["outer"]);
@@ -45,8 +46,8 @@ test("native frames preserve nested membership, ordering and inherited locks", (
   const outerRange = result.elements.filter((element) => descendants.has(element.id));
   const outerIndices = outerRange.map((element) => result.elements.indexOf(element));
   assert.equal(Math.max(...outerIndices) - Math.min(...outerIndices) + 1, outerIndices.length);
-  assert.ok(result.elements.indexOf(byId.get("inner")) > result.elements.indexOf(byId.get("b:title")));
-  assert.ok(result.elements.indexOf(byId.get("outer")) > result.elements.indexOf(byId.get("inner")));
+  assert.ok(result.elements.indexOf(byId.get("outer.inner")) > result.elements.indexOf(byId.get("outer.inner.b:title")));
+  assert.ok(result.elements.indexOf(byId.get("outer")) > result.elements.indexOf(byId.get("outer.inner")));
 });
 
 test("same-frame connectors are contained and cross-frame connectors stay at root", () => {
@@ -58,13 +59,9 @@ test("same-frame connectors are contained and cross-frame connectors stay at roo
   assert.equal(arrows[1].locked, true);
 });
 
-test("frame validation rejects unsupported attributes", () => {
+test("frame validation rejects unknown properties", () => {
   assert.throws(
-    () => compile(parse('diagram "Bad" { frame f "F" [mystery] { a: card "A" } }')),
-    /unsupported frame attributes: mystery/,
-  );
-  assert.throws(
-    () => compile(parse('diagram "Bad" { frame f "F" [clip] { a: card "A" } }')),
-    /unsupported frame attributes: clip/,
+    () => compile(parse('diagram "Bad" { f: frame "F" { mystery true; a: rectangle "A" } }')),
+    /unknown statement 'mystery'/,
   );
 });

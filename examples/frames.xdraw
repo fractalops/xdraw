@@ -1,20 +1,24 @@
+use "xdraw/architecture" as arch
+use "xdraw/cards" as cards
+
 diagram "Native frames" {
   subtitle "Nested ownership, clipping and inherited locking"
 
-  frame workspace "Workspace" [locked] {
-    layout row gap 220
-    request: person "Request"
-    service: system "Service"
+  workspace: frame "Workspace" {
+    locked true
+    arrange row { gap 220 }
+    request: arch.person "Request"
+    service: arch.system "Service"
     request -> service "inside frame"
 
-    frame storage "Storage boundary" {
-      database: database "Records"
+    storage: frame "Storage boundary" {
+      records: arch.database "Records"
     }
 
-    service -> database "crosses nested frame"
+    service -> storage.records "crosses nested frame"
   }
 
-  frame movable "Editable frame" {
-    draft: card "Draft"
+  movable: frame "Editable frame" {
+    draft: cards.card "Draft"
   }
 }

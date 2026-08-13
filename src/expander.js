@@ -1,27 +1,3 @@
-import { parse } from "./parser.js";
-
-function normalizePath(path) {
-  if (/^(?:\/|[A-Za-z]:[\\/])/.test(path)) throw new Error(`path must be relative to the configured root: ${path}`);
-  const parts = [];
-  for (const part of path.replaceAll("\\", "/").split("/")) {
-    if (!part || part === ".") continue;
-    if (part === ".." && parts.length && parts.at(-1) !== "..") parts.pop();
-    else if (part === "..") parts.push(part);
-    else parts.push(part);
-  }
-  return parts.join("/");
-}
-
-function directoryOf(path) {
-  const parts = path.split("/");
-  parts.pop();
-  return parts.join("/");
-}
-
-function joinPath(directory, path) {
-  return normalizePath(directory ? `${directory}/${path}` : path);
-}
-
 function clone(value) {
   if (Array.isArray(value)) return value.map(clone);
   if (!value || typeof value !== "object") return value;
@@ -86,7 +62,6 @@ function expandStatements(statements, components, stack = []) {
   const output = [];
   for (const statement of statements) {
     if (statement.type === "component") continue;
-    if (statement.type === "import") throw new Error(`unresolved import '${statement.path}'; load source files with loadDocument()`);
     if (statement.type === "use") {
       const definition = components.get(statement.component);
       if (!definition) throw new Error(`unknown component '${statement.component}' at use site '${statement.id}'`);
@@ -129,46 +104,4 @@ export function expandDocument(document) {
   const result = clone(document);
   result.statements = expandStatements(document.statements, components);
   return result;
-}
-
-export async function loadParsedDocument(document, path, filesystem, state = { stack: [] }) {
-  const normalized = normalizePath(path);
-  if (state.stack.includes(normalized)) throw new Error(`import cycle: ${[...state.stack, normalized].join(" -> ")}`);
-  const markSource = (statements) => {
-    for (const statement of statements) {
-      Object.defineProperty(statement, "sourceFile", { value: normalized, enumerable: false });
-      if (statement.statements) markSource(statement.statements);
-    }
-  };
-  markSource(document.statements);
-  const directory = directoryOf(normalized);
-  const statements = [];
-  for (const statement of document.statements) {
-    if (statement.type !== "import") {
-      statements.push(statement);
-      continue;
-    }
-    const importedPath = joinPath(directory, statement.path);
-    let imported;
-    try {
-      imported = await loadDocument(importedPath, filesystem, { stack: [...state.stack, normalized] });
-    } catch (error) {
-      throw new Error(`${normalized}: import '${statement.path}' failed: ${error.message}`);
-    }
-    statements.push(...imported.statements);
-  }
-  document.statements = statements;
-  return document;
-}
-
-export async function loadDocument(path, filesystem, state = { stack: [] }) {
-  const normalized = normalizePath(path);
-  let document;
-  try {
-    document = parse(await filesystem.readText(normalized));
-  } catch (error) {
-    if (error?.name === "XDrawSyntaxError") error.message = `${normalized}: ${error.message}`;
-    throw error;
-  }
-  return loadParsedDocument(document, normalized, filesystem, state);
 }

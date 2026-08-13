@@ -37,6 +37,10 @@ const TEXT_PROPERTIES = new Set([
   "textColor", "fontFamily", "fontSize", "lineHeight", "link", "locked",
   "autoSize", "wrapWidth",
 ]);
+const FREEDRAW_PROPERTIES = new Set([
+  "strokeColor", "backgroundColor", "strokeWidth", "fillStyle", "roughness",
+  "opacity", "link", "locked",
+]);
 
 function propertyMap(statement) {
   return Object.fromEntries((statement?.statements ?? [])
@@ -171,5 +175,23 @@ export function createStyleResolver(document) {
     };
   };
 
-  return { named, resolveNode, resolveText, theme };
+  const resolveFreedraw = (statement) => {
+    const properties = propertiesFor(statement);
+    assertApplicable(properties, FREEDRAW_PROPERTIES, "freedraw");
+    return {
+      strokeColor: "#1f2937",
+      backgroundColor: "transparent",
+      strokeWidth: 2,
+      fillStyle: "solid",
+      roughness: 0,
+      opacity: 100,
+      locked: false,
+      link: null,
+      ...applicableTheme(FREEDRAW_PROPERTIES),
+      ...properties.named,
+      ...properties.local,
+    };
+  };
+
+  return { named, resolveFreedraw, resolveNode, resolveText, theme };
 }

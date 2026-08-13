@@ -1,4 +1,5 @@
 import { Resvg } from "@resvg/resvg-js";
+import { getStroke } from "perfect-freehand";
 
 function escape(value) {
   return String(value)
@@ -56,11 +57,35 @@ function renderText(element) {
   const spans = lines.map((line, index) => (
     `<tspan x="${x}" dy="${index === 0 ? fontSize : lineHeight}">${escape(line)}</tspan>`
   )).join("");
-  return `<text x="${x}" y="${element.y ?? 0}" text-anchor="${anchor}" font-family="${escape(family)}" font-size="${fontSize}" fill="${escape(element.strokeColor ?? "#1f2937")}" opacity="${(element.opacity ?? 100) / 100}"${transform(element)}>${spans}</text>`;
+  return `<text xml:space="preserve" x="${x}" y="${element.y ?? 0}" text-anchor="${anchor}" font-family="${escape(family)}" font-size="${fontSize}" fill="${escape(element.strokeColor ?? "#1f2937")}" opacity="${(element.opacity ?? 100) / 100}"${transform(element)}>${spans}</text>`;
 }
 
 function linearPoints(element) {
   return (element.points ?? []).map(([x, y]) => `${(element.x ?? 0) + x},${(element.y ?? 0) + y}`).join(" ");
+}
+
+function freeDrawPath(element) {
+  const pressures = element.pressures ?? [];
+  const input = (element.points ?? []).map(([x, y], index) => (
+    [(element.x ?? 0) + x, (element.y ?? 0) + y, pressures[index] ?? 0.5]
+  ));
+  const outline = getStroke(input, {
+    size: (element.strokeWidth ?? 1) * 4.25,
+    thinning: 0.6,
+    smoothing: 0.5,
+    streamline: 0.5,
+    simulatePressure: element.simulatePressure ?? true,
+    last: true,
+  });
+  if (!outline.length) return "";
+  const path = ["M", outline[0][0], outline[0][1], "Q"];
+  for (let index = 0; index < outline.length; index += 1) {
+    const point = outline[index];
+    const next = outline[(index + 1) % outline.length];
+    path.push(point[0], point[1], (point[0] + next[0]) / 2, (point[1] + next[1]) / 2);
+  }
+  path.push("Z");
+  return path.join(" ");
 }
 
 function renderElement(element, files) {
@@ -85,10 +110,13 @@ function renderElement(element, files) {
     const points = `${x + width / 2},${y} ${x + width},${y + height / 2} ${x + width / 2},${y + height} ${x},${y + height / 2}`;
     return `<polygon points="${points}" ${style}${rotation}/>`;
   }
-  if (["arrow", "line", "freedraw"].includes(element.type)) {
+  if (element.type === "freedraw") {
+    return `<path d="${freeDrawPath(element)}" fill="${escape(element.strokeColor ?? "#1f2937")}" opacity="${(element.opacity ?? 100) / 100}"${rotation}/>`;
+  }
+  if (["arrow", "line"].includes(element.type)) {
     const markerStart = element.startArrowhead ? ' marker-start="url(#arrow-start)"' : "";
     const markerEnd = element.endArrowhead ? ' marker-end="url(#arrow-end)"' : "";
-    return `<polyline points="${linearPoints(element)}" fill="none" stroke="${escape(element.strokeColor ?? "#1f2937")}" stroke-width="${element.strokeWidth ?? 1}"${dash(element)}${markerStart}${markerEnd} opacity="${(element.opacity ?? 100) / 100}"${rotation}/>`;
+    return `<polyline points="${linearPoints(element)}" fill="none" stroke="${escape(element.strokeColor ?? "#1f2937")}" stroke-width="${element.strokeWidth ?? 1}" stroke-linecap="round" stroke-linejoin="round"${dash(element)}${markerStart}${markerEnd} opacity="${(element.opacity ?? 100) / 100}"${rotation}/>`;
   }
   if (element.type === "image") {
     const href = files?.[element.fileId]?.dataURL;

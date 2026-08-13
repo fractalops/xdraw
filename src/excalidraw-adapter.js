@@ -1,7 +1,8 @@
 import { boundText, card, fitTextSize, lane, wrapText } from "./components.js";
-import { arrow, diamond, ellipse, frame, image, text } from "./elements.js";
+import { arrow, diamond, ellipse, frame, freedraw, image, text } from "./elements.js";
 import { box } from "./layout.js";
 import { wrapTextToWidth } from "./text-metrics.js";
+import { renderCodeBlock } from "./code-block.js";
 
 const KIND_LABEL_COLORS = { person: "#7c3aed", database: "#475569" };
 
@@ -93,6 +94,16 @@ export function renderFreeText(drawing, statement, style = {}) {
   }));
 }
 
+export function renderFreedraw(drawing, statement, style = {}) {
+  const element = freedraw(`${statement.id}:stroke`, statement.at, statement.points, {
+    ...style,
+    pressures: statement.pressures,
+    simulatePressure: statement.simulatePressure,
+  });
+  drawing.add(element);
+  return element;
+}
+
 export function renderSceneVisuals(drawing, visuals) {
   for (const visual of visuals) {
     const start = drawing.elements.length;
@@ -106,6 +117,8 @@ export function renderSceneVisuals(drawing, visuals) {
       drawing.add(arrow(visual.id, visual.start, visual.end, visual.options));
     } else if (visual.type === "text") {
       drawing.add(text(visual.id, visual.position, visual.value, visual.options));
+    } else if (visual.type === "code") {
+      renderCodeBlock(drawing, visual.block, visual.bounds);
     } else {
       throw new Error(`unsupported scene visual: ${visual.type}`);
     }

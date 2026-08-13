@@ -1,5 +1,15 @@
+use "xdraw/assets" as assets
+
 diagram "Portable assets" {
-  asset logo "portable-assets-mark.svg"
-  image hero logo at (100, 100) size (320, 160) [fit=contain, alt="XDraw mark"]
-  icon mark logo at (470, 120) size (80, 80) [fit=contain]
+  logo: asset "portable-assets-mark.svg"
+
+  hero: image(logo) {
+    at (100, 100); size (320, 160); fit contain
+    alt "XDraw mark"
+  }
+
+  mark: assets.icon(logo) {
+    at (470, 120); size (80, 80)
+    fit contain
+  }
 }

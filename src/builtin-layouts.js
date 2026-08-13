@@ -2,21 +2,43 @@ import { wrapText } from "./components.js";
 import { anchor, box, row } from "./layout.js";
 import { splitEndpoint } from "./router.js";
 import { BUILTIN_LAYOUT_CAPABILITIES, createLayoutAdapter } from "./scene.ts";
-import { calculateRowPlan, calculateSlotWidth, resolveContainerGap } from "./measurement.js";
+import {
+  calculateArrangedRows,
+  calculateRowPlan,
+  calculateSlotWidth,
+  resolveContainerGap,
+} from "./measurement.js";
 import { wrapTextToWidth } from "./text-metrics.js";
+import { codeBlockRequiredWidth } from "./code-block.js";
+import { arrangedItems, childSections } from "./layout-items.js";
 
 function nodeStatements(statements) {
   return statements.filter((item) => item.type === "node");
-}
-
-function childSections(statements) {
-  return statements.filter((item) => ["group", "lane", "frame", "tree", "sequence"].includes(item.type));
 }
 
 function addVisual(state, visual, context, owner = visual.id) {
   const frameId = context.frameId ?? null;
   state.addVisual({ ...visual, frameId, locked: visual.locked ?? context.frameLocked ?? false });
   if (owner && frameId) state.frameMembership.set(owner, frameId);
+}
+
+function placeCodeBlock(context, node, bounds) {
+  const { state, registerBounds } = context;
+  registerBounds(state, node.id, bounds);
+  if (codeBlockRequiredWidth(node) > bounds.width) {
+    state.diagnostics?.warn(
+      "XD2005",
+      `code block '${node.id}' exceeds its ${Math.round(bounds.width)}px content width`,
+      node,
+    );
+  }
+  addVisual(state, {
+    type: "code",
+    id: node.id,
+    source: node.semanticId,
+    block: node,
+    bounds,
+  }, context);
 }
 
 function flattenTree(node, depth = 0, parent = null, result = []) {
@@ -26,7 +48,8 @@ function flattenTree(node, depth = 0, parent = null, result = []) {
     title: node.title,
     depth,
     parent,
-    kind: depth === 0 ? "system" : "card",
+    kind: node.kind ?? (depth === 0 ? "system" : "card"),
+    tone: node.tone,
   });
   for (const child of node.statements ?? []) flattenTree(child, depth + 1, node.id, result);
   return result;
@@ -39,15 +62,17 @@ function layoutContainer(context, node, x, y, width) {
   registerBounds(state, node.id, bounds);
   state.containers.push(node.id);
   const isFrame = node.type === "frame";
-  addVisual(state, {
-    type: isFrame ? "frame" : "container",
-    id: node.id,
-    source: node.semanticId,
-    bounds,
-    title: node.title,
-    tone: node.type === "group" ? "info" : "neutral",
-    locked: context.frameLocked || (isFrame && node.attributes?.locked === true),
-  }, context);
+  if (!node.attributes?.invisible) {
+    addVisual(state, {
+      type: isFrame ? "frame" : "container",
+      id: node.id,
+      source: node.semanticId,
+      bounds,
+      title: node.title,
+      tone: node.type === "group" ? "info" : "neutral",
+      locked: context.frameLocked || (isFrame && node.attributes?.locked === true),
+    }, context);
+  }
   const childContext = isFrame
     ? {
       ...context,
@@ -60,6 +85,88 @@ function layoutContainer(context, node, x, y, width) {
   const nodes = nodeStatements(node.statements);
   const layout = node.statements.find((item) => item.type === "layout");
   if (layout && !["row", "column"].includes(layout.kind)) throw new Error(`unsupported layout: ${layout.kind}`);
+  if (layout?.ownsChildren) {
+    const gap = resolveContainerGap(node, layout, state.diagnostics);
+    const content = box(x + 40, y + 76, width - 80, 1);
+    const explicit = nodes.filter((item) => item.at);
+    const explicitBottom = explicit.reduce((bottom, item) => (
+      Math.max(bottom, item.at[1] + (item.size?.[1] ?? 110))
+    ), content.y);
+    for (const item of explicit) {
+      const itemBounds = box(item.at[0], item.at[1], item.size?.[0] ?? 240, item.size?.[1] ?? 110);
+      registerBounds(state, item.id, itemBounds);
+      state.nodeIds.add(item.id);
+      state.containerMembership.set(item.id, node.id);
+      addVisual(state, { type: "node", id: item.id, source: item.semanticId, node: item, bounds: itemBounds }, childContext);
+    }
+    const startY = explicit.length ? Math.max(content.y, explicitBottom + gap) : content.y;
+    const items = arrangedItems(node.statements);
+    const placeItem = (item, itemBounds) => {
+      state.containerMembership.set(item.id, node.id);
+      if (item.type === "node") {
+        registerBounds(state, item.id, itemBounds);
+        state.nodeIds.add(item.id);
+        addVisual(state, { type: "node", id: item.id, source: item.semanticId, node: item, bounds: itemBounds }, childContext);
+      } else if (item.type === "layout-text") {
+        registerBounds(state, item.id, itemBounds);
+        const style = state.styles.resolveText(item);
+        const fontSize = style.fontSize ?? item.fontSize ?? 18;
+        const textWidth = Math.min(item.width ?? style.wrapWidth ?? itemBounds.width, itemBounds.width);
+        addVisual(state, {
+          type: "text",
+          id: item.id,
+          source: item.semanticId,
+          position: { x: itemBounds.x, y: itemBounds.y },
+          value: wrapTextToWidth(item.value, textWidth, fontSize, style.fontFamily),
+          options: {
+            width: textWidth,
+            fontSize,
+            textAlign: item.align,
+            autoResize: false,
+            strokeColor: style.textColor,
+            fontFamily: style.fontFamily,
+            lineHeight: style.lineHeight,
+            locked: style.locked,
+          },
+        }, childContext);
+      } else if (item.type === "code") {
+        placeCodeBlock(childContext, item, itemBounds);
+      } else {
+        layoutBuiltInSection(childContext, item, itemBounds);
+      }
+    };
+    if (items.length && layout.kind === "column") {
+      let itemY = startY;
+      for (const item of items) {
+        const itemWidth = item.size?.[0] ?? content.width;
+        const itemHeight = state.measurer.measureArrangedItem(item, itemWidth, itemY);
+        placeItem(item, box(content.x, itemY, itemWidth, itemHeight));
+        itemY += itemHeight + gap;
+      }
+    } else if (items.length) {
+      const rows = calculateArrangedRows(content.width, items, gap);
+      let itemY = startY;
+      for (const arrangedRow of rows) {
+        let itemX = content.x;
+        const itemBounds = arrangedRow.items.map((item, itemIndex) => {
+          const itemWidth = arrangedRow.widths[itemIndex];
+          const itemHeight = state.measurer.measureArrangedItem(item, itemWidth, itemY);
+          const bounds = box(itemX, itemY, itemWidth, itemHeight);
+          itemX += itemWidth + gap;
+          return bounds;
+        });
+        arrangedRow.items.forEach((item, itemIndex) => placeItem(item, itemBounds[itemIndex]));
+        itemY += Math.max(...itemBounds.map((itemBounds_) => itemBounds_.height)) + gap;
+      }
+    }
+    state.connections.push(...node.statements
+      .filter((item) => item.type === "connection")
+      .map((item) => ({ ...item, span: item.span, locked: childContext.frameLocked ?? false })));
+    state.annotations.push(...node.statements
+      .filter((item) => ["note", "callout"].includes(item.type))
+      .map((item) => ({ ...item, locked: childContext.frameLocked ?? false })));
+    return height;
+  }
   if (nodes.length) {
     const gap = resolveContainerGap(node, layout, state.diagnostics);
     const content = box(x + 40, y + 76, width - 80, 1);
@@ -139,19 +246,40 @@ function layoutTree(context, tree, x, y, width) {
   const { state, registerBounds } = context;
   const entries = flattenTree(tree);
   const levels = Map.groupBy(entries, (entry) => entry.depth);
+  const direction = tree.direction ?? "down";
+  if (!["down", "right"].includes(direction)) throw new Error(`unsupported tree direction: ${direction}`);
+  const siblingGap = tree.siblingGap ?? 45;
+  const levelGap = tree.levelGap ?? 45;
+  const levelCount = levels.size;
+  const horizontalSlotWidth = direction === "right"
+    ? calculateSlotWidth(width - 90, levelCount, levelGap, "tree levels", 120)
+    : undefined;
   const levelMetrics = [...levels].map(([depth, items]) => {
-    const slotWidth = calculateSlotWidth(width - 90, items.length, 45, `tree level ${depth}`);
+    const slotWidth = direction === "right"
+      ? horizontalSlotWidth
+      : calculateSlotWidth(width - 90, items.length, siblingGap, `tree level ${depth}`);
     return { depth, items, height: Math.max(...items.map((item) => state.measurer.measureNode(item, slotWidth))) };
   });
-  const height = 95 + levelMetrics.reduce((sum, level) => sum + level.height + 45, 0);
+  const height = direction === "right"
+    ? Math.max(320, 125 + Math.max(...levelMetrics.map((level) => (
+      level.items.length * level.height + Math.max(0, level.items.length - 1) * siblingGap
+    ))))
+    : 95 + levelMetrics.reduce((sum, level) => sum + level.height + levelGap, 0);
   const frameBounds = box(x, y, width, height);
-  const frameId = `tree:${tree.id}`;
+  const frameId = tree.sectionId ?? `tree:${tree.id}`;
   registerBounds(state, frameId, frameBounds);
   state.containers.push(frameId);
   addVisual(state, { type: "container", id: frameId, source: tree.semanticId, bounds: frameBounds, title: tree.section ?? tree.title, tone: "accent" }, context, tree.id);
   let levelY = y + 75;
   for (const { depth, items, height: levelHeight } of levelMetrics) {
-    const levelBounds = row(box(x + 45, levelY, width - 90, levelHeight), items.length, 45);
+    const levelBounds = direction === "right"
+      ? items.map((item, itemIndex) => box(
+        x + 45 + depth * (horizontalSlotWidth + levelGap),
+        y + 75 + itemIndex * (levelHeight + siblingGap),
+        horizontalSlotWidth,
+        levelHeight,
+      ))
+      : row(box(x + 45, levelY, width - 90, levelHeight), items.length, siblingGap);
     items.forEach((item, index) => {
       const bounds = levelBounds[index];
       registerBounds(state, item.id, bounds);
@@ -164,9 +292,28 @@ function layoutTree(context, tree, x, y, width) {
         node: renderedNode,
         bounds,
       }, context);
-      if (item.parent) state.connections.push({ type: "connection", nodes: [`${item.parent}.south`, `${item.id}.north`], attributes: {} });
+      if (item.parent) {
+        const parentBounds = state.bounds.get(item.parent);
+        const parentY = parentBounds.y + parentBounds.height / 2;
+        const childY = bounds.y + bounds.height / 2;
+        const channelX = parentBounds.x + parentBounds.width
+          + Math.max(12, levelGap * ((index + 1) / (items.length + 1)));
+        const attributes = direction === "right"
+          ? parentY === childY
+            ? { style: "straight" }
+            : { via: `${channelX},${parentY};${channelX},${childY}` }
+          : {};
+        state.connections.push({
+          type: "connection",
+          nodes: direction === "right"
+            ? [`${item.parent}.right`, `${item.id}.left`]
+            : [`${item.parent}.south`, `${item.id}.north`],
+          attributes,
+          generatedRoute: direction === "right",
+        });
+      }
     });
-    levelY += levelHeight + 45;
+    levelY += levelHeight + levelGap;
   }
   return height;
 }
@@ -253,6 +400,12 @@ function layoutSequence(context, sequence, x, y, width) {
 
 export function layoutBuiltInSection(context, node, bounds) {
   const { x, y, width } = bounds;
+  if (node.type === "code") {
+    const height = context.state.measurer.measureCodeBlock(node);
+    const codeBounds = { x, y, width, height };
+    placeCodeBlock(context, node, codeBounds);
+    return height;
+  }
   if (node.type === "tree") return layoutTree(context, node, x, y, width);
   if (node.type === "sequence") return layoutSequence(context, node, x, y, width);
   if (["lane", "group", "frame"].includes(node.type)) return layoutContainer(context, node, x, y, width);

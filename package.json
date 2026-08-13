@@ -19,7 +19,7 @@
     "bin/",
     "lib/",
     "examples/",
-    "docs/language-reference.md",
+    "docs/",
     "README.md"
   ],
   "bin": {
@@ -42,6 +42,7 @@
     "build": "node scripts/clean-lib.mjs && tsc -p tsconfig.build.json && node scripts/rewrite-declaration-imports.mjs && node --check bin/xdraw.js",
     "example:order": "node bin/xdraw.js build examples/order-flow.xdraw -o output/order-flow.excalidraw",
     "example:platform": "node bin/xdraw.js build examples/platform-overview.xdraw -o output/platform-overview.excalidraw",
+    "docs:images": "node bin/xdraw.js build examples/xdraw-logo.xdraw -o docs/images/xdraw-logo.png && node bin/xdraw.js build examples/readme-cheatsheet.xdraw -o docs/images/readme-cheatsheet.png",
     "generate:font-metrics": "node scripts/generate-font-metrics.mjs",
     "typecheck": "npm run typecheck:core",
     "typecheck:core": "tsc -p tsconfig.json",
@@ -66,7 +67,12 @@
     "vite": "^7.2.2"
   },
   "dependencies": {
-    "@resvg/resvg-js": "^2.6.2"
+    "@resvg/resvg-js": "^2.6.2",
+    "@shikijs/langs": "4.4.3",
+    "@shikijs/themes": "4.4.3",
+    "fractional-indexing": "^3.2.0",
+    "perfect-freehand": "^1.2.0",
+    "shiki": "4.4.3"
   },
   "overrides": {
     "@excalidraw/excalidraw": {
