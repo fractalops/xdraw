@@ -1,24 +1,27 @@
 use "xdraw/architecture" as arch
 use "xdraw/cards" as cards
 
-diagram "Native frames" {
-  subtitle "Nested ownership, clipping and inherited locking"
+diagram "How XDraw emits native frames" {
+  subtitle "Frames preserve nested ownership, clipping and inherited locking"
 
-  workspace: frame "Workspace" {
+  workspace: frame "Compiled document" {
     locked true
-    arrange row { gap 220 }
-    request: arch.person "Request"
-    service: arch.system "Service"
-    request -> service "inside frame"
+    arrange row { gap 229 }
+    request: arch.person "Source declaration" { description "Defines the requested visual" }
+    service: arch.system "Scene element" { description "Represents the compiled visual" }
+    request -> service "compiled inside frame"
 
-    storage: frame "Storage boundary" {
-      records: arch.database "Records"
+    storage: frame "Nested frame" {
+      records: arch.database "Child elements" {
+        description "Stores nested editable elements"
+        technology "Excalidraw JSON"
+      }
     }
 
     service -> storage.records "crosses nested frame"
   }
 
-  movable: frame "Editable frame" {
-    draft: cards.card "Draft"
+  movable: frame "Unlocked output" {
+    draft: cards.card "Editable element"
   }
 }

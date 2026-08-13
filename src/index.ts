@@ -1,23 +1,90 @@
-export { Drawing } from "./document.js";
+export { Drawing } from "./document.ts";
 export {
   EXCALIDRAW_API_URL,
   ExcalidrawApiClient,
-} from "./excalidraw-api.js";
-export { resolveAssets } from "./assets.js";
-export { FONT, arrow, diamond, ellipse, frame, freedraw, image, rectangle, text } from "./elements.js";
-export { alignBounds, anchor, box, column, distributeBounds, inset, row } from "./layout.js";
-export { boundText, card, connect, fitTextSize, heading, lane, tone, wrapText } from "./components.js";
-export { compile, compileAsync } from "./compiler.js";
-export { MemoryFileSystem, RootedFileSystem } from "./filesystem.js";
-export { createMeasurer } from "./measurement.js";
-export { createStyleResolver } from "./styles.js";
-export { LAYERED_LAYOUT, LAYERED_LAYOUT_CAPABILITIES } from "./layered-layout.js";
-export { parseSource as parse, parseSource, parseSyntax } from "./source-language.js";
-export { formatSceneResource, parseSceneDocument } from "./scene-document.js";
-export { renderScenePng, renderSceneSvg } from "./local-renderer.js";
-export { measureRouteQuality } from "./route-quality.js";
-export { endpointLabelBounds, synchronizeEndpointLabels } from "./connector-labels.js";
-export { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "./semantic.js";
+} from "./excalidraw-api.ts";
+export { resolveAssets } from "./assets.ts";
+export { FONT, arrow, diamond, ellipse, frame, freedraw, image, rectangle, text } from "./elements.ts";
+export { alignBounds, anchor, box, column, distributeBounds, inset, row } from "./layout.ts";
+export { boundText, card, connect, fitTextSize, heading, lane, tone, wrapText } from "./components.ts";
+export type {
+  AnchorSide,
+  BoundTextOptions,
+  CardMeasureOptions,
+  CardOptions,
+  ConnectOptions,
+  ConnectorPath,
+  HeadingOptions,
+  LaneOptions,
+  ShapeFactory,
+  ToneColors,
+  ToneName,
+} from "./components.ts";
+export { compile, compileAsync } from "./compiler.ts";
+export type { CompileOptions } from "./compiler.ts";
+export { MemoryFileSystem, RootedFileSystem } from "./filesystem.ts";
+export { createMeasurer } from "./measurement.ts";
+export { createStyleResolver } from "./styles.ts";
+export { LAYERED_LAYOUT, LAYERED_LAYOUT_CAPABILITIES } from "./layered-layout.ts";
+export { parseSource as parse, parseSource, parseSyntax } from "./source-language.ts";
+export { formatSceneResource, parseSceneDocument } from "./scene-document.ts";
+export type {
+  SceneAdditionDocument,
+  SceneDocument,
+  SceneOperation,
+  ScenePatchOperation,
+  SceneReplaceOperation,
+  SceneResource,
+  SceneUpdate,
+} from "./scene-document.ts";
+export { renderScenePng, renderSceneSvg } from "./local-renderer.ts";
+export type {
+  RenderableSceneElement,
+  RenderableSceneFile,
+  RenderableSceneInput,
+  RenderSceneOptions,
+} from "./local-renderer.ts";
+export { measureRouteQuality } from "./route-quality.ts";
+export type { RouteQuality } from "./route-quality.ts";
+export type { FontFamily } from "./text-metrics.ts";
+export type {
+  ArrowElement,
+  Arrowhead,
+  BaseElement,
+  BaseElementOptions,
+  BoundElement,
+  DiamondElement,
+  DrawingAppState,
+  DrawingElement,
+  DrawingElementInput,
+  DrawingJson,
+  DrawingOptions,
+  ElementBinding,
+  ElementCustomData,
+  EllipseElement,
+  FillStyle,
+  FrameElement,
+  FreedrawElement,
+  FreedrawElementOptions,
+  ImageCrop,
+  ImageElement,
+  ImageElementOptions,
+  LineElement,
+  LinearElement,
+  LinearElementOptions,
+  RectangleElement,
+  Roundness,
+  ShapeElement,
+  ShapeElementOptions,
+  StrokeStyle,
+  TextAlign,
+  TextElement,
+  TextElementOptions,
+  VerticalAlign,
+} from "./render-contracts.ts";
+export { endpointLabelBounds, synchronizeEndpointLabels } from "./connector-labels.ts";
+export type { EndpointLabelSynchronization } from "./connector-labels.ts";
+export { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "./semantic.ts";
 export {
   assertLayoutCapabilities,
   BUILTIN_LAYOUT_CAPABILITIES,
@@ -28,7 +95,13 @@ export {
 } from "./scene.ts";
 export type {
   AdapterRoute,
+  AssetLimits,
+  AssetMimeType,
   Bounds,
+  DiagramDocument,
+  EmbeddedAssetFile,
+  EmbeddedAssetFiles,
+  FileSystem,
   LayoutAdapter,
   LayoutAdapterDefinition,
   LayoutCapabilities,
@@ -39,10 +112,18 @@ export type {
   LayoutResponse,
   LayoutResult,
   Point,
+  ResolvedAsset,
+  ResolvedFreedrawStyle,
+  ResolvedNodeStyle,
+  ResolvedTextStyle,
+  RenderableCodeStatement,
+  NodeStyleTarget,
   SceneGraph,
   SceneGraphOptions,
   SceneVisual,
   SemanticDocument,
   SemanticStatement,
+  StyleProperties,
+  StyleResolver,
 } from "./contracts.ts";
-export { writeDrawing } from "./writer.js";
+export { writeDrawing } from "./writer.ts";

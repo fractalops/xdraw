@@ -1,0 +1,105 @@
+use "xdraw/connectors" as connectors
+
+diagram "How primitives compose freeform art" {
+  subtitle "Editable ellipses, diamonds and curved connectors build an illustration"
+  skin: style {
+    stroke "#6f4e37"
+    background "#ffd6ad"
+    stroke-width 4
+  }
+  white: style {
+    stroke "#6f4e37"
+    background "#ffffff"
+    stroke-width 3
+  }
+  dark: style {
+    stroke "#3a2d2a"
+    background "#3a2d2a"
+    stroke-width 3
+  }
+  blush: style {
+    stroke "#e78f8f"
+    background "#f7b6b6"
+    stroke-width 2
+  }
+  hidden: style { opacity 0 }
+
+  left_ear: ellipse "" {
+    at (125, 255); size (110, 180); style skin
+  }
+  right_ear: ellipse "" {
+    at (645, 255); size (110, 180); style skin
+  }
+  head: ellipse "" {
+    at (180, 80); size (520, 620); style skin
+  }
+
+  hair_left: ellipse "" {
+    at (215, 65); size (190, 180); style dark
+  }
+  hair_middle: ellipse "" {
+    at (345, 45); size (200, 185); style dark
+  }
+  hair_right: ellipse "" {
+    at (485, 70); size (180, 175); style dark
+  }
+
+  left_eye: ellipse "" {
+    at (285, 255); size (110, 135); style white
+  }
+  right_eye: ellipse "" {
+    at (485, 255); size (110, 135); style white
+  }
+  left_pupil: ellipse "" {
+    at (325, 305); size (42, 58); style dark
+  }
+  right_pupil: ellipse "" {
+    at (525, 305); size (42, 58); style dark
+  }
+
+  nose: diamond "" {
+    at (415, 385); size (55, 100); style skin
+  }
+  left_cheek: ellipse "" {
+    at (245, 440); size (85, 48); style blush
+  }
+  right_cheek: ellipse "" {
+    at (550, 440); size (85, 48); style blush
+  }
+
+  brow_left_start: connectors.junction "" {
+    at (285, 225); size (8, 8); style hidden
+  }
+  brow_left_end: connectors.junction "" {
+    at (390, 225); size (8, 8); style hidden
+  }
+  brow_right_start: connectors.junction "" {
+    at (490, 225); size (8, 8); style hidden
+  }
+  brow_right_end: connectors.junction "" {
+    at (595, 225); size (8, 8); style hidden
+  }
+  mouth_left: connectors.junction "" {
+    at (320, 515); size (8, 8); style hidden
+  }
+  mouth_right: connectors.junction "" {
+    at (555, 515); size (8, 8); style hidden
+  }
+
+  left_brow: brow_left_start@right -> brow_left_end@left {
+    route curved
+    head none
+    width 5
+  }
+  right_brow: brow_right_start@right -> brow_right_end@left {
+    route curved
+    head none
+    width 5
+  }
+  smile: mouth_left@right -> mouth_right@left {
+    route curved
+    via ((375, 585), (505, 585))
+    head none
+    width 5
+  }
+}

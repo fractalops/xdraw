@@ -1,7 +1,6 @@
-import { splitEndpoint } from "./endpoints.js";
+import { splitEndpoint } from "./endpoints.ts";
 import type {
   AdapterRoute,
-  ConnectionStatement,
   LayoutAdapter,
   LayoutAdapterDefinition,
   LayoutCapabilities,
@@ -10,13 +9,11 @@ import type {
   LayoutOptions,
   LayoutResponse,
   LayoutResult,
-  Point,
   SceneGraph,
   SceneGraphOptions,
-  SceneVisual,
-  SemanticDocument,
-  SemanticStatement,
-} from "./contracts.ts";
+} from "./layout-contracts.ts";
+import type { ConnectionStatement, SemanticDocument, SemanticStatement } from "./semantic-contracts.ts";
+import type { Point } from "./foundation-contracts.ts";
 
 export const BUILTIN_LAYOUT_CAPABILITIES: LayoutCapabilities = Object.freeze({
   nestedNodes: true,
@@ -125,6 +122,19 @@ function isAdapterRoute(value: unknown): value is AdapterRoute {
     && route.points.every(isPoint);
 }
 
+function topLevelConnections(document: SemanticDocument): ConnectionStatement[] {
+  return document.statements.filter(isConnection);
+}
+
+function routeHasOwner(route: AdapterRoute, connections: readonly ConnectionStatement[]): boolean {
+  const connection = connections[route.connectionIndex];
+  const segmentIndex = route.segmentIndex ?? 0;
+  return route.connectionIndex >= 0
+    && segmentIndex >= 0
+    && Boolean(connection)
+    && segmentIndex < (connection?.nodes.length ?? 1) - 1;
+}
+
 function validatedResponse(adapter: LayoutAdapter, response: unknown): LayoutResponse {
   if (typeof response === "number") {
     if (!Number.isFinite(response)) throw new Error(`${adapter.name} layout returned an invalid bottom coordinate`);
@@ -145,7 +155,7 @@ function validatedResponse(adapter: LayoutAdapter, response: unknown): LayoutRes
       throw new Error(`${adapter.name} layout returned invalid route geometry`);
     }
   }
-  const routes = candidate.routes as AdapterRoute[] | undefined;
+  const routes = candidate.routes;
   return routes ? { bottom: candidate.bottom, routes } : { bottom: candidate.bottom };
 }
 
@@ -166,7 +176,11 @@ export function layoutWithAdapter(
   const response = validatedResponse(adapter, adapter.layoutDocument(request));
   const bottom = typeof response === "number" ? response : response.bottom;
   if (typeof response !== "number" && response.routes) {
+    const connections = topLevelConnections(context.state.document);
     for (const route of response.routes) {
+      if (!routeHasOwner(route, connections)) {
+        throw new Error(`${adapter.name} layout returned a route without a matching connection segment`);
+      }
       const key = `${route.connectionIndex}:${route.segmentIndex ?? 0}`;
       if (context.state.adapterRoutes.has(key)) throw new Error(`${adapter.name} layout returned duplicate route ${key}`);
       context.state.adapterRoutes.set(key, route.points);
@@ -204,7 +218,6 @@ export function createSceneGraph(document: SemanticDocument, options: SceneGraph
     diagnostics: options.diagnostics,
     labelBounds: [],
     visuals: [],
-    sequenceCount: 0,
     frameMembership: new Map(),
     containerMembership: new Map(),
     frameLocks: new Map(),
@@ -230,10 +243,13 @@ export function createSceneGraph(document: SemanticDocument, options: SceneGraph
       const sourceId = visual.source ?? (visual.type === "node" ? visual.node.semanticId : undefined) ?? visual.id;
       const origin = graph.origins.get(sourceId) ?? document.origin ?? null;
       graph.registerGenerated(visual.id, visual, origin);
-      const style = visual.type === "node" && !visual.style
-        ? graph.styles?.resolveNode(visual.node)
-        : visual.style;
-      graph.visuals.push({ ...visual, ...(style ? { style } : {}), origin } as SceneVisual);
+      if (visual.type === "node") {
+        const style = visual.style ?? graph.styles?.resolveNode(visual.node);
+        if (!style) throw new Error(`node visual '${visual.id}' requires a style resolver`);
+        graph.visuals.push({ ...visual, style, origin });
+      } else {
+        graph.visuals.push({ ...visual, origin });
+      }
     },
   };
   return graph;

@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile } from "../src/compiler.js";
-import { parseSource as parse } from "../src/source-language.js";
-import { measureRouteQuality } from "../src/route-quality.js";
-import { Drawing } from "../src/document.js";
-import { renderConnection } from "../src/routing-renderer.js";
-import { synchronizeEndpointLabels } from "../src/connector-labels.js";
+import { compile } from "../src/compiler.ts";
+import { parseSource as parse } from "../src/source-language.ts";
+import { measureRouteQuality } from "../src/route-quality.ts";
+import { Drawing } from "../src/document.ts";
+import { renderAnnotation, renderConnection } from "../src/routing-renderer.ts";
+import { synchronizeEndpointLabels } from "../src/connector-labels.ts";
+import { routeConnection } from "../src/router.ts";
+import { createMeasurer } from "../src/measurement.ts";
 
 test("explicit waypoints and endpoint labels compile deterministically", () => {
   const source = `use "xdraw/architecture" as arch
@@ -52,6 +54,37 @@ test("route quality reports crossings, bends, shared segments and obstacles", ()
   });
 });
 
+test("automatic routing records selected paths and ignores unplaced advisory obstacles", () => {
+  const from = { x: 0, y: 40, width: 100, height: 60 };
+  const to = { x: 500, y: 40, width: 100, height: 60 };
+  const obstacle = { x: 230, y: 20, width: 140, height: 100 };
+  const scene = {
+    bounds: new Map([["from", from], ["to", to], ["obstacle", obstacle]]),
+    nodeIds: new Set(["from", "to", "obstacle", "not-yet-placed"]),
+    containers: [],
+    routes: [],
+    labelBounds: [],
+  };
+  const route = routeConnection(scene, "from", "to", from, to, "right", "left");
+  assert.deepEqual(scene.routes, [route]);
+  assert.equal(measureRouteQuality([route], [obstacle]).obstacleIntersections, 0);
+});
+
+test("automatic routing requires an explicitly requested obstacle", () => {
+  const from = { x: 0, y: 0, width: 100, height: 60 };
+  const to = { x: 300, y: 0, width: 100, height: 60 };
+  const scene = {
+    bounds: new Map([["from", from], ["to", to]]),
+    nodeIds: new Set(["from", "to"]),
+    containers: [],
+    routes: [],
+  };
+  assert.throws(
+    () => routeConnection(scene, "from", "to", from, to, "right", "left", { around: "missing" }),
+    /route constraint references unknown node: missing/,
+  );
+});
+
 test("straight and curved connectors register only their rendered routes", () => {
   for (const style of ["straight", "curved"]) {
     const drawing = new Drawing();
@@ -73,6 +106,79 @@ test("straight and curved connectors register only their rendered routes", () =>
   }
 });
 
+test("connectors bind to native frames and normalize adapter route endpoints", () => {
+  const nativeFrame = compile(parse(`diagram "Frame endpoint" {
+    scope: frame "Scope" { nested: rectangle "Nested" }
+    outside: rectangle "Outside"
+    scope -> outside
+  }`)).toJSON();
+  const frameArrow = nativeFrame.elements.find((item) => item.type === "arrow");
+  assert.equal(frameArrow.startBinding.elementId, "scope");
+  assert.equal(frameArrow.endBinding.elementId, "outside:frame");
+
+  const drawing = new Drawing();
+  const from = { x: 100, y: 100, width: 100, height: 60 };
+  const to = { x: 500, y: 100, width: 100, height: 60 };
+  const state = {
+    bounds: new Map([["a", from], ["b", to]]),
+    nodeIds: new Set(["a", "b"]), containers: [], routes: [],
+    adapterRoutes: new Map([["0:0", [[0, 0], [50, 50]]]]),
+    frameMembership: new Map(), frameLocks: new Map(), visuals: [], labelBounds: [],
+  };
+  renderConnection(drawing, state, { type: "connection", nodes: ["a", "b"], attributes: {} }, 0);
+  const arrow = drawing.elements.find((item) => item.type === "arrow");
+  const absolute = arrow.points.map(([x, y]) => [x + arrow.x, y + arrow.y]);
+  assert.deepEqual(absolute[0], [from.x + from.width, from.y + from.height / 2]);
+  assert.deepEqual(absolute.at(-1), [to.x, to.y + to.height / 2]);
+});
+
+test("connectors bind to the emitted element for freehand endpoints", () => {
+  const result = compile(parse(`diagram "Freehand endpoint" {
+    mark: freedraw { at (20, 40); points ((0, 0), (40, 20), (80, 0)) }
+    target: rectangle "Target" { at (300, 20); size (120, 80) }
+    mark -> target { style straight }
+  }`)).toJSON();
+  const arrow = result.elements.find((item) => item.type === "arrow");
+  assert.equal(arrow.startBinding.elementId, "mark:stroke");
+  assert.equal(arrow.endBinding.elementId, "target:frame");
+});
+
+test("attached annotations stay inside their frame and remain frame-owned", () => {
+  const drawing = new Drawing();
+  const frameBounds = { x: 0, y: 0, width: 420, height: 300 };
+  const targetBounds = { x: 300, y: 100, width: 90, height: 60 };
+  const state = {
+    bounds: new Map([["frame", frameBounds], ["target", targetBounds]]),
+    nodeIds: new Set(["target"]), containers: ["frame"], routes: [], adapterRoutes: new Map(),
+    frameMembership: new Map([["target", "frame"]]), containerMembership: new Map(), frameLocks: new Map(),
+    canvas: { left: 0, right: 900, top: 0 }, annotationGutter: { x: 650, width: 220 },
+    measurer: createMeasurer(), visuals: [], labelBounds: [],
+  };
+  const registerBounds = (graph, id, bounds) => graph.bounds.set(id, bounds);
+  renderAnnotation(drawing, state, {
+    type: "callout", id: "note", title: "Review", target: "target", at: undefined,
+  }, 0, registerBounds);
+  const note = state.bounds.get("note");
+  assert.ok(note.x >= frameBounds.x && note.x + note.width <= frameBounds.x + frameBounds.width);
+  assert.ok(note.y >= frameBounds.y && note.y + note.height <= frameBounds.y + frameBounds.height);
+  assert.equal(state.frameMembership.get("note"), "frame");
+});
+
+test("labeled connector ignores advisory node ids without bounds", () => {
+  const drawing = new Drawing();
+  const state = {
+    bounds: new Map([
+      ["a", { x: 0, y: 0, width: 100, height: 60 }],
+      ["b", { x: 300, y: 0, width: 100, height: 60 }],
+    ]),
+    nodeIds: new Set(["a", "b", "pending"]), containers: [], routes: [], adapterRoutes: new Map(),
+    frameMembership: new Map(), frameLocks: new Map(), visuals: [], labelBounds: [],
+  };
+  assert.doesNotThrow(() => renderConnection(drawing, state, {
+    type: "connection", nodes: ["a", "b"], label: "request", attributes: {},
+  }, 0));
+});
+
 test("endpoint labels follow connector rerouting", () => {
   const drawing = compile(parse(`
     diagram "Endpoint labels" {
@@ -91,6 +197,39 @@ test("endpoint labels follow connector rerouting", () => {
   assert.equal(movedLabel.x, previousX + 80);
   assert.equal(label.x, previousX);
   assert.equal(synchronizeEndpointLabels(synchronized.elements).changed, false);
+});
+
+test("endpoint-label synchronization ignores malformed editable-scene metadata", () => {
+  const drawing = compile(parse(`diagram "Endpoint labels" {
+    a: rectangle "A" { at (0,0); size (100,60) }
+    b: rectangle "B" { at (300,0); size (100,60) }
+    a -> b { start-label "caller" }
+  }`)).toJSON();
+  const arrow = drawing.elements.find((item) => item.type === "arrow");
+  arrow.customData.xdrawEndpointLabels.start = 42;
+  assert.deepEqual(synchronizeEndpointLabels(drawing.elements), {
+    elements: drawing.elements,
+    changed: false,
+  });
+
+  arrow.customData.xdrawEndpointLabels.start = "a:frame";
+  assert.equal(synchronizeEndpointLabels(drawing.elements).changed, false);
+
+  arrow.customData.xdrawEndpointLabels = { middle: drawing.elements.find((item) => item.type === "text").id };
+  assert.equal(synchronizeEndpointLabels(drawing.elements).changed, false);
+});
+
+test("endpoint-label synchronization repairs height-only drift", () => {
+  const drawing = compile(parse(`diagram "Endpoint labels" {
+    a: rectangle "A" { at (0,0); size (100,60) }
+    b: rectangle "B" { at (300,0); size (100,60) }
+    a -> b { start-label "caller" }
+  }`)).toJSON();
+  const label = drawing.elements.find((item) => item.id.endsWith(":start-label"));
+  label.height += 10;
+  const synchronized = synchronizeEndpointLabels(drawing.elements);
+  assert.equal(synchronized.changed, true);
+  assert.equal(synchronized.elements.find((item) => item.id === label.id).height, label.fontSize * 1.25);
 });
 
 test("connector labels avoid endpoints when the gap is too short", () => {

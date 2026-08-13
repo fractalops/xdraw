@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { BUILTIN_LAYOUT } from "../src/builtin-layouts.js";
-import { createMeasurer } from "../src/measurement.js";
-import { createStyleResolver } from "../src/styles.js";
-import { parseSource as parse } from "../src/source-language.js";
+import { BUILTIN_LAYOUT } from "../src/builtin-layouts.ts";
+import { createMeasurer } from "../src/measurement.ts";
+import { createStyleResolver } from "../src/styles.ts";
+import { parseSource as parse } from "../src/source-language.ts";
 import {
   assertLayoutCapabilities,
   BUILTIN_LAYOUT_CAPABILITIES,
@@ -13,7 +13,7 @@ import {
   createSceneGraph,
   layoutWithAdapter,
 } from "../src/scene.ts";
-import { buildSemanticIR } from "../src/semantic.js";
+import { buildSemanticIR } from "../src/semantic.ts";
 
 test("built-in layout capabilities are enforced", () => {
   assert.doesNotThrow(() => assertLayoutCapabilities(
@@ -28,7 +28,7 @@ test("built-in layout capabilities are enforced", () => {
 });
 
 test("layout adapters may return routes only when they declare ownership", () => {
-  const document = buildSemanticIR(parse('diagram "Routes" { item: rectangle "Item" }'));
+  const document = buildSemanticIR(parse('diagram "Routes" { source: rectangle "Source"; target: rectangle "Target"; source -> target }'));
   const state = createSceneGraph(document, {
     diagramWidth: 1120, contentWidth: 1120, annotationGutterWidth: 0, measurer: createMeasurer(),
   });
@@ -62,19 +62,65 @@ test("layout adapters may return routes only when they declare ownership", () =>
     () => layoutWithAdapter(malformed, { state }, [], { contentWidth: 1120, gap: 35, startY: 42 }),
     /returned invalid route geometry/,
   );
+
+  for (const [connectionIndex, segmentIndex] of [[-1, 0], [99, 0], [0, 99]]) {
+    const unowned = createLayoutAdapter({
+      name: "unowned-route",
+      capabilities: { ...BUILTIN_LAYOUT_CAPABILITIES, edgeRouting: true },
+      layoutDocument: () => ({
+        bottom: 100,
+        routes: [{ connectionIndex, segmentIndex, points: [[0, 0], [100, 0]] }],
+      }),
+    });
+    assert.throws(
+      () => layoutWithAdapter(unowned, { state }, [], { contentWidth: 1120, gap: 35, startY: 42 }),
+      /route without a matching connection segment/,
+    );
+  }
 });
 
 test("compiler orchestration does not own built-in section placement", async () => {
-  const source = await readFile(new URL("../src/compiler.js", import.meta.url), "utf8");
+  const source = await readFile(new URL("../src/compiler.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /function (?:compile|layout)(?:Container|Tree|Sequence)/);
   assert.doesNotMatch(source, /routeConnection|inferredSides|ARROWHEADS/);
   assert.doesNotMatch(source, /function render(?:Node|FreeText)/);
   assert.match(source, /layoutWithAdapter/);
 });
 
-test("tree layouts register one routing obstacle per frame", async () => {
-  const source = await readFile(new URL("../src/builtin-layouts.js", import.meta.url), "utf8");
-  assert.equal(source.match(/state\.containers\.push\(frameId\)/g)?.length, 1);
+test("tree layouts register one routing obstacle per rendered tree", () => {
+  const document = buildSemanticIR(parse(`
+    use "xdraw/containers" as containers
+    use "xdraw/cards" as cards
+    diagram "Tree" {
+      map: containers.section "Map" {
+        arrange tree { root root }
+        root: cards.card "Root"
+        child: cards.card "Child"
+        root -> child
+      }
+    }
+  `));
+  const styles = createStyleResolver(document);
+  const state = createSceneGraph(document, {
+    diagramWidth: 1120,
+    contentWidth: 1120,
+    annotationGutterWidth: 0,
+    measurer: createMeasurer(styles),
+    styles,
+  });
+  const registerBounds = (graph, id, bounds) => graph.place(id, bounds);
+  const tree = document.statements.find((item) => item.type === "tree");
+  layoutWithAdapter(BUILTIN_LAYOUT, { state, registerBounds }, [tree], {
+    contentWidth: 1120,
+    gap: 35,
+    startY: 42,
+  });
+
+  assert.deepEqual(state.containers, ["map"]);
+  assert.ok(state.bounds.has("map"));
+  assert.ok(state.bounds.has("map.root"));
+  assert.ok(state.bounds.has("map.child"));
+  assert.equal(state.visuals.filter((visual) => visual.type === "container" && visual.id === "map").length, 1);
 });
 
 test("layout requirements are derived from the semantic input", () => {
@@ -98,11 +144,13 @@ test("layout requirements are derived from the semantic input", () => {
 
 test("layout populates a measured scene before Excalidraw adaptation", () => {
   const document = buildSemanticIR(parse('diagram "Scene" { flow: frame "Flow" { item: rectangle "Item" } }'));
+  const styles = createStyleResolver(document);
   const state = createSceneGraph(document, {
     diagramWidth: 1120,
     contentWidth: 1120,
     annotationGutterWidth: 0,
-    measurer: createMeasurer(),
+    measurer: createMeasurer(styles),
+    styles,
   });
   const registerBounds = (graph, id, bounds) => graph.place(id, bounds);
   const result = layoutWithAdapter(BUILTIN_LAYOUT, { state, registerBounds }, [document.statements[0]], {

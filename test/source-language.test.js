@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveAssets } from "../src/assets.js";
-import { compile } from "../src/compiler.js";
-import { MemoryFileSystem } from "../src/filesystem.js";
-import { parseSource, parseSyntax } from "../src/source-language.js";
+import { resolveAssets } from "../src/assets.ts";
+import { compile } from "../src/compiler.ts";
+import { MemoryFileSystem } from "../src/filesystem.ts";
+import { parseSource, parseSyntax } from "../src/source-language.ts";
 
 const FLOW = `
 use "xdraw/palette" as palette
@@ -106,6 +106,73 @@ test("qualified sequence constructors lower without sequence keywords", () => {
   `)).toJSON();
   assert.ok(drawing.elements.some((element) => element.id === "interaction.client:lifeline"));
   assert.ok(drawing.elements.some((element) => element.id === "interaction.server:lifeline"));
+});
+
+test("multiple sequences use stable semantic identities", () => {
+  const source = (prefix = "") => `
+    use "xdraw/sequence" as seq
+    diagram "Interactions" {
+      sequence: rectangle "Ordinary node"
+      ${prefix}
+      first: seq.diagram {
+        client: seq.participant "Client"
+        server: seq.participant "Server"
+        request: client -> server "Request"
+      }
+      second: seq.diagram {
+        worker: seq.participant "Worker"
+        store: seq.participant "Store"
+        save: worker -> store "Save"
+      }
+    }
+  `;
+  const drawing = compile(parseSource(source())).toJSON();
+  const ids = drawing.elements.map((element) => element.id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.ok(ids.includes("first:message:0:label"));
+  assert.ok(ids.includes("second:message:0:label"));
+  assert.ok(ids.includes("sequence:frame"));
+
+  const reordered = compile(parseSource(source(`
+    earlier: seq.diagram {
+      left: seq.participant "Left"
+      right: seq.participant "Right"
+      flow: left -> right "Flow"
+    }
+  `))).toJSON();
+  assert.ok(reordered.elements.some((element) => element.id === "first:message:0:label"));
+  assert.ok(reordered.elements.some((element) => element.id === "second:message:0:label"));
+});
+
+test("sequences reject unsupported content and external endpoints", () => {
+  assert.throws(
+    () => compile(parseSource(`
+      use "xdraw/sequence" as seq
+      diagram "Bad content" {
+        interaction: seq.diagram {
+          client: seq.participant "Client"
+          server: seq.participant "Server"
+          extra: rectangle "Not a participant"
+          client -> server
+        }
+      }
+    `)),
+    /sequence may contain only participants and messages, not node/,
+  );
+  assert.throws(
+    () => compile(parseSource(`
+      use "xdraw/sequence" as seq
+      diagram "External endpoint" {
+        outside: rectangle "Outside"
+        interaction: seq.diagram {
+          client: seq.participant "Client"
+          server: seq.participant "Server"
+          client -> outside
+        }
+      }
+    `)),
+    /sequence message references a non-participant: outside/,
+  );
 });
 
 test("components expand hygienically from constructor declarations", () => {

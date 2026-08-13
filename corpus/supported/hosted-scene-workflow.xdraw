@@ -1,0 +1,19 @@
+use "xdraw/palette" as palette
+use "xdraw/process" as process
+use "xdraw/cards" as cards
+
+diagram "Hosted scene workflow" {
+  owner: process.lane "Local CLI" {
+    submit: cards.card "Compile patch"
+  }
+
+  reviewer: process.lane "Excalidraw+" {
+    arrange row { gap 100 }
+
+    assess: diamond "Scene exists?"
+    approve: cards.card "Apply edit" { style palette.success }
+    accepted: assess -> approve "yes"
+  }
+
+  review_request: owner.submit@bottom -> reviewer.assess@top "REST request"
+}

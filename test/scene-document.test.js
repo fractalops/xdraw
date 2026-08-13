@@ -1,8 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile } from "../src/compiler.js";
-import { formatSceneResource, parseSceneDocument } from "../src/scene-document.js";
+import { compile } from "../src/compiler.ts";
+import { formatSceneResource, parseSceneDocument, parseSceneResource } from "../src/scene-document.ts";
+
+test("scene resource addresses round-trip with readable names", () => {
+  const address = "excalidraw::default::Architecture::System overview";
+  assert.equal(formatSceneResource(parseSceneResource(address)), address);
+  assert.throws(() => parseSceneResource("Architecture::System overview"), /provider::workspace::collection::scene/);
+  assert.throws(() => parseSceneResource("other::default::Architecture::System overview"), /unsupported scene provider/);
+});
+
+test("scene resource formatting rejects reserved separators", () => {
+  assert.throws(
+    () => formatSceneResource({ provider: "excalidraw", workspace: "a", collection: ":", scene: "a" }),
+    /must not contain ':'/,
+  );
+  assert.throws(() => parseSceneResource("excalidraw::a::b:c::a"), /must not contain ':'/);
+});
 
 test("scene documents make replacement explicit", () => {
   const document = parseSceneDocument(`
@@ -70,5 +85,25 @@ test("scene documents reject ambiguous or empty operations", () => {
   assert.throws(
     () => parseSceneDocument("scene excalidraw::default::main::one { patch { update api { tone warning } delete api } }"),
     /cannot update and delete 'api'/,
+  );
+});
+
+test("scene document boundaries reject malformed external input", () => {
+  assert.throws(() => parseSceneDocument(null), /source must be a string/);
+  assert.throws(
+    () => formatSceneResource({ provider: "excalidraw", workspace: "", collection: "main", scene: "one" }),
+    /segments must be non-empty strings/,
+  );
+  assert.throws(
+    () => formatSceneResource({ provider: "other", workspace: "default", collection: "main", scene: "one" }),
+    /unsupported scene provider 'other'/,
+  );
+  assert.throws(
+    () => parseSceneDocument("scene excalidraw::default::main::one { patch { update api { width wide } } }"),
+    /update property 'width' requires a number/,
+  );
+  assert.throws(
+    () => parseSceneDocument("scene excalidraw::default::main::one { patch { update api { tone urgent } } }"),
+    /unsupported tone 'urgent'/,
   );
 });

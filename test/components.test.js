@@ -9,14 +9,17 @@ import {
   box,
   boundText,
   card,
+  column,
   connect,
   distributeBounds,
+  inset,
   rectangle,
   row,
   text,
+  tone,
   wrapText,
 } from "../src/index.ts";
-import { measureTextWidth, wrapTextToWidth } from "../src/text-metrics.js";
+import { measureTextWidth, wrapTextToWidth } from "../src/text-metrics.ts";
 
 test("text defaults to the code font", () => {
   const element = text("label", { x: 10, y: 20 }, "Hello");
@@ -42,6 +45,19 @@ test("connect composes an arrow and optional label", () => {
   assert.equal(elements[0].points[1][0], 100);
 });
 
+test("connect rejects paths that cannot form a segment", () => {
+  const from = box(0, 0, 100, 50);
+  const to = box(200, 0, 100, 50);
+  assert.throws(() => connect("empty", from, to, { points: [], label: "moves" }), /at least two points/);
+  assert.throws(() => connect("single", from, to, { points: [[0, 0]], endLabel: "target" }), /at least two points/);
+});
+
+test("tone rejects prototype names and invalid overrides", () => {
+  assert.throws(() => tone("toString"), /unknown tone/);
+  assert.throws(() => tone("info", { stroke: undefined }), /must be a non-empty color string/);
+  assert.throws(() => tone("info", { background: "" }), /must be a non-empty color string/);
+});
+
 test("wrapText splits long hyphenated labels", () => {
   assert.equal(wrapText("Candidate-only", 10), "Candidate-\nonly");
 });
@@ -59,6 +75,15 @@ test("row creates equal deterministic boxes", () => {
     box(110, 0, 100, 50),
     box(220, 0, 100, 50),
   ]);
+});
+
+test("layout helpers reject geometry that cannot contain positive children", () => {
+  assert.throws(() => row(box(0, 0, 1, 1), 2, 1), /positive child width/);
+  assert.throws(() => column(box(0, 0, 1, 1), 2, 1), /positive child height/);
+  assert.throws(() => inset(box(0, 0, 1, 1), 1), /positive width and height/);
+  assert.throws(() => row(box(0, 0, Number.NaN, 1), 1), /finite numbers/);
+  assert.throws(() => column(box(0, 0, 1, 1), 1, -1), /non-negative finite number/);
+  assert.throws(() => inset(box(0, 0, 1, 1), Number.POSITIVE_INFINITY), /non-negative finite number/);
 });
 
 test("alignBounds supports Excalidraw edge and center alignments", () => {
@@ -82,6 +107,17 @@ test("distributeBounds equalizes gaps and falls back to centers for overlaps", (
     box(0, 0, 100, 10), box(30, 0, 100, 10), box(60, 0, 100, 10),
   ], "x");
   assert.deepEqual(overlapping.map((item) => item.x + item.width / 2), [50, 80, 110]);
+});
+
+test("distributeBounds is byte-stable when applied repeatedly", () => {
+  const bounds = [
+    box(0, 0, 1, 1),
+    box(13, 0, 1, 1),
+    box(0, 0, 25, 1),
+    box(337, 0, 1, 1),
+  ];
+  const once = distributeBounds(bounds, "x");
+  assert.deepEqual(distributeBounds(once, "x"), once);
 });
 
 test("card creates a frame with title and body", () => {

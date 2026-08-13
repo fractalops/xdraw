@@ -25,10 +25,10 @@ diagram "How XDraw works" {
     source: code """
       use "xdraw/architecture" as arch
 
-      diagram "Order flow" {
-        user: arch.person "User"
-        api: arch.system "API"
-        user -> api "request"
+      diagram "Compiler flow" {
+        author: arch.person "Author"
+        compiler: arch.system "Compiler"
+        author -> compiler "source"
       }
     """ {
       language xdraw

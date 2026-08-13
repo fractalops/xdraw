@@ -5,11 +5,13 @@ import { tmpdir } from "node:os";
 import { Readable } from "node:stream";
 import test from "node:test";
 
-import { run } from "../src/cli.js";
+import { run } from "../src/cli.ts";
+
+const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
 test("CLI exposes help and version without Node-specific invocation", async () => {
   assert.match(await run(["--help"]), /^XDraw creates editable Excalidraw diagrams/m);
-  assert.equal(await run(["--version"]), "xdraw 0.1.0");
+  assert.equal(await run(["--version"]), `xdraw ${packageJson.version}`);
 });
 
 test("CLI checks source and chooses a neighboring output by default", async () => {
@@ -57,6 +59,16 @@ test("CLI renders local PNG and SVG previews from the build command", async () =
   assert.match(await readFile(svgPath, "utf8"), /^<svg /);
 });
 
+test("CLI renders transparent logo previews", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "xdraw-transparent-preview-"));
+  const svgPath = join(directory, "logo.svg");
+  await run([
+    "build", "-e", 'diagram "" { mark: ellipse "" }',
+    "-o", svgPath, "--background", "transparent",
+  ]);
+  assert.doesNotMatch(await readFile(svgPath, "utf8"), /<rect width="100%" height="100%"/);
+});
+
 test("CLI shows help instead of waiting for interactive stdin", async () => {
   const stdin = Readable.from([]);
   stdin.isTTY = true;
@@ -68,7 +80,14 @@ test("CLI rejects incomplete or conflicting options", async () => {
   await assert.rejects(() => run(["check", "a.xdraw", "-o", "out"]), /check does not create output/);
   await assert.rejects(() => run(["build", "a.xdraw", "-e", "a: card \"A\""]), /either a file\/stdin or --expression/);
   await assert.rejects(() => run(["build", "a.xdraw", "--api-url", "https://example.test/api/v1"]), /build does not accept --api-url/);
-  await assert.rejects(() => run(["inspect", "scene-1", "--max-width", "1921"]), /no greater than 1920/);
+  await assert.rejects(() => run(["pull", "scene-1", "--max-width", "1921"]), /no greater than 1920/);
+  await assert.rejects(() => run(["pull", "scene-1", "--frame", "main", "-o", "scene.excalidraw"]), /require a .png or .svg output/);
+  await assert.rejects(
+    () => run(["build", "-e", 'diagram "" {}', "--background", "transparent"]),
+    /requires a .png or .svg output/,
+  );
+  await assert.rejects(() => run(["pull", "scene-1", "-o", "scene.jpeg"]), /must end in/);
+  await assert.rejects(() => run(["inspect", "scene-1"]), /unknown command 'inspect'/);
   await assert.rejects(() => run(["push", "a.xdraw"]), /unknown command 'push'/);
   await assert.rejects(() => run(["patch", "scene-1"]), /unknown command 'patch'/);
   await assert.rejects(() => run(["serve"]), /unknown command 'serve'/);
@@ -86,6 +105,15 @@ function fakeRemote(overrides = {}) {
         updated: patch.updates?.length ?? 0,
         deleted: patch.deletes?.length ?? 0,
       };
+    },
+    async listScenes() {
+      return [{
+        address: "excalidraw::default::Architecture::System overview",
+        sceneId: "scene-1",
+        sceneName: "System overview",
+        collectionId: "collection-1",
+        collectionName: "Architecture",
+      }];
     },
     async pull() {
       return {
@@ -111,7 +139,7 @@ test("CLI applies source-authoritative scene replacement", async () => {
     }
   `], {
     remoteFactory: async () => created,
-  }), "Created excalidraw::default::architecture::system_overview (3 elements)");
+  }), "Created excalidraw::default::architecture::system_overview (3 elements)\nScene ID: scene-new");
   assert.equal(created.closed, true);
 });
 
@@ -134,19 +162,48 @@ test("CLI resolves assets inside replacement scene documents", async () => {
   }), /^Created excalidraw::default::architecture::system_overview/);
 });
 
-test("CLI pulls scene JSON and saves screenshots", async () => {
+test("CLI lists copyable hosted-scene addresses", async () => {
+  let collection;
+  const remote = fakeRemote({
+    async listScenes(selector) {
+      collection = selector;
+      return fakeRemote().listScenes();
+    },
+  });
+  const result = await run(["list", "Architecture"], { remoteFactory: async () => remote });
+  assert.equal(collection, "Architecture");
+  assert.match(result, /^ADDRESS\s+SCENE ID/m);
+  assert.match(result, /excalidraw::default::Architecture::System overview\s+scene-1/);
+});
+
+test("CLI accepts inline long-option values", async () => {
+  let options;
+  await run(["list", "--api-url=https://example.test/api/v1"], {
+    remoteFactory: async (value) => {
+      options = value;
+      return fakeRemote();
+    },
+  });
+  assert.deepEqual(options, { baseUrl: "https://example.test/api/v1" });
+});
+
+test("CLI pulls scene addresses as editable JSON, PNG, or SVG", async () => {
   const directory = await mkdtemp(join(tmpdir(), "xdraw-remote-"));
   const scene = join(directory, "scene.excalidraw");
-  const screenshot = join(directory, "scene.png");
-  assert.match(await run(["pull", "scene-1", "-o", scene], {
-    remoteFactory: async () => fakeRemote(),
-  }), /Downloaded scene scene-1/);
+  const png = join(directory, "scene.png");
+  const svg = join(directory, "scene.svg");
+  const address = "excalidraw::default::Architecture::System overview";
+  let pulled;
+  const remote = fakeRemote({ async pull(target) { pulled = target; return fakeRemote().pull(); } });
+  assert.match(await run(["pull", address, "-o", scene], { remoteFactory: async () => remote }), /Saved excalidraw::/);
+  assert.deepEqual(pulled, {
+    provider: "excalidraw", workspace: "default", collection: "Architecture", scene: "System overview",
+  });
   assert.equal(JSON.parse(await readFile(scene, "utf8")).type, "excalidraw");
-  assert.match(await run(["inspect", "scene-1", "-o", screenshot], {
-    remoteFactory: async () => fakeRemote(),
-  }), /Saved scene scene-1 preview/);
-  const png = await readFile(screenshot);
-  assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  await run(["pull", "scene-1", "-o", png, "--max-width", "800"], { remoteFactory: async () => fakeRemote() });
+  await run(["pull", "scene-1", "-o", svg], { remoteFactory: async () => fakeRemote() });
+  assert.deepEqual([...(await readFile(png)).subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.match(await readFile(svg, "utf8"), /^<svg /);
 });
 
 test("CLI applies selective patches from XDraw source", async () => {
@@ -162,7 +219,7 @@ test("CLI applies selective patches from XDraw source", async () => {
   assert.equal(await run(["apply"], {
     stdin: Readable.from([source]),
     remoteFactory: async () => fakeRemote(),
-  }), "Patched excalidraw::default::architecture::system_overview (1 added, 1 updated, 1 deleted)");
+  }), "Patched excalidraw::default::architecture::system_overview (1 added, 1 updated, 1 deleted)\nScene ID: scene-existing");
 });
 
 test("CLI rejects malformed scene documents before connecting", async () => {
@@ -178,6 +235,10 @@ test("CLI rejects malformed scene documents before connecting", async () => {
       remoteFactory,
     }),
     /must add, update, or delete/,
+  );
+  await assert.rejects(
+    () => run(["pull", "bad::address"], { remoteFactory }),
+    /provider::workspace::collection::scene/,
   );
   assert.equal(connections, 0);
 });

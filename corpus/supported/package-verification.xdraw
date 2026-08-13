@@ -1,0 +1,15 @@
+use "xdraw/palette" as palette
+use "xdraw/process" as process
+use "xdraw/cards" as cards
+
+diagram "Package verification" {
+  gates: process.lane "Before publishing XDraw" {
+    arrange row { gap 30 }
+
+    build: cards.card "Typecheck" { style palette.accent }
+    unit: cards.card "Unit tests" { style palette.info }
+    acceptance: cards.card "Browser tests" { style palette.warning }
+    deploy: cards.card "Pack" { style palette.success }
+    build -> unit -> acceptance -> deploy
+  }
+}

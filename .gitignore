@@ -4,6 +4,8 @@ lib/
 output/
 playwright-report/
 test-results/
+plans/
+spikes/
 .DS_Store
 npm-debug.log*
 *.tgz

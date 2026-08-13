@@ -3,8 +3,8 @@ import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import test from "node:test";
 
-import { run } from "../src/cli.js";
-import { parseSceneDocument } from "../src/scene-document.js";
+import { run } from "../src/cli.ts";
+import { parseSceneDocument } from "../src/scene-document.ts";
 
 const examples = resolve("examples");
 

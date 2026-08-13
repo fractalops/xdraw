@@ -1,0 +1,22 @@
+use "xdraw/architecture" as arch
+use "xdraw/connectors" as connectors
+
+diagram "Connector routing" {
+  source: arch.system "Source node" {
+    at (80, 120); size (190, 90)
+  }
+  junction: connectors.junction "" {
+    at (390, 155); size (20, 20)
+  }
+  target: arch.database "Target node" {
+    at (560, 120); size (190, 90)
+  }
+
+  request: source@right -> junction@left "routed segment" {
+    via ((310, 165), (350, 165))
+    start-label "start anchor"
+  }
+  forward: junction@right -> target@left {
+    end-label "end anchor"
+  }
+}

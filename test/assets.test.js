@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveAssets } from "../src/assets.js";
-import { compile } from "../src/compiler.js";
-import { MemoryFileSystem } from "../src/filesystem.js";
-import { parseSource as parse } from "../src/source-language.js";
-import { buildSemanticIR } from "../src/semantic.js";
+import { resolveAssets } from "../src/assets.ts";
+import { compile } from "../src/compiler.ts";
+import { MemoryFileSystem } from "../src/filesystem.ts";
+import { parseSource as parse } from "../src/source-language.ts";
+import { buildSemanticIR } from "../src/semantic.ts";
 
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="red"/></svg>';
 

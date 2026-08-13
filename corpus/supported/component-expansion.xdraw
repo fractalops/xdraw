@@ -1,0 +1,24 @@
+use "xdraw/architecture" as arch
+
+diagram "Component expansion" {
+  service: component(name) {
+    api: arch.system "${name} parser"
+    store: arch.database "${name} output"
+    api -> store
+  }
+
+  actor: component(name) {
+    user: arch.person "${name} author"
+  }
+
+  queue: component(name) {
+    broker: ellipse "${name} stage"
+  }
+
+  local: service "Local"
+  hosted: service "Hosted"
+  beginner: actor "New"
+  maintainer: actor "Maintainer"
+  syntax: queue "Syntax"
+  semantic: queue "Semantic"
+}

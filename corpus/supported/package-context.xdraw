@@ -1,0 +1,16 @@
+use "xdraw/architecture" as arch
+use "xdraw/containers" as containers
+
+diagram "XDraw package context" {
+  analyst: arch.person "Author"
+
+  platform: containers.section "XDraw" {
+    arrange row { gap 100 }
+
+    ingest: arch.system "Compiler"
+    warehouse: arch.database "Scene JSON"
+    loads: ingest -> warehouse "emits"
+  }
+
+  verifies: analyst -> platform "writes DSL"
+}

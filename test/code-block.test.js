@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile, compileAsync } from "../src/compiler.js";
-import { codeBlockRequiredWidth } from "../src/code-block.js";
-import { FONT } from "../src/elements.js";
-import { renderSceneSvg } from "../src/local-renderer.js";
-import { parseSource } from "../src/source-language.js";
+import { compile, compileAsync } from "../src/compiler.ts";
+import { codeBlockRequiredWidth } from "../src/code-block.ts";
+import { FONT } from "../src/elements.ts";
+import { renderSceneSvg } from "../src/local-renderer.ts";
+import { buildSemanticIR } from "../src/semantic.ts";
+import { parseSource } from "../src/source-language.ts";
 
 const SOURCE = `diagram "Code blocks" {
   example: code """
@@ -48,7 +49,10 @@ test("code blocks render one editable source element without wrapping", () => {
   assert.equal(source.text, "function greet(name: string) {\n  return `Hello, ${name}`;\n}");
   assert.equal(source.originalText, source.text);
   assert.ok(drawing.elements.some((element) => element.id === "example:lines"));
-  assert.equal(drawing.elements.find((element) => element.id === "example:title").text, "Greeting function");
+  const title = drawing.elements.find((element) => element.id === "example:title");
+  assert.equal(title.text, "Greeting function");
+  assert.equal(title.fontFamily, FONT.bold);
+  assert.equal(title.fontSize, 17);
   assert.equal(drawing.elements.find((element) => element.id === "example:language").text, "typescript");
   assert.equal(drawing.elements.find((element) => element.id === "example:language").textAlign, "right");
 });
@@ -206,6 +210,16 @@ test("highlighting enforces line, run, and drawing-wide budgets", async () => {
   )));
 });
 
+test("rejected highlighting does not consume the drawing-wide run budget", async () => {
+  const oversized = `const value = "${"x".repeat(2_100)}"`;
+  const drawing = (await compileAsync(parseSource(`diagram "Budget accounting" {
+    rejected: code ${JSON.stringify(oversized)} { language typescript; highlight true }
+    accepted: code "const value: number = 42" { language typescript; highlight true }
+  }`))).toJSON();
+  assert.equal(codeFrame(drawing, "rejected").customData.xdraw.highlightFallback, "source-budget");
+  assert.equal(codeFrame(drawing, "accepted").customData.xdraw.highlighted, true);
+});
+
 test("code blocks reject invalid content and values", () => {
   assert.throws(
     () => parseSource('diagram "Invalid" { sample: code "source" { nested: rectangle "No" } }'),
@@ -230,6 +244,13 @@ test("code blocks reject invalid content and values", () => {
   assert.throws(
     () => compile(parseSource(`diagram "Invalid" { sample: code ${JSON.stringify("x".repeat(100_001))} }`)),
     /XD1218: code source exceeds the supported size/,
+  );
+
+  const semantic = buildSemanticIR(parseSource('diagram "Invalid semantic input" { sample: code "source" }'));
+  semantic.statements[0].lineNumbers = "yes";
+  assert.throws(
+    () => compile(semantic),
+    /XD1215: code line-numbers must be true or false/,
   );
 });
 

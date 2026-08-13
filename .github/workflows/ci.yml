@@ -32,8 +32,17 @@ jobs:
       - name: Audit dependencies
         run: npm audit --audit-level=high
 
+      - name: Check production sources
+        run: npm run check:sources
+
+      - name: Check generated font metrics
+        run: npm run check:font-metrics
+
       - name: Check strict core types
         run: npm run typecheck
+
+      - name: Lint TypeScript sources
+        run: npm run lint
 
       - name: Run tests
         run: npm test

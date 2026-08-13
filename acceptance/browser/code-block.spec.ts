@@ -14,7 +14,7 @@ test("renders syntax-highlighted code as editable source runs", async ({ page })
   expect(code.length).toBeGreaterThan(1);
   expect(code.some((element: { text: string }) => element.text.includes("return"))).toBe(true);
   expect(new Set(code.map((element: { strokeColor: string }) => element.strokeColor)).size).toBeGreaterThan(1);
-  expect(frame.customData.xdraw.source).toContain("  return `State: ${status}`");
+  expect(frame.customData.xdraw.source).toContain("  return `Compiling: ${stage}`");
   expect(frame.customData.xdraw.highlighted).toBe(true);
   expect(sql.length).toBeGreaterThan(1);
   expect(drawing.elements.some((element: { id: string }) => element.id === "sql:lines")).toBe(false);

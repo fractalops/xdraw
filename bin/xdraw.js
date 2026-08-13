@@ -2,7 +2,7 @@
 
 import { existsSync } from "node:fs";
 
-const sourceEntry = new URL("../src/cli.js", import.meta.url);
+const sourceEntry = new URL("../src/cli.ts", import.meta.url);
 const runtimeEntry = existsSync(sourceEntry)
   ? sourceEntry
   : new URL("../lib/cli.js", import.meta.url);

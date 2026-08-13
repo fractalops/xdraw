@@ -1,0 +1,17 @@
+use "xdraw/architecture" as arch
+
+diagram "Frame emission" {
+  workspace: frame "Compiled document" {
+    locked true
+
+    request: arch.person "Source node"
+    service: arch.system "Scene element"
+    request -> service
+
+    data: frame "Nested frame" {
+      records: arch.database "Child element"
+    }
+
+    service -> data.records
+  }
+}

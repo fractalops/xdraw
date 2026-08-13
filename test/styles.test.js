@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile } from "../src/compiler.js";
-import { createMeasurer } from "../src/measurement.js";
-import { buildSemanticIR } from "../src/semantic.js";
-import { parseSource } from "../src/source-language.js";
-import { createStyleResolver } from "../src/styles.js";
+import { compile } from "../src/compiler.ts";
+import { createMeasurer } from "../src/measurement.ts";
+import { buildSemanticIR } from "../src/semantic.ts";
+import { parseSource } from "../src/source-language.ts";
+import { createStyleResolver } from "../src/styles.ts";
 
 function semantic(source) {
   return buildSemanticIR(parseSource(source));
@@ -121,12 +121,34 @@ test("explicit neutral palette overrides semantic node defaults", () => {
   assert.equal(result.elements.find((item) => item.id === "explicit:frame").strokeColor, "#94a3b8");
 });
 
+test("extension-defined node kinds use the neutral palette by default", () => {
+  const document = semantic('diagram "Extension" { item: rectangle "Item" }');
+  const style = createStyleResolver(document).resolveNode({
+    kind: "extension-shape",
+    title: "Extension shape",
+  });
+  assert.equal(style.strokeColor, "#94a3b8");
+  assert.equal(style.backgroundColor, "#f8fafc");
+});
+
 test("links require a safe portable protocol", () => {
   for (const link of ["javascript:alert(1)", "file:///tmp/private", "relative/path"]) {
     const document = semantic(`diagram "Link" { item: rectangle "Item" { link "${link}" } }`);
     const node = document.statements.find((item) => item.id === "item");
     assert.throws(() => createStyleResolver(document).resolveNode(node), /unsupported link protocol|invalid link/);
   }
+});
+
+test("style values reject invalid colors and non-finite numbers", () => {
+  const invalidColor = semantic('diagram "Color" { item: rectangle "Item" }');
+  const colorNode = invalidColor.statements.find((item) => item.id === "item");
+  colorNode.attributes.stroke = 12;
+  assert.throws(() => createStyleResolver(invalidColor).resolveNode(colorNode), /stroke must be a string/);
+
+  const document = semantic('diagram "Numbers" { item: rectangle "Item" }');
+  const node = document.statements.find((item) => item.id === "item");
+  node.attributes.roughness = Number.POSITIVE_INFINITY;
+  assert.throws(() => createStyleResolver(document).resolveNode(node), /roughness must not be negative/);
 });
 
 test("line height is shared by measurement and rendered text", () => {

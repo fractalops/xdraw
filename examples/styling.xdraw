@@ -1,15 +1,15 @@
-use "xdraw/architecture" as arch
 use "xdraw/containers" as containers
 
-diagram "Styles and themes" {
+diagram "How XDraw resolves styles" {
+  subtitle "Theme defaults, named styles and local properties form one precedence chain"
   base: theme { font-family normal }
   focus: style { stroke "#059669"; background "#ecfdf5"; text-color "#065f46"; title-size 21 }
-  examples: containers.section "Elements" {
-    source: arch.system "Source system"
-    target: ellipse "Verified target" { style focus; link "https://example.com"; locked true }
-    source -> target
+  examples: containers.section "Style layers" {
+    source: rectangle "Theme default"
+    target: ellipse "Named override" { style focus; link "https://example.com"; locked true }
+    source -> target "higher precedence"
   }
-  caption: text "Styled free text wraps at a declared width." {
+  caption: text "Local properties override named styles while the output remains editable." {
     at (100, 350); font-family normal; font-size 18; wrap-width 300; auto-size false
   }
 }

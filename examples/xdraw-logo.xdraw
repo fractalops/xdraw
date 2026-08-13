@@ -4,28 +4,28 @@ diagram "" {
   canvas_top_left: freedraw {
     at (66, 96)
     points ((0, 0), (0, -36), (36, -36))
-    stroke "#0f172a"
+    stroke "#64748b"
     stroke-width 1.2
   }
 
   canvas_top_right: freedraw {
     at (228, 60)
     points ((0, 0), (36, 0), (36, 36))
-    stroke "#0f172a"
+    stroke "#64748b"
     stroke-width 1.2
   }
 
   canvas_bottom_left: freedraw {
     at (66, 220)
     points ((0, 0), (0, 36), (36, 36))
-    stroke "#0f172a"
+    stroke "#64748b"
     stroke-width 1.2
   }
 
   canvas_bottom_right: freedraw {
     at (228, 256)
     points ((0, 0), (36, 0), (36, -36))
-    stroke "#0f172a"
+    stroke "#64748b"
     stroke-width 1.2
   }
 
@@ -49,6 +49,6 @@ diagram "" {
     at (340, 105)
     font-family code
     font-size 96
-    text-color "#0f172a"
+    text-color "#64748b"
   }
 }

@@ -1,12 +1,12 @@
-scene excalidraw::default::architecture::system_overview {
+scene excalidraw::default::xdraw::compiler_overview {
   replace {
     use "xdraw/architecture" as arch
-    diagram "System overview" {
-      browser: arch.person "User"
-      api: arch.system "API"
-      data: arch.database "Data"
-      browser -> api "request"
-      api -> data "query"
+    diagram "Hosted compiler overview" {
+      browser: arch.person "Author"
+      api: arch.system "XDraw compiler"
+      data: arch.database "Excalidraw scene"
+      browser -> api "applies source"
+      api -> data "replaces scene"
     }
   }
 }

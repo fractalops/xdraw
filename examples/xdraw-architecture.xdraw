@@ -1,0 +1,78 @@
+use "xdraw/architecture" as arch
+use "xdraw/containers" as containers
+
+diagram "Architecture views with xdraw/architecture" {
+  subtitle "One system, shown at progressively deeper levels of detail"
+  arrange grid { columns 2; spacing airy; width 2200 }
+
+  context: containers.section "1. System Context diagram for XDraw" {
+    arrange row { spacing airy }
+    author: arch.person "Diagram author" {
+      description "Describes an editable technical diagram"
+    }
+    xdraw: arch.system "XDraw" {
+      description "Turns concise source into native Excalidraw scenes"
+    }
+    hosted: arch.external-system "Excalidraw+" {
+      description "Stores and presents hosted scenes"
+    }
+    author -> xdraw "authors with"
+    xdraw -> hosted "publishes to"
+  }
+
+  containers: containers.section "2. Container diagram for XDraw" {
+    arrange row { gap 92 }
+    platform: arch.system-boundary "XDraw" {
+      arrange row { spacing airy }
+      cli: arch.container "Command-line application" {
+        description "Reads source and coordinates commands"
+        technology "Node.js"
+      }
+      compiler: arch.container "Diagram compiler" {
+        description "Parses, validates, lays out, and emits scenes"
+        technology "TypeScript"
+      }
+      scene: arch.database "Scene document" {
+        description "Stores editable Excalidraw elements"
+        technology "JSON"
+      }
+      cli -> compiler "submits diagram source" { technology "in-process API" }
+      compiler -> scene "writes editable elements" { technology "Excalidraw JSON" }
+    }
+  }
+
+  components: containers.section "3. Component diagram for the compiler" {
+    compiler: arch.container-boundary "Diagram compiler" {
+      arrange row { spacing airy }
+      parser: arch.component "Parser" {
+        description "Builds the source syntax tree"
+        technology "TypeScript"
+      }
+      semantic: arch.component "Semantic model" {
+        description "Validates identity and references"
+        technology "TypeScript"
+      }
+      layout: arch.component "Layout and routing" {
+        description "Places elements and routes relationships"
+        technology "TypeScript + ELK"
+      }
+      parser -> semantic "lowers declarations"
+      semantic -> layout "supplies validated elements"
+    }
+  }
+
+  deployment: containers.section "4. Deployment diagram for local authoring" {
+    workstation: arch.deployment-node "Developer workstation" {
+      arrange row { spacing airy }
+      executable: arch.container "xdraw executable" {
+        description "Builds local diagrams and manages hosted scenes"
+        technology "Node.js"
+      }
+      file: arch.database "Local scene file" {
+        description "Keeps the generated scene editable and portable"
+      technology "JSON"
+      }
+      executable -> file "writes scene" { technology "local filesystem" }
+    }
+  }
+}

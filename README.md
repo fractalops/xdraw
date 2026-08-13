@@ -16,6 +16,16 @@
 XDraw compiles a small, readable language into editable `.excalidraw` files,
 PNG previews, and SVG previews.
 
+The CLI follows one path: it reads XDraw source, validates it, arranges the
+diagram, and emits native Excalidraw elements. The output extension chooses the
+result:
+
+```text
+.excalidraw  editable scene
+.png         image preview
+.svg         vector preview
+```
+
 ## Quick Start
 
 XDraw requires Node.js 22.18 or newer.
@@ -27,41 +37,49 @@ npm install
 npm link
 ```
 
-Create `order-flow.xdraw`:
+Create `compiler-flow.xdraw`:
 
 ```xdraw
 use "xdraw/architecture" as arch
 
-diagram "Order flow" {
-  customer: arch.person "Customer"
-  api: arch.system "Orders API"
-  store: arch.database "Order data"
+diagram "Compiler flow" {
+  author: arch.person "XDraw author" {
+    description "Describes an editable diagram"
+  }
+  compiler: arch.system "Parser and compiler" {
+    description "Turns source into native Excalidraw elements"
+  }
+  scene: arch.database "Editable scene" {
+    description "Stores the generated diagram"
+    technology "Excalidraw JSON"
+  }
 
-  customer -> api "places order"
-  api -> store "saves"
+  author -> compiler "writes source"
+  compiler -> scene "emits elements" { technology "JSON" }
 }
 ```
 
 Build it:
 
 ```bash
-xdraw build order-flow.xdraw
+xdraw build compiler-flow.xdraw
 ```
 
-This creates `order-flow.excalidraw` beside the source. Open it in
+This creates `compiler-flow.excalidraw` beside the source. Open it in
 [Excalidraw](https://excalidraw.com) to continue editing.
 
 Use `-o` to create a preview or choose another destination:
 
 ```bash
-xdraw build order-flow.xdraw -o output/order-flow.png
-cat order-flow.xdraw | xdraw build -o output/order-flow.excalidraw
+xdraw build compiler-flow.xdraw -o output/compiler-flow.png
+xdraw build examples/xdraw-logo.xdraw -o output/xdraw-logo.png --background transparent
+cat compiler-flow.xdraw | xdraw build -o output/compiler-flow.excalidraw
 ```
 
 ## Language
 
-The declaration form, core primitives, and composition rules fit on one
-runnable cheatsheet:
+The declaration form, core primitives, and composition rules shown below are
+generated from one runnable cheatsheet:
 
 ![XDraw quick reference](docs/images/readme-cheatsheet.png)
 
@@ -69,19 +87,41 @@ runnable cheatsheet:
 xdraw build examples/readme-cheatsheet.xdraw
 ```
 
-Continue with the [full cheatsheet](examples/xdraw-cheatsheet.xdraw), browse
-the runnable [`examples/`](examples/), or read the
+Continue with the [full cheatsheet](examples/xdraw-cheatsheet.xdraw), follow
+the self-explaining [`examples/`](examples/), or read the
 [language reference](docs/language-reference.md).
 
 ## Hosted Scenes
 
-XDraw can replace a complete Excalidraw+ scene or patch elements identified by
-stable XDraw IDs while preserving unrelated canvas edits.
+The same CLI can work with scenes in Excalidraw+. Start by setting an API key,
+then list the scenes visible to it:
 
 ```bash
 export EXCALIDRAW_API_KEY="your-api-key"
+xdraw list
+```
+
+`list` prints a copyable address and the underlying scene ID:
+
+```text
+ADDRESS                                                     SCENE ID
+excalidraw::default::Architecture::System overview          scene-123
+```
+
+Use either value to retrieve the scene. As with `build`, the output extension
+chooses editable JSON or a preview:
+
+```bash
+xdraw pull "excalidraw::default::Architecture::System overview"
+xdraw pull scene-123 -o output/system-overview.png
+xdraw pull scene-123 -o output/system-overview.svg
+```
+
+Use `apply` when XDraw source should create, replace, or selectively update a
+hosted scene:
+
+```bash
 xdraw apply architecture.scene.xdraw
-xdraw pull <scene-id> -o output/architecture.excalidraw
 ```
 
 See the [Excalidraw+ guide](docs/excalidraw-plus-integration.md) for scene
@@ -93,12 +133,19 @@ documents, patching, permissions, and API configuration.
 xdraw build [<file>|-] [-o <output>]
 xdraw check [<file>|-]
 xdraw apply [<file>|-]
-xdraw pull <scene-id> [-o <output>]
-xdraw inspect <scene-id> [-o <png|svg>]
+xdraw list [<collection>]
+xdraw pull <address-or-id> [-o <output>]
 ```
 
-`build`, `check`, and `apply` accept files, standard input, or inline source
-with `-e`. Run `xdraw --help` for all options.
+- `check` validates without creating output.
+- `build` creates a local editable scene or preview.
+- `list` discovers hosted scene addresses.
+- `apply` sends a replace or patch document to Excalidraw+.
+- `pull` retrieves a hosted scene as `.excalidraw`, PNG, or SVG.
+
+`build`, `check`, and `apply` accept a file, standard input, or inline source
+with `-e`. Remote commands use `EXCALIDRAW_API_KEY`. Run `xdraw --help` for all
+options.
 
 ## Acknowledgements
 
@@ -118,5 +165,13 @@ npm run typecheck
 npm test
 npm run test:browser
 ```
+
+## Releases
+
+XDraw follows semantic versioning. Use Conventional Commit prefixes such as
+`fix:`, `feat:`, and `feat!:` to describe patch, minor, and major changes.
+Release Please maintains a reviewable release pull request; merging that pull
+request creates the version tag, changelog entry, and GitHub release. The
+repository's Actions settings must allow workflows to create pull requests.
 
 XDraw is available under the [MIT License](LICENSE).

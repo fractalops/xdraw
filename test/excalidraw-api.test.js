@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ExcalidrawApiClient } from "../src/excalidraw-api.js";
+import { ExcalidrawApiClient } from "../src/excalidraw-api.ts";
 
 function reply(status, payload) {
   return {
@@ -37,8 +37,83 @@ function resource(scene = "system_overview") {
   return { provider: "excalidraw", workspace: "default", collection: "architecture", scene };
 }
 
+function sceneElement(overrides) {
+  const type = overrides.type;
+  const base = {
+    id: overrides.id,
+    type,
+    x: 0,
+    y: 0,
+    width: 120,
+    height: 72,
+    angle: 0,
+    strokeColor: "#1f2937",
+    backgroundColor: "transparent",
+    fillStyle: "solid",
+    strokeWidth: 1,
+    strokeStyle: "solid",
+    roughness: 1,
+    opacity: 100,
+    groupIds: [],
+    frameId: null,
+    roundness: null,
+    seed: 1,
+    version: 1,
+    versionNonce: 1,
+    isDeleted: false,
+    boundElements: null,
+    updated: 1,
+    link: null,
+    locked: false,
+  };
+  const byType = type === "text" ? {
+    fontSize: 20,
+    fontFamily: 3,
+    text: "Text",
+    textAlign: "left",
+    verticalAlign: "top",
+    containerId: null,
+    originalText: "Text",
+    lineHeight: 1.25,
+    autoResize: true,
+  } : type === "arrow" || type === "line" ? {
+    points: [[0, 0], [120, 0]],
+    lastCommittedPoint: null,
+    startBinding: null,
+    endBinding: null,
+    startArrowhead: null,
+    endArrowhead: type === "arrow" ? "arrow" : null,
+    ...(type === "arrow" ? { elbowed: false } : {}),
+  } : type === "freedraw" ? {
+    points: [[0, 0], [20, 20]],
+    pressures: [],
+    simulatePressure: true,
+    lastCommittedPoint: null,
+  } : type === "frame" ? {
+    name: null,
+  } : type === "image" ? {
+    fileId: "image-1",
+    status: "saved",
+    scale: [1, 1],
+    crop: null,
+  } : {};
+  return { ...base, ...byType, ...overrides };
+}
+
 function drawing(elements = [{ id: "api", type: "rectangle", version: 1 }]) {
-  return { type: "excalidraw", version: 2, elements, appState: {}, files: {} };
+  return {
+    type: "excalidraw",
+    version: 2,
+    source: "https://excalidraw.com",
+    elements: elements.map(sceneElement),
+    appState: {
+      gridSize: 20,
+      gridStep: 5,
+      gridModeEnabled: false,
+      viewBackgroundColor: "#eef2f7",
+    },
+    files: {},
+  };
 }
 
 function inventoryRoutes(scenePayload = []) {
@@ -100,6 +175,110 @@ test("collection and scene inventories are paginated", async () => {
   });
 });
 
+test("hosted scene inventory exposes copyable addresses and stable IDs", async () => {
+  const remote = fakeFetch([
+    {
+      method: "GET",
+      path: "/api/v1/collections?limit=100&offset=0",
+      payload: { data: [
+        { metadata: { id: "collection-2", name: "Product" } },
+        { metadata: { id: "collection-1", name: "Architecture" } },
+      ], hasNextPage: false },
+    },
+    {
+      method: "GET",
+      path: "/api/v1/collections/collection-1/scenes?limit=100&offset=0",
+      payload: { data: [{ metadata: { id: "scene-1", name: "System overview" } }], hasNextPage: false },
+    },
+    {
+      method: "GET",
+      path: "/api/v1/collections/collection-2/scenes?limit=100&offset=0",
+      payload: { data: [{ metadata: { id: "scene-2", name: "User journey" } }], hasNextPage: false },
+    },
+  ]);
+  const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
+  assert.deepEqual(await client.listScenes(), [
+    {
+      address: "excalidraw::default::Architecture::System overview",
+      sceneId: "scene-1",
+      sceneName: "System overview",
+      collectionId: "collection-1",
+      collectionName: "Architecture",
+    },
+    {
+      address: "excalidraw::default::Product::User journey",
+      sceneId: "scene-2",
+      sceneName: "User journey",
+      collectionId: "collection-2",
+      collectionName: "Product",
+    },
+  ]);
+});
+
+test("hosted scene inventory falls back to IDs when names are ambiguous", async () => {
+  const remote = fakeFetch([
+    {
+      method: "GET",
+      path: "/api/v1/collections?limit=100&offset=0",
+      payload: { data: [{ metadata: { id: "collection-1", name: "Architecture" } }], hasNextPage: false },
+    },
+    {
+      method: "GET",
+      path: "/api/v1/collections/collection-1/scenes?limit=100&offset=0",
+      payload: { data: [
+        { metadata: { id: "scene-1", name: "Overview" } },
+        { metadata: { id: "scene-2", name: "Overview" } },
+      ], hasNextPage: false },
+    },
+  ]);
+  const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
+  assert.deepEqual((await client.listScenes()).map(({ address }) => address), [
+    "excalidraw::default::Architecture::scene-1",
+    "excalidraw::default::Architecture::scene-2",
+  ]);
+});
+
+test("bare-array inventories remain supported", async () => {
+  const remote = fakeFetch([
+    {
+      method: "GET",
+      path: "/api/v1/collections?limit=100&offset=0",
+      payload: [{ id: "collection-1", name: "Architecture" }],
+    },
+    {
+      method: "GET",
+      path: "/api/v1/collections/collection-1/scenes?limit=100&offset=0",
+      payload: [{ sceneId: "scene-1", title: "System overview" }],
+    },
+  ]);
+  const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
+  assert.deepEqual(await client.resolveSceneResource(resource()), {
+    sceneId: "scene-1", collectionId: "collection-1", created: false,
+  });
+});
+
+test("inventory responses validate pagination and resource records", async () => {
+  const invalidMarker = fakeFetch([{
+    method: "GET",
+    path: "/api/v1/collections?limit=100&offset=0",
+    payload: { data: [], hasNextPage: "yes" },
+  }]);
+  await assert.rejects(
+    () => new ExcalidrawApiClient({ apiKey: "secret", fetch: invalidMarker.fetch }).listAll("/collections"),
+    /invalid pagination marker/,
+  );
+
+  const invalidRecord = fakeFetch([{
+    method: "GET",
+    path: "/api/v1/collections?limit=100&offset=0",
+    payload: { data: [{ metadata: { id: 42, name: "Architecture" } }], hasNextPage: false },
+  }]);
+  await assert.rejects(
+    () => new ExcalidrawApiClient({ apiKey: "secret", fetch: invalidRecord.fetch }).listAll("/collections"),
+    /invalid resource record/,
+  );
+});
+
 test("replace creates a missing scene and PUTs the complete tagged drawing", async () => {
   const remote = fakeFetch([
     ...inventoryRoutes(),
@@ -119,6 +298,19 @@ test("replace creates a missing scene and PUTs the complete tagged drawing", asy
   });
   assert.equal(remote.calls.at(-1).method, "PUT");
   assert.equal(remote.calls.at(-1).body.elements[0].customData.xdrawId, "api");
+});
+
+test("scene creation validates the returned resource", async () => {
+  const remote = fakeFetch([{
+    method: "POST",
+    path: "/api/v1/scenes",
+    payload: { metadata: { id: 42 } },
+  }]);
+  const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
+  await assert.rejects(
+    () => client.createScene({ name: "System overview", collectionId: "collection-1" }),
+    /scene creation returned an invalid resource record/,
+  );
 });
 
 test("replace assigns deterministic Excalidraw ordering keys", async () => {
@@ -259,4 +451,61 @@ test("pull returns editable scene content without mutation", async () => {
   const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
   assert.deepEqual(await client.pull("scene-1"), content);
   assert.equal(remote.calls.length, 1);
+});
+
+test("pull resolves a readable scene address before retrieving content", async () => {
+  const content = drawing([{ id: "one", type: "rectangle" }]);
+  const remote = fakeFetch([
+    ...inventoryRoutes([{ metadata: { id: "scene-1", name: "System overview" } }]),
+    { method: "GET", path: "/api/v1/scenes/scene-1/content", payload: content },
+  ]);
+  const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
+  assert.deepEqual(await client.pull(resource()), content);
+  assert.equal(remote.calls.at(-1).path, "/api/v1/scenes/scene-1/content");
+});
+
+test("pull rejects malformed scene content before it reaches patch logic", async () => {
+  const malformed = fakeFetch([{
+    method: "GET",
+    path: "/api/v1/scenes/scene-1/content",
+    payload: drawing([{ id: "one", type: "rectangle", version: "new" }]),
+  }]);
+  const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: malformed.fetch });
+  await assert.rejects(() => client.pull("scene-1"), /did not return valid scene content/);
+});
+
+test("requests stop when the configured timeout expires", async () => {
+  const fetch = (_url, init) => new Promise((_resolve, reject) => {
+    init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true });
+  });
+  const client = new ExcalidrawApiClient({ apiKey: "secret", fetch, timeoutMs: 5 });
+
+  await assert.rejects(
+    () => client.listAll("/collections"),
+    /GET \/collections\?limit=100&offset=0 timed out after 5ms/,
+  );
+});
+
+test("inventory pagination stops at the configured ceiling", async () => {
+  const fetch = async () => new Response(JSON.stringify({
+    data: Array.from({ length: 100 }, (_, index) => ({ id: `item-${index}` })),
+    hasNextPage: true,
+  }), { status: 200 });
+  const client = new ExcalidrawApiClient({ apiKey: "secret", fetch, maxPages: 2 });
+
+  await assert.rejects(
+    () => client.listAll("/collections"),
+    /exceeded the 2-page inventory limit/,
+  );
+});
+
+test("request bounds must be positive integers", () => {
+  assert.throws(
+    () => new ExcalidrawApiClient({ apiKey: "secret", timeoutMs: 0 }),
+    /timeoutMs must be a positive integer/,
+  );
+  assert.throws(
+    () => new ExcalidrawApiClient({ apiKey: "secret", maxPages: 1.5 }),
+    /maxPages must be a positive integer/,
+  );
 });

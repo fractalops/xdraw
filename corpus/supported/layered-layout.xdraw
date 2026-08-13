@@ -1,0 +1,15 @@
+use "xdraw/architecture" as arch
+
+diagram "Layered layout pass" {
+  arrange layered { gap 40 }
+
+  request: arch.person "Semantic input"
+  api: arch.system "Rank nodes"
+  worker: arch.system "Route edges"
+  records: arch.database "Placed scene"
+
+  request -> api
+  api -> worker
+  worker -> records
+
+}

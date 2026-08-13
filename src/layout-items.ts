@@ -1,0 +1,27 @@
+import type { ArrangedStatement, SectionStatement } from "./layout-contracts.ts";
+import type { SemanticStatement } from "./semantic-contracts.ts";
+
+export const SECTION_TYPES = new Set<SemanticStatement["type"]>([
+  "code", "frame", "group", "lane", "sequence", "tree",
+]);
+
+export function isSectionStatement(item: SemanticStatement): item is SectionStatement {
+  return item.type === "code"
+    || item.type === "frame"
+    || item.type === "group"
+    || item.type === "lane"
+    || item.type === "sequence"
+    || item.type === "tree";
+}
+
+export function childSections(statements: readonly SemanticStatement[]): SectionStatement[] {
+  return statements.filter(isSectionStatement);
+}
+
+export function arrangedItems(statements: readonly SemanticStatement[]): ArrangedStatement[] {
+  return statements.filter((item): item is ArrangedStatement => (
+    (item.type === "node" && !item.at)
+    || item.type === "layout-text"
+    || SECTION_TYPES.has(item.type)
+  ));
+}

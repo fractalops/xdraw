@@ -1,0 +1,17 @@
+use "xdraw/architecture" as arch
+
+diagram "Compiler flow" {
+  author: arch.person "XDraw author" {
+    description "Describes an editable diagram"
+  }
+  compiler: arch.system "Parser and compiler" {
+    description "Turns source into native Excalidraw elements"
+  }
+  scene: arch.database "Editable scene" {
+    description "Stores the generated diagram"
+    technology "Excalidraw JSON"
+  }
+
+  author -> compiler "writes source"
+  compiler -> scene "emits elements" { technology "JSON" }
+}

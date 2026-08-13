@@ -2,15 +2,15 @@ use "xdraw/cards" as cards
 use "xdraw/containers" as containers
 use "xdraw/palette" as palette
 
-diagram "Text behavior" {
-  subtitle "Native bound labels, rich grouped cards and free text"
+diagram "How XDraw lays out text" {
+  subtitle "Measurement drives bound labels, rich cards, wrapping and alignment"
 
-  bound: containers.section "Shape-bound text" {
+  bound: containers.section "Bound text strategies" {
     arrange row { gap 36 }
-    top_left: cards.card "Top left" { style palette.info; align left; vertical-align top }
-    centered: cards.card "Centered" { style palette.success }
-    bottom_right: cards.card "Bottom right" { style palette.warning; align right; vertical-align bottom }
-    rich: cards.card "Rich card" {
+    top_left: cards.card "Left and top" { style palette.info; align left; vertical-align top }
+    centered: cards.card "Native center" { style palette.success }
+    bottom_right: cards.card "Right and bottom" { style palette.warning; align right; vertical-align bottom }
+    rich: cards.card "Measured card" {
       style palette.accent
       body "The title and body retain separate typography and move as one grouped component."
       align left
@@ -18,12 +18,12 @@ diagram "Text behavior" {
     }
   }
 
-  free: containers.section "Free text" {
-    automatic: text "Auto-width text grows with its content" { at (110, 570); font-size 18 }
-    bounded: text "Fixed-width text wraps while remaining independent from nearby shapes." {
+  free: containers.section "Independent text strategies" {
+    automatic: text "Auto width follows measured content" { at (110, 570); font-size 18 }
+    bounded: text "A declared width wraps text without binding it to a shape." {
       at (500, 560); wrap-width 260; align center; font-size 18
     }
-    right_aligned: text "Right-aligned\nstandalone text" {
+    right_aligned: text "Right-aligned\nfree text" {
       at (920, 565); wrap-width 220; align right; font-size 18
     }
   }

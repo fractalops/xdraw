@@ -74,10 +74,10 @@ diagram "XDraw cheatsheet" {
     document: code """
       use "xdraw/cards" as cards
 
-      diagram "Order flow" {
-        source: cards.card "Source"
-        target: cards.card "Target"
-        source -> target "sends"
+      diagram "Compiler flow" {
+        source: cards.card "Source text"
+        target: cards.card "Scene graph"
+        source -> target "compiles"
       }
     """ {
       title "Document"
@@ -353,9 +353,10 @@ diagram "XDraw cheatsheet" {
     hosted_cli: code """
       export EXCALIDRAW_API_KEY="your-api-key"
 
+      xdraw list
       xdraw apply overview.scene.xdraw
-      xdraw pull <scene-id> -o overview.excalidraw
-      xdraw inspect <scene-id> -o overview.png
+      xdraw pull "excalidraw::default::Examples::Overview"
+      xdraw pull <scene-id> -o overview.png
     """ {
       title "Excalidraw+ commands"
       language shell

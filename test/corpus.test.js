@@ -4,11 +4,11 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { compile } from "../src/compiler.js";
-import { resolveAssets } from "../src/assets.js";
-import { RootedFileSystem } from "../src/filesystem.js";
-import { parseSource } from "../src/source-language.js";
-import { measureTextWidth } from "../src/text-metrics.js";
+import { compile } from "../src/compiler.ts";
+import { resolveAssets } from "../src/assets.ts";
+import { RootedFileSystem } from "../src/filesystem.ts";
+import { parseSource } from "../src/source-language.ts";
+import { measureTextWidth } from "../src/text-metrics.ts";
 
 const root = path.resolve("corpus");
 const entries = JSON.parse(await readFile(path.join(root, "corpus.json"), "utf8"));

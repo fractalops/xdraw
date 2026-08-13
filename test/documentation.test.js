@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { compile } from "../src/compiler.js";
-import { parseSceneDocument } from "../src/scene-document.js";
-import { parseSource } from "../src/source-language.js";
+import { compile } from "../src/compiler.ts";
+import { parseSceneDocument } from "../src/scene-document.ts";
+import { parseSource } from "../src/source-language.ts";
 
 for (const file of [
   "README.md",

@@ -46,7 +46,9 @@ The built-in standard libraries add semantic shapes and specialized layouts.
 The importable set is fixed:
 
 - `xdraw/cards`: `card`
-- `xdraw/architecture`: `person`, `system`, `database`
+- `xdraw/architecture`: `person`, `system`, `external-system`, `container`,
+  `component`, `database`, `queue`, `system-boundary`, `container-boundary`,
+  `deployment-node`, `group`
 - `xdraw/process`: `lane`
 - `xdraw/containers`: `section`
 - `xdraw/sequence`: `diagram`, `participant`
@@ -57,6 +59,53 @@ The importable set is fixed:
 
 Imports require an alias and constructor names remain qualified. Local file
 imports and user-defined constructor libraries are not supported.
+
+Architecture constructors compile to grouped native Excalidraw elements. They
+use a C4-inspired hierarchy: people interact with software systems; systems
+contain runtime containers; and containers contain components. `database` and
+`queue` are recognizable container variants. Typed boundaries create native
+frames and make the scope explicit.
+
+```xdraw
+use "xdraw/architecture" as arch
+
+diagram "Order platform" {
+  platform: arch.system-boundary "Order platform" {
+    arrange row { gap 100 }
+    customer: arch.person "Customer" {
+      description "Places and tracks orders"
+    }
+    api: arch.container "Order API" {
+      description "Accepts and coordinates orders"
+      technology "TypeScript"
+    }
+    orders: arch.database "Orders" {
+      description "Stores order state"
+      technology "PostgreSQL"
+    }
+    events: arch.queue "Order events" {
+      description "Distributes order changes"
+      technology "Kafka"
+    }
+
+    customer -> api "places order"
+    api -> orders "stores order" { technology "SQL" }
+    api -> events "publishes change" { technology "Kafka protocol" }
+  }
+}
+```
+
+Architecture cards show their explicit role, technology, and description.
+`description` is the architectural spelling of normal card `body` content;
+using both on one element is invalid. The compiler reports advisory warnings
+when architecture elements omit responsibilities, containers or components
+omit technology, or relationships omit intent. Relationships between
+containers should also name their protocol or technology.
+
+The architecture library supplies notation rather than a separate modelling
+language. A context, container, component, or deployment diagram is expressed
+by selecting the appropriate constructors and typed boundary. Automatic views
+derived from a shared architecture model are not currently generated.
 
 `subtitle` adds one line of supporting text below the diagram title:
 
@@ -87,6 +136,8 @@ diagram "Properties" {
 }
 ```
 
+Common content properties are `body` and its architecture-oriented alias
+`description`. Architecture nodes and relationships may also use `technology`.
 Common visual properties include `style`, `stroke`, `background`,
 `text-color`, `stroke-width`, `roughness`, `fill-style`, `opacity`,
 `font-family`, `font-size`, `title-size`, `body-size`, `line-height`, `wrap-width`,

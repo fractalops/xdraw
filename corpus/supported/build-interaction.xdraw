@@ -1,0 +1,13 @@
+use "xdraw/sequence" as seq
+
+diagram "Build interaction" {
+  checkout: seq.diagram {
+    cli: seq.participant "CLI"
+    compiler: seq.participant "Compiler"
+    writer: seq.participant "Writer"
+
+    build: cli -> compiler "Parse and compile"
+    emit: compiler -> writer "Emit scene"
+    complete: writer -> compiler "Return output path"
+  }
+}

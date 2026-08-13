@@ -1,0 +1,13 @@
+diagram "Syntax highlighting" {
+  subtitle "XDraw preserves editable source while coloring token runs"
+
+  query: code """
+    SELECT language, COUNT(*) AS examples
+    FROM xdraw_code_blocks
+    GROUP BY language
+  """ {
+    title "Highlighting input"
+    language sql
+    highlight true
+  }
+}

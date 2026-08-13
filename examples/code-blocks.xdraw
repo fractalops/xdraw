@@ -1,12 +1,12 @@
-diagram "Code blocks" {
-  subtitle "Editable source text with preserved indentation"
+diagram "How code blocks render" {
+  subtitle "XDraw preserves editable source, indentation and token-level color"
   arrange grid { columns 2; gap 32 }
 
   typescript: code """
-    type Status = "queued" | "complete"
+    type Stage = "syntax" | "semantic" | "scene"
 
-    function label(status: Status) {
-      return `State: ${status}`
+    function compile(stage: Stage) {
+      return `Compiling: ${stage}`
     }
   """ {
     language typescript
@@ -15,10 +15,10 @@ diagram "Code blocks" {
 
   sql: code """
     SELECT
-      customer_id,
-      COUNT(*) AS order_count
-    FROM orders
-    GROUP BY customer_id
+      language,
+      COUNT(*) AS code_blocks
+    FROM xdraw_examples
+    GROUP BY language
   """ {
     language sql
     line-numbers false

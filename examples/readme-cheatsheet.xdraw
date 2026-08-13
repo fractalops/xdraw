@@ -3,13 +3,13 @@ use "xdraw/containers" as containers
 use "xdraw/palette" as palette
 
 diagram "XDraw quick reference" {
-  subtitle "Declare editable shapes, compose them, and let XDraw arrange the scene"
+  subtitle "From concise source to an editable Excalidraw scene"
 
-  default: theme { font-family normal }
-  arrange compact { width 2200; gap 26 }
+  default: theme { font-family normal; title-size 22; body-size 19 }
+  arrange grid { columns 2; gap 28; width 2000 }
 
-  anatomy: containers.section "1. Read a declaration" {
-    arrange column { gap 20 }
+  anatomy: containers.section "1. Declare" {
+    arrange column { gap 18 }
 
     declaration: code """
       request: rectangle "Request" {
@@ -17,127 +17,102 @@ diagram "XDraw quick reference" {
         style palette.info
       }
     """ {
-      title "<id>: <constructor> \"label\" { properties and children }"
+      title "id: constructor \"label\" { properties and children }"
       language xdraw
       line-numbers false
       highlight true
     }
 
     parts: group {
-      arrange row { gap 28 }
-      id: cards.card "request" { body "Stable source ID"; style palette.neutral }
-      constructor: cards.card "rectangle" { body "Core primitive"; style palette.accent }
-      label: cards.card "Request" { body "Visible text"; style palette.info }
-      block: cards.card "{ ... }" { body "Properties and children"; style palette.success }
+      arrange row { gap 18 }
+      id: cards.card "request" { body "Stable ID"; style palette.neutral }
+      constructor: cards.card "rectangle" { body "Primitive"; style palette.accent }
+      label: cards.card "Request" { body "Visible label"; style palette.info }
+      block: cards.card "{ ... }" { body "Details"; style palette.success }
     }
   }
 
-  vocabulary: containers.section "2. Start with primitives" {
-    arrange row { gap 24 }
+  vocabulary: containers.section "2. Choose primitives" {
+    arrange column { gap 18 }
 
-    shapes: code """
-      rectangle
-      ellipse
-      diamond
-      freedraw
+    primitives: code """
+      Shapes       rectangle  ellipse  diamond  freedraw
+      Containers   frame      group
+      Content      text       code     asset    image
+      Reuse        component  style    theme
     """ {
-      title "Shapes"
+      title "Core constructors"
       language xdraw
       line-numbers false
       highlight true
     }
 
-    structure: code """
-      frame
-      group
-      text
-      code
+    forms: code """
+      Document     diagram  use  subtitle
+      Layout       arrange row | column | grid | layered
+      Connections  source -> target   source -- target
+      Anchors      node@top | @right | @bottom | @left
     """ {
-      title "Structure and content"
-      language xdraw
-      line-numbers false
-      highlight true
-    }
-
-    definitions: code """
-      component
-      style
-      theme
-      asset
-      image
-    """ {
-      title "Reuse and media"
+      title "Forms and operators"
       language xdraw
       line-numbers false
       highlight true
     }
   }
 
-  compose: containers.section "3. Compose the scene" {
-    arrange row { gap 24 }
+  compose: containers.section "3. Compose" {
+    arrange column { gap 18 }
 
-    containment: code """
+    composition: code """
       platform: frame "Platform" {
+        arrange row { gap 100 }
         api: rectangle "API"
+        store: rectangle "Data"
+        api@right -> store@left "writes"
       }
 
       platform.api
     """ {
-      title "Nest and address"
+      title "Nest, arrange, connect and address"
       language xdraw
       line-numbers false
       highlight true
     }
 
-    connections: code """
-      source@right -> target@left "sends"
-      source -- target "related"
-    """ {
-      title "Connect"
-      language xdraw
-      line-numbers false
-      highlight true
-    }
-
-    layouts: code """
-      arrange row { gap 80 }
-      arrange column { gap 24 }
-      arrange grid { columns 3 }
-      arrange layered { direction right }
-    """ {
-      title "Arrange"
-      language xdraw
-      line-numbers false
-      highlight true
+    guidance: group {
+      arrange row { gap 18 }
+      nest: cards.card "Nest" { body "Braces create hierarchy"; style palette.neutral }
+      layout_card: cards.card "Arrange" { body "Layouts place siblings"; style palette.accent }
+      connect: cards.card "Connect" { body "Arrows remain editable"; style palette.info }
     }
   }
 
-  example: containers.section "4. Put it together" {
-    arrange row { gap 44 }
+  example: containers.section "4. Build an editable scene" {
+    arrange column { gap 18 }
 
     source: code """
-      diagram "Order flow" {
-        arrange row { gap 150 }
-        customer: ellipse "Customer"
-        api: rectangle "Orders API"
-        store: rectangle "Order data"
-        customer -> api "places order"
-        api -> store "saves"
+      diagram "Compiler flow" {
+        arrange row { gap 160 }
+        author: ellipse "Author"
+        compiler: rectangle "Compiler"
+        scene: rectangle "Scene JSON"
+        author -> compiler "writes source"
+        compiler -> scene "emits"
       }
     """ {
-      title "Runnable XDraw"
+      title "xdraw build compiler-flow.xdraw"
       language xdraw
       line-numbers false
       highlight true
     }
 
-    result: frame "Editable result" {
-      arrange row { gap 150 }
-      customer: ellipse "Customer" { style palette.accent }
-      api: rectangle "Orders API" { style palette.info }
-      store: rectangle "Order data" { style palette.success }
-      customer -> api "places order"
-      api -> store "saves"
+    result: frame "Editable .excalidraw output" {
+      arrange row { gap 160 }
+      author: ellipse "Author" { style palette.accent }
+      compiler: rectangle "Compiler" { style palette.info }
+      scene: rectangle "Scene JSON" { style palette.success }
+      author -> compiler "writes source"
+      compiler -> scene "emits"
     }
   }
 }

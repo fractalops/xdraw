@@ -5,10 +5,10 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
 import "./viewer.css";
 
-import { compileAsync } from "../src/compiler.js";
-import { synchronizeEndpointLabels } from "../src/connector-labels.js";
-import { resolveAssets } from "../src/assets.js";
-import { parseSource } from "../src/source-language.js";
+import { compileAsync } from "../src/compiler.ts";
+import { synchronizeEndpointLabels } from "../src/connector-labels.ts";
+import { resolveAssets } from "../src/assets.ts";
+import { parseSource } from "../src/source-language.ts";
 
 const browserFilesystem = {
   async readBinary(path: string) {

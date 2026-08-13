@@ -10,12 +10,12 @@ test("renders a large multi-section diagram", async ({ page }) => {
   page.on("response", (response) => {
     if (response.status() === 413) oversizedResponses.push(response.url());
   });
-  const source = await readFile(resolve("examples/platform-overview.xdraw"), "utf8");
+  const source = await readFile(resolve("examples/xdraw-architecture.xdraw"), "utf8");
   const app = await openDiagram(page, source);
   await expect(app.getByText("Editable diagram")).toBeVisible();
   await page.waitForTimeout(500);
   await expect(app.locator("canvas")).toHaveCount(2);
   expect(await paintedPixels(app)).toBeGreaterThan(10_000);
   expect(oversizedResponses).toEqual([]);
-  await app.locator(".canvas").screenshot({ path: "output/platform-overview-preview.png" });
+  await app.locator(".canvas").screenshot({ path: "output/xdraw-architecture-preview.png" });
 });

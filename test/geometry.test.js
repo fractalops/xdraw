@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { compile, parse } from "../src/index.ts";
+import { measureRouteQuality } from "../src/route-quality.ts";
 
 function elements(source) {
   return compile(parse(source)).toJSON().elements;
@@ -38,6 +39,58 @@ test("invalid geometry policies fail with semantic diagnostics", () => {
   assert.throws(
     () => compile(parse('diagram "Bad" { sample: code "value"; match-size (sample, sample) both }')),
     /match-size does not support code targets/,
+  );
+  assert.throws(
+    () => compile(parse('diagram "Bad" { a: rectangle "A"; b: rectangle "B"; align diagonal (a, b) }')),
+    /unsupported alignment mode 'diagonal'/,
+  );
+  assert.throws(
+    () => compile(parse('diagram "Bad" { a: rectangle "A"; b: rectangle "B"; distribute x (a, b) }')),
+    /distribution requires at least three nodes/,
+  );
+});
+
+test("match-size preserves quarter-turned visual bounds", () => {
+  const result = elements(`diagram "Rotated resize" {
+    reference: rectangle "Reference" { at (40, 40); size (180, 90) }
+    target: rectangle "Target" { at (360, 40); size (240, 120) }
+    rotate (target) 90
+    match-size (reference, target) both
+  }`);
+  const reference = result.find((element) => element.id === "reference:frame");
+  const target = result.find((element) => element.id === "target:frame");
+  const targetAabb = {
+    width: Math.abs(target.width * Math.cos(target.angle)) + Math.abs(target.height * Math.sin(target.angle)),
+    height: Math.abs(target.width * Math.sin(target.angle)) + Math.abs(target.height * Math.cos(target.angle)),
+  };
+  assert.ok(Math.abs(targetAabb.width - reference.width) < 1e-9);
+  assert.ok(Math.abs(targetAabb.height - reference.height) < 1e-9);
+});
+
+test("match-size scales compound line points with their element bounds", () => {
+  const base = elements(`use "xdraw/architecture" as arch
+    diagram "Base" { person: arch.person "Person" { size (200, 160) } }`);
+  const resized = elements(`use "xdraw/architecture" as arch
+    diagram "Resized" {
+      reference: arch.person "Reference" { size (400, 320) }
+      person: arch.person "Person" { size (200, 160) }
+      match-size (reference, person) both
+    }`);
+  const baseArms = base.find((element) => element.id === "person:arms");
+  const resizedArms = resized.find((element) => element.id === "person:arms");
+  assert.equal(resizedArms.width, baseArms.width * 2);
+  assert.deepEqual(resizedArms.points, baseArms.points.map(([x, y]) => [x * 2, y * 2]));
+});
+
+test("match-size rejects non-representable anisotropic scaling after arbitrary rotation", () => {
+  assert.throws(
+    () => elements(`diagram "Unsupported resize" {
+      reference: rectangle "Reference" { size (200, 100) }
+      target: rectangle "Target" { size (100, 100) }
+      rotate (target) 45
+      match-size (reference, target) both
+    }`),
+    /cannot anisotropically resize nodes rotated outside quarter turns/,
   );
 });
 
@@ -89,6 +142,51 @@ test("layered layout preserves dotted identifiers and explicit ports", () => {
   const api = result.find((element) => element.id === "service.api:frame");
   const database = result.find((element) => element.id === "service.db:frame");
   assert.ok(api.x < database.x);
+});
+
+test("layered layout places cyclic graphs deterministically", () => {
+  const source = `diagram "Cycle" {
+    arrange layered {}
+    a: rectangle "A"
+    b: rectangle "B"
+    a -> b
+    b -> a
+  }`;
+  const first = compile(parse(source)).toJSON();
+  const second = compile(parse(source)).toJSON();
+  assert.deepEqual(first, second);
+  const frames = ["a", "b"].map((id) => first.elements.find((element) => element.id === `${id}:frame`));
+  assert.equal(frames[0].x, frames[1].x);
+  assert.ok(frames[0].y + frames[0].height <= frames[1].y);
+});
+
+test("layered layout routes long edges around intermediate ranks", () => {
+  const result = compile(parse(`diagram "Long edge" {
+    arrange layered {}
+    a: rectangle "A"
+    b: rectangle "B"
+    c: rectangle "C"
+    a -> b
+    b -> c
+    a -> c
+  }`)).toJSON();
+  const direct = result.elements.find((element) => element.id === "document:connection:2:0");
+  const route = direct.points.map(([x, y]) => [x + direct.x, y + direct.y]);
+  const intermediate = result.elements.find((element) => element.id === "b:frame");
+  assert.equal(measureRouteQuality([route], [intermediate]).obstacleIntersections, 0);
+});
+
+test("layered layout raises undersized gaps so connectors remain visible", () => {
+  const drawing = compile(parse(`diagram "Small gap" {
+    arrange layered { gap 0 }
+    a: rectangle "A"
+    b: rectangle "B"
+    a -> b
+  }`));
+  const result = drawing.toJSON();
+  const route = result.elements.find((element) => element.type === "arrow").points;
+  assert.ok(new Set(route.map(([x, y]) => `${x}:${y}`)).size >= 2);
+  assert.ok(drawing.diagnostics.some((item) => item.code === "XD2001"));
 });
 
 test("flat layered layout rejects nested diagrams before placement", () => {

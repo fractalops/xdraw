@@ -1,6 +1,8 @@
 # XDraw language corpus
 
-This corpus is regression evidence for representative diagrams, not a gallery.
+This corpus is executable regression evidence and a visual map of XDraw itself.
+Each diagram explains a language feature, compiler stage, layout mechanism, or
+integration boundary while exercising that capability.
 
 - `supported/` contains valid XDraw that must parse and compile deterministically.
 - `corpus.json` records the capability exercised or missing in every example.
@@ -10,8 +12,8 @@ example only when it exercises a distinct semantic or layout capability.
 
 ## What the corpus currently says
 
-The language now covers linear and cross-lane flows, recursive trees, nested
-system groups, sequence interactions, annotations, bounded precision layout,
-named styles, ellipses, controlled text, highlighted code, native freehand,
-native frames, flat layered graphs, advanced connectors, reusable components,
-and portable local assets.
+The diagrams cover the source-to-scene compiler, diagnostics, layout selection,
+routing, components, assets, styles, frames, hosted scenes, local rendering and
+package verification. Together they also exercise linear and cross-lane flows,
+recursive trees, sequences, annotations, precision placement, highlighted code,
+native freehand and portable local assets.
