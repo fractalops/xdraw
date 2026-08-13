@@ -422,6 +422,56 @@ test("add rejects collisions with live or deleted historical element IDs", async
   );
 });
 
+test("add rejects collisions with live XDraw identities after manual scene edits", async () => {
+  const content = drawing([{
+    id: "remote-api",
+    type: "rectangle",
+    version: 2,
+    customData: { xdrawId: "api" },
+  }]);
+  const remote = fakeFetch([
+    ...inventoryRoutes([{ metadata: { id: "scene-1", name: "System overview" } }]),
+    { method: "GET", path: "/api/v1/scenes/scene-1/content", payload: content },
+  ]);
+  const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
+  await assert.rejects(
+    () => client.applyPatch(resource(), { drawing: drawing([{ id: "api", type: "rectangle", version: 1 }]) }),
+    /already exists in the scene/,
+  );
+});
+
+test("programmatic patches reject duplicate and conflicting targets before connecting", async () => {
+  let requests = 0;
+  const client = new ExcalidrawApiClient({
+    apiKey: "secret",
+    fetch: async () => {
+      requests += 1;
+      throw new Error("unexpected request");
+    },
+  });
+  await assert.rejects(
+    () => client.applyPatch(resource(), {
+      updates: [
+        { target: "api", properties: { title: "One" } },
+        { target: "api", properties: { title: "Two" } },
+      ],
+    }),
+    /duplicate update target 'api'/,
+  );
+  await assert.rejects(
+    () => client.applyPatch(resource(), { deletes: ["api", "api"] }),
+    /duplicate delete target 'api'/,
+  );
+  await assert.rejects(
+    () => client.applyPatch(resource(), {
+      updates: [{ target: "api", properties: { title: "New" } }],
+      deletes: ["api"],
+    }),
+    /patch cannot update and delete 'api'/,
+  );
+  assert.equal(requests, 0);
+});
+
 test("patch additions receive ordering keys after the existing scene", async () => {
   const content = drawing([
     { id: "existing-a", type: "rectangle", version: 1, index: "a0" },

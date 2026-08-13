@@ -527,6 +527,16 @@ function assertSceneResource(resource: SceneResource): void {
   }
 }
 
+function assertPatchTargets(updates: readonly SceneUpdate[], deletes: readonly string[]): void {
+  const updateTargets = updates.map(({ target }) => target);
+  const duplicateUpdate = updateTargets.find((target, position) => updateTargets.indexOf(target) !== position);
+  if (duplicateUpdate) throw new Error(`duplicate update target '${duplicateUpdate}'`);
+  const duplicateDelete = deletes.find((target, position) => deletes.indexOf(target) !== position);
+  if (duplicateDelete) throw new Error(`duplicate delete target '${duplicateDelete}'`);
+  const conflict = updateTargets.find((target) => deletes.includes(target));
+  if (conflict) throw new Error(`patch cannot update and delete '${conflict}'`);
+}
+
 export class ExcalidrawApiClient {
   readonly apiKey: string;
   readonly baseUrl: string;
@@ -706,6 +716,7 @@ export class ExcalidrawApiClient {
     resource: SceneResource,
     { updates = [], deletes = [], drawing }: ScenePatchRequest = {},
   ): Promise<PatchSceneResponse> {
+    assertPatchTargets(updates, deletes);
     const { sceneId: id } = await this.resolveSceneResource(resource);
     const content = await this.getSceneContent(id);
     const changed = updates.flatMap(({ target, properties }) => (
@@ -716,7 +727,15 @@ export class ExcalidrawApiClient {
       ? taggedDrawing(drawing, { afterIndex: lastOrderingKey(content.elements) })
       : undefined;
     const existingIds = new Set(content.elements.map((item) => item.id));
-    const collision = additions?.elements.find((item) => existingIds.has(item.id));
+    const liveSelectors = new Set(content.elements.flatMap((item) => {
+      if (item.isDeleted) return [];
+      const semanticId = item.customData?.xdrawId;
+      return typeof semanticId === "string" ? [item.id, semanticId] : [item.id];
+    }));
+    const collision = additions?.elements.find((item) => (
+      existingIds.has(item.id)
+      || liveSelectors.has(typeof item.customData?.xdrawId === "string" ? item.customData.xdrawId : item.id)
+    ));
     if (collision) throw new Error(`added XDraw element '${collision.id}' already exists in the scene`);
     const body = {
       elements: [...changed, ...removed, ...(additions?.elements ?? [])],
