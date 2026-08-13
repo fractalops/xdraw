@@ -16,16 +16,6 @@
 XDraw compiles a small, readable language into editable `.excalidraw` files,
 PNG previews, and SVG previews.
 
-The CLI follows one path: it reads XDraw source, validates it, arranges the
-diagram, and emits native Excalidraw elements. The output extension chooses the
-result:
-
-```text
-.excalidraw  editable scene
-.png         image preview
-.svg         vector preview
-```
-
 ## Quick Start
 
 XDraw requires Node.js 22.18 or newer.
