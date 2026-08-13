@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/fractalops/xdraw/compare/v0.1.0...v0.1.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* prevent ambiguous scene patches ([c1f2135](https://github.com/fractalops/xdraw/commit/c1f21356bbdaf00f263a1586848eee71d7f61b6d))
+
 ## 0.1.0 (2026-08-13)
 
 

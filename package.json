@@ -1,6 +1,6 @@
 {
   "name": "xdraw",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Create editable Excalidraw diagrams from concise text files.",
   "license": "MIT",
   "repository": {
