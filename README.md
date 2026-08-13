@@ -156,12 +156,6 @@ npm test
 npm run test:browser
 ```
 
-## Releases
-
-XDraw follows semantic versioning. Use Conventional Commit prefixes such as
-`fix:`, `feat:`, and `feat!:` to describe patch, minor, and major changes.
-Release Please maintains a reviewable release pull request; merging that pull
-request creates the version tag, changelog entry, and GitHub release. The
-repository's Actions settings must allow workflows to create pull requests.
+See [Releasing XDraw](docs/releasing.md) for the maintainer workflow.
 
 XDraw is available under the [MIT License](LICENSE).
