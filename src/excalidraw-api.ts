@@ -569,11 +569,14 @@ export class ExcalidrawApiClient {
   async close(): Promise<void> {}
 
   async request(method: ExcalidrawApiMethod, path: string, body?: unknown): Promise<unknown> {
-    const timeout = AbortSignal.timeout(this.timeoutMs);
-    const signal = this.signal ? AbortSignal.any([this.signal, timeout]) : timeout;
-    let response: Response;
+    const timeout = new AbortController();
+    const timer = setTimeout(
+      () => timeout.abort(new DOMException("The request timed out", "TimeoutError")),
+      this.timeoutMs,
+    );
+    const signal = this.signal ? AbortSignal.any([this.signal, timeout.signal]) : timeout.signal;
     try {
-      response = await this.fetch(`${this.baseUrl}${path}`, {
+      const response = await this.fetch(`${this.baseUrl}${path}`, {
         method,
         signal,
         headers: {
@@ -582,22 +585,24 @@ export class ExcalidrawApiClient {
         },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
+      const text = await response.text();
+      let payload: unknown;
+      try { payload = text ? JSON.parse(text) : undefined; }
+      catch { payload = text; }
+      if (!response.ok) {
+        throw new Error(
+          `Excalidraw API ${method} ${path} failed (${response.status}): ${errorMessage(payload, text, response.statusText)}`,
+        );
+      }
+      return payload;
     } catch (error) {
-      if (timeout.aborted && !this.signal?.aborted) {
+      if (timeout.signal.aborted && !this.signal?.aborted) {
         throw new Error(`Excalidraw API ${method} ${path} timed out after ${this.timeoutMs}ms`, { cause: error });
       }
       throw error;
+    } finally {
+      clearTimeout(timer);
     }
-    const text = await response.text();
-    let payload: unknown;
-    try { payload = text ? JSON.parse(text) : undefined; }
-    catch { payload = text; }
-    if (!response.ok) {
-      throw new Error(
-        `Excalidraw API ${method} ${path} failed (${response.status}): ${errorMessage(payload, text, response.statusText)}`,
-      );
-    }
-    return payload;
   }
 
   async listAll(path: string): Promise<ExcalidrawResourceRecord[]> {
