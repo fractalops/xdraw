@@ -3,14 +3,16 @@ import test from "node:test";
 
 import fc from "fast-check";
 
-import { compile } from "../src/compile/pipeline.ts";
-import { alignBounds, box, column, distributeBounds, inset, row } from "../src/geometry.ts";
+import { compile, compileAsync } from "../src/compile/pipeline.ts";
+import { alignBounds, anchor, box, column, distributeBounds, inset, row } from "../src/geometry.ts";
 import { measureRouteQuality } from "../src/routing/quality.ts";
-import { formatSceneResource, parseSceneResource } from "../src/io/scene-document.ts";
+import { formatSceneResource, parseSceneDocument, parseSceneResource } from "../src/io/scene-document.ts";
 import { parseSource } from "../src/language/parser.ts";
 import { tokenize } from "../src/language/tokenizer.ts";
+import { routeConnection } from "../src/routing/router.ts";
 
 const RUNS = Number.parseInt(process.env.XDRAW_PROPERTY_RUNS ?? "250", 10);
+const EXPENSIVE_RUNS = Math.min(RUNS, 25);
 
 if (!Number.isInteger(RUNS) || RUNS <= 0) {
   throw new Error("XDRAW_PROPERTY_RUNS must be a positive integer");
@@ -69,6 +71,101 @@ function assertDrawingIntegrity(drawing) {
     if (element.endBinding) assert.ok(ids.has(element.endBinding.elementId));
   }
 }
+
+function validDocumentSource({ family, heading, labels, gap }) {
+  const [first, second, third] = labels;
+  if (family === "core") {
+    return `diagram ${quote(heading)} {
+      base: theme { font-family normal }
+      focus: style { stroke "#2563eb"; background "#dbeafe" }
+      region: frame ${quote(first)} {
+        arrange row { gap ${gap} }
+        left: rectangle ${quote(second)} { style focus }
+        right: ellipse ${quote(third)}
+        left@right -> right@left ${quote(heading)}
+      }
+      caption: text ${quote(first)} { at (20, 320); wrap-width 240 }
+    }`;
+  }
+  if (family === "template") {
+    return `diagram ${quote(heading)} {
+      item: template(label) { node: rectangle "${"${label}"}" }
+      first: item(${quote(first)})
+      second: item(${quote(second)})
+      first.node -> second.node ${quote(third)}
+    }`;
+  }
+  if (family === "architecture") {
+    return `use "xdraw/architecture" as arch
+    diagram ${quote(heading)} {
+      user: arch.person ${quote(first)}
+      system: arch.system ${quote(second)}
+      data: arch.database ${quote(third)}
+      user -> system ${quote(heading)}
+      system -> data
+    }`;
+  }
+  if (family === "sequence") {
+    return `use "xdraw/sequence" as seq
+    diagram ${quote(heading)} {
+      interaction: seq.sequence {
+        first: seq.participant ${quote(first)}
+        second: seq.participant ${quote(second)}
+        request: first -> second ${quote(third)}
+      }
+    }`;
+  }
+  return `use "xdraw/annotations" as annotations
+  diagram ${quote(heading)} {
+    source: rectangle ${quote(first)}
+    target: rectangle ${quote(second)}
+    source -> target
+    note: annotations.note ${quote(third)} { attach target@bottom }
+  }`;
+}
+
+const validDocument = fc.record({
+  family: fc.constantFrom("core", "template", "architecture", "sequence", "annotation"),
+  heading: title,
+  labels: fc.array(title, { minLength: 3, maxLength: 3 }),
+  gap: fc.integer({ min: 0, max: 100 }),
+}).map(validDocumentSource);
+
+const invalidDocument = fc.record({
+  kind: fc.constantFrom("duplicate", "unknown-reference", "sequence-child", "table-width"),
+  id: identifier,
+  label: title,
+}).map(({ kind, id, label }) => {
+  if (kind === "duplicate") {
+    return {
+      source: `diagram "Invalid" { ${id}: rectangle ${quote(label)}; ${id}: ellipse "Again" }`,
+      expected: /duplicate/u,
+    };
+  }
+  if (kind === "unknown-reference") {
+    return {
+      source: `diagram "Invalid" { ${id}: rectangle ${quote(label)}; ${id} -> missing }`,
+      expected: /unknown/u,
+    };
+  }
+  if (kind === "sequence-child") {
+    return {
+      source: `use "xdraw/sequence" as seq
+        diagram "Invalid" { flow: seq.sequence { ${id}: rectangle ${quote(label)} } }`,
+      expected: /sequence/u,
+    };
+  }
+  return {
+    source: `use "xdraw/table" as table
+      diagram "Invalid" {
+        ${id}: table.table ${quote(label)} {
+          table.header "One" "Two"
+          table.row "Only one"
+        }
+      }`,
+    expected: /expected 2/u,
+  };
+});
 
 test("property: scene resource addresses round-trip", () => {
   const segment = fc.stringMatching(/^[^:\r\n]{1,24}$/u).filter((value) => value.trim().length > 0);
@@ -173,4 +270,164 @@ test("property: route quality ignores route ordering and direction", () => {
       assert.deepEqual(measureRouteQuality(routes.map((route) => [...route].reverse())), expected);
     },
   ), { numRuns: RUNS });
+});
+
+test("property: grammar-aware documents compile deterministically", () => {
+  fc.assert(fc.property(validDocument, (source) => {
+    const document = parseSource(source);
+    const first = compile(document).toJSON();
+    const second = compile(parseSource(source)).toJSON();
+    assert.deepEqual(second, first);
+    assertDrawingIntegrity(first);
+    assert.ok(first.elements.length > 0);
+  }), { numRuns: RUNS });
+});
+
+test("property: invalid semantic programs fail closed", () => {
+  fc.assert(fc.property(invalidDocument, ({ source, expected }) => {
+    assert.throws(() => compile(parseSource(source)), expected);
+  }), { numRuns: RUNS });
+});
+
+test("property: scene patch documents preserve their authored model", () => {
+  const updates = fc.uniqueArray(fc.record({ target: identifier, title }), {
+    selector: ({ target }) => target,
+    minLength: 1,
+    maxLength: 5,
+  });
+  const patch = fc.record({
+    workspace: identifier,
+    collection: identifier,
+    scene: identifier,
+    updates,
+    deleteCandidates: fc.uniqueArray(identifier, { maxLength: 5 }),
+    add: fc.boolean(),
+  });
+
+  fc.assert(fc.property(patch, ({ workspace, collection, scene, updates: authoredUpdates, deleteCandidates, add }) => {
+    const updated = new Set(authoredUpdates.map(({ target }) => target));
+    const deletes = deleteCandidates.filter((target) => !updated.has(target));
+    const updateSource = authoredUpdates
+      .map(({ target, title: value }) => `update ${target} { title ${quote(value)} }`)
+      .join("\n");
+    const deleteSource = deletes.map((target) => `delete ${target}`).join("\n");
+    const addSource = add ? 'add { added: rectangle "Added" }' : "";
+    const source = `scene excalidraw::${workspace}::${collection}::${scene} {
+      patch { ${updateSource}\n${deleteSource}\n${addSource} }
+    }`;
+    const parsed = parseSceneDocument(source);
+    assert.equal(formatSceneResource(parsed.resource), `excalidraw::${workspace}::${collection}::${scene}`);
+    assert.equal(parsed.operation.type, "patch");
+    assert.deepEqual(parsed.operation.updates, authoredUpdates.map(({ target, title: value }) => ({
+      target,
+      properties: { title: value },
+    })));
+    assert.deepEqual(parsed.operation.deletes, deletes);
+    assert.equal(Boolean(parsed.operation.additions), add);
+  }), { numRuns: RUNS });
+});
+
+test("property: routed connections remain orthogonal and avoid intervening nodes", () => {
+  const routedCase = fc.record({
+    y: fc.integer({ min: -500, max: 500 }),
+    nodeWidth: fc.integer({ min: 40, max: 240 }),
+    nodeHeight: fc.integer({ min: 40, max: 180 }),
+    obstacleWidth: fc.integer({ min: 40, max: 240 }),
+    gap: fc.integer({ min: 80, max: 240 }),
+  });
+  fc.assert(fc.property(routedCase, ({ y, nodeWidth, nodeHeight, obstacleWidth, gap }) => {
+    const from = box(0, y, nodeWidth, nodeHeight);
+    const obstacle = box(nodeWidth + gap, y - 30, obstacleWidth, nodeHeight + 60);
+    const to = box(obstacle.x + obstacle.width + gap, y, nodeWidth, nodeHeight);
+    const scene = {
+      bounds: new Map([["from", from], ["obstacle", obstacle], ["to", to]]),
+      nodeIds: new Set(["from", "obstacle", "to"]),
+      containers: [],
+      routes: [],
+    };
+    const route = routeConnection(scene, "from", "to", from, to, "right", "left");
+    assert.deepEqual(route[0], anchor.right(from));
+    assert.deepEqual(route.at(-1), anchor.left(to));
+    assert.ok(route.every(([x, pointY]) => Number.isFinite(x) && Number.isFinite(pointY)));
+    assert.ok(route.slice(1).every(([x, pointY], index) => x === route[index][0] || pointY === route[index][1]));
+    assert.equal(measureRouteQuality([route], [obstacle]).obstacleIntersections, 0);
+  }), { numRuns: RUNS });
+});
+
+test("property: arranged children remain inside their frame", () => {
+  const arrangement = fc.record({
+    kind: fc.constantFrom("row", "column"),
+    gap: fc.integer({ min: 0, max: 100 }),
+    first: title,
+    second: title,
+  });
+  fc.assert(fc.property(arrangement, ({ kind, gap, first, second }) => {
+    const drawing = compile(parseSource(`diagram "Layout" {
+      region: frame "Region" {
+        arrange ${kind} { gap ${gap} }
+        first: rectangle ${quote(first)}
+        second: ellipse ${quote(second)}
+      }
+    }`)).toJSON();
+    assertDrawingIntegrity(drawing);
+    const frame = drawing.elements.find(({ id }) => id === "region");
+    assert.ok(frame);
+    for (const id of ["region.first:frame", "region.second:frame"]) {
+      const child = drawing.elements.find((element) => element.id === id);
+      assert.ok(child);
+      assert.ok(child.x >= frame.x && child.y >= frame.y);
+      assert.ok(child.x + child.width <= frame.x + frame.width);
+      assert.ok(child.y + child.height <= frame.y + frame.height);
+    }
+  }), { numRuns: RUNS });
+});
+
+test("property: generated tables retain rectangular cell geometry", () => {
+  const nonEmptyCell = title.filter((value) => value.trim().length > 0);
+  const table = fc.integer({ min: 1, max: 6 }).chain((columnCount) => fc.record({
+    headers: fc.array(nonEmptyCell, { minLength: columnCount, maxLength: columnCount }),
+    rows: fc.array(fc.array(title, { minLength: columnCount, maxLength: columnCount }), {
+      minLength: 1,
+      maxLength: 10,
+    }),
+  }));
+  fc.assert(fc.property(table, ({ headers, rows }) => {
+    const source = `use "xdraw/table" as table
+      diagram "Generated table" {
+        data: table.table "Data" {
+          table.header ${headers.map(quote).join(" ")}
+          ${rows.map((cells) => `table.row ${cells.map(quote).join(" ")}`).join("\n")}
+        }
+      }`;
+    const drawing = compile(parseSource(source)).toJSON();
+    assertDrawingIntegrity(drawing);
+    const cellFrames = drawing.elements.filter(({ id }) => /data:(?:header|row:\d+):cell:\d+:frame$/u.test(id));
+    assert.equal(cellFrames.length, headers.length * (rows.length + 1));
+    assert.ok(cellFrames.every(({ width, height }) => width > 0 && height > 0));
+    assert.ok(drawing.elements.filter(({ id }) => id.startsWith("data:")).every(
+      ({ groupIds }) => groupIds.includes("data:group"),
+    ));
+  }), { numRuns: RUNS });
+});
+
+test("property: generated formulas compile deterministically with source metadata", async () => {
+  const formula = fc.record({
+    variable: fc.constantFrom("x", "y", "z", "a", "b"),
+    numerator: fc.integer({ min: 1, max: 99 }),
+    denominator: fc.integer({ min: 1, max: 99 }),
+    exponent: fc.integer({ min: 1, max: 9 }),
+  }).map(({ variable, numerator, denominator, exponent }) => (
+    `\\frac{${numerator}}{${denominator}} + ${variable}^{${exponent}}`
+  ));
+  await fc.assert(fc.asyncProperty(formula, async (value) => {
+    const source = `use "xdraw/math" as math
+      diagram "Generated formula" { formula: math.formula """${value}""" }`;
+    const first = (await compileAsync(parseSource(source))).toJSON();
+    const second = (await compileAsync(parseSource(source))).toJSON();
+    assert.deepEqual(second, first);
+    assertDrawingIntegrity(first);
+    const image = first.elements.find(({ id }) => id === "formula:image");
+    assert.equal(image?.type, "image");
+    assert.equal(image?.customData?.xdraw?.source, value);
+  }), { numRuns: EXPENSIVE_RUNS });
 });
