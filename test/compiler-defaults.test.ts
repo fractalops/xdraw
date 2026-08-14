@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { compile } from "../src/pipeline.ts";
-import { layoutBuiltInDocument } from "../src/builtin-layouts.ts";
+import { layoutBuiltInDocument } from "../src/layout/builtin.ts";
 import { createMeasurer } from "../src/measurement.ts";
 import { createSceneGraph } from "../src/scene.ts";
 import { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "../src/semantic.ts";

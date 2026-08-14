@@ -1,7 +1,7 @@
 import { Drawing } from "./document.ts";
 import { mergeEmbeddedAssetFiles } from "./assets.ts";
-import { BUILTIN_LAYOUT } from "./builtin-layouts.ts";
-import { LAYERED_LAYOUT } from "./layered-layout.ts";
+import { BUILTIN_LAYOUT } from "./layout/builtin.ts";
+import { LAYERED_LAYOUT } from "./layout/layered.ts";
 import { heading } from "./components.ts";
 import { text } from "./elements.ts";
 import {
@@ -20,7 +20,7 @@ import { createStyleResolver } from "./styles.ts";
 import { createDiagnosticCollector } from "./diagnostics.ts";
 import { measureTextWidth } from "./text-metrics.ts";
 import { layoutGap } from "./clearances.ts";
-import { SECTION_TYPES } from "./layout-items.ts";
+import { SECTION_TYPES } from "./layout/sections.ts";
 import { validateArchitectureUsage } from "./architecture.ts";
 import type {
   AssetUseStatement,

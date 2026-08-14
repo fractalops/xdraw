@@ -1,16 +1,16 @@
-import { anchor, box, row } from "./geometry.ts";
-import { splitEndpoint } from "./router.ts";
-import { BUILTIN_LAYOUT_CAPABILITIES, createLayoutAdapter } from "./scene.ts";
+import { anchor, box, row } from "../geometry.ts";
+import { splitEndpoint } from "../router.ts";
+import { BUILTIN_LAYOUT_CAPABILITIES, createLayoutAdapter } from "../scene.ts";
 import {
   calculateArrangedRows,
   calculateRowPlan,
   calculateSlotWidth,
   renderableCode,
   resolveContainerGap,
-} from "./measurement.ts";
-import { wrapTextToWidth } from "./text-metrics.ts";
-import { codeBlockRequiredWidth } from "./code-block.ts";
-import { arrangedItems, childSections } from "./layout-items.ts";
+} from "../measurement.ts";
+import { wrapTextToWidth } from "../text-metrics.ts";
+import { codeBlockRequiredWidth } from "../code-block.ts";
+import { arrangedItems, childSections } from "./sections.ts";
 import type {
   ArrangedStatement,
   LayoutContext,
@@ -20,8 +20,8 @@ import type {
   SceneGraph,
   SceneVisualInput,
   StyleResolver,
-} from "./layout-contracts.ts";
-import type { Bounds, Point } from "./foundation-contracts.ts";
+} from "../layout-contracts.ts";
+import type { Bounds, Point } from "../foundation-contracts.ts";
 import type {
   CodeStatement,
   ContainerStatement,
@@ -31,8 +31,8 @@ import type {
   SemanticStatement,
   SequenceStatement,
   TreeStatement,
-} from "./semantic-contracts.ts";
-import type { TextAlign } from "./render-contracts.ts";
+} from "../semantic-contracts.ts";
+import type { TextAlign } from "../render-contracts.ts";
 
 type RegisterBounds = NonNullable<LayoutContext["registerBounds"]>;
 

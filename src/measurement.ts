@@ -6,7 +6,7 @@ import {
 } from "./text-metrics.ts";
 import { layoutGap } from "./clearances.ts";
 import { codeBlockRequiredWidth, measureCodeBlock } from "./code-block.ts";
-import { arrangedItems, childSections } from "./layout-items.ts";
+import { arrangedItems, childSections } from "./layout/sections.ts";
 import {
   planRichNode,
   registerRichNodePlanner,

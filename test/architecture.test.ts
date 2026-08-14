@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { BUILTIN_LAYOUT } from "../src/builtin-layouts.ts";
+import { BUILTIN_LAYOUT } from "../src/layout/builtin.ts";
 import { createMeasurer } from "../src/measurement.ts";
 import { createStyleResolver } from "../src/styles.ts";
 import { parseSource as parse } from "../src/source-language.ts";

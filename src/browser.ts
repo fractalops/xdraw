@@ -24,7 +24,7 @@ export { compile, compileAsync } from "./pipeline.ts";
 export type { CompileOptions } from "./pipeline.ts";
 export { createMeasurer } from "./measurement.ts";
 export { createStyleResolver } from "./styles.ts";
-export { LAYERED_LAYOUT, LAYERED_LAYOUT_CAPABILITIES } from "./layered-layout.ts";
+export { LAYERED_LAYOUT, LAYERED_LAYOUT_CAPABILITIES } from "./layout/layered.ts";
 export { parseSource as parse, parseSource, parseSyntax } from "./source-language.ts";
 export { formatSceneResource, parseSceneDocument } from "./scene-document.ts";
 export type {
