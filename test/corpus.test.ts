@@ -8,7 +8,7 @@ import { compileAsync } from "../src/pipeline.ts";
 import { resolveAssets } from "../src/assets.ts";
 import { RootedFileSystem } from "../src/filesystem.ts";
 import { parseSource } from "../src/source-language.ts";
-import { measureTextWidth } from "../src/text-metrics.ts";
+import { measureTextWidth } from "../src/text/metrics.ts";
 
 const root = path.resolve("corpus");
 const entries = JSON.parse(await readFile(path.join(root, "corpus.json"), "utf8"));

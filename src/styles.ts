@@ -16,7 +16,7 @@ import type {
   StyleProperties,
   StyleResolver,
 } from "./layout-contracts.ts";
-import type { FontFamily } from "./text-metrics.ts";
+import type { FontFamily } from "./text/metrics.ts";
 
 const PROPERTY_NAMES: Readonly<Record<string, keyof StyleProperties>> = Object.freeze({
   stroke: "strokeColor",

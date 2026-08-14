@@ -38,7 +38,7 @@ export type {
 } from "./scene-document.ts";
 export { measureRouteQuality } from "./routing/quality.ts";
 export type { RouteQuality } from "./routing/quality.ts";
-export type { FontFamily } from "./text-metrics.ts";
+export type { FontFamily } from "./text/metrics.ts";
 export type {
   ArrowElement,
   Arrowhead,

@@ -19,7 +19,7 @@ import {
   tone,
   wrapText,
 } from "../src/index.ts";
-import { measureTextWidth, wrapTextToWidth } from "../src/text-metrics.ts";
+import { measureTextWidth, wrapTextToWidth } from "../src/text/metrics.ts";
 
 test("text defaults to the code font", () => {
   const element = text("label", { x: 10, y: 20 }, "Hello");

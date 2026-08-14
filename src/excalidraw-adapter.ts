@@ -1,8 +1,8 @@
 import { boundText, card, fitTextSize, lane, tone } from "./components.ts";
 import { arrow, diamond, ellipse, frame, freedraw, image, text } from "./elements.ts";
 import { box } from "./geometry.ts";
-import { wrapTextToWidth } from "./text-metrics.ts";
-import { renderCodeBlock } from "./code-block.ts";
+import { wrapTextToWidth } from "./text/metrics.ts";
+import { renderCodeBlock } from "./text/code-block.ts";
 import { planRichNode, renderRichNode, richNodePlanFor } from "./nodes/rich-nodes.ts";
 import {
   isArchitectureBoundaryKind,

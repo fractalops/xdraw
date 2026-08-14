@@ -7,7 +7,7 @@ import {
   measureConnectorLabelWidth,
   measureTextWidth,
   wrapTextToWidth,
-} from "./text-metrics.ts";
+} from "./text/metrics.ts";
 import { ROUTING_CLEARANCE } from "./routing/clearances.ts";
 import type { Bounds, Point } from "./foundation-contracts.ts";
 import type {
@@ -24,9 +24,9 @@ import type {
   TextElementOptions,
   VerticalAlign,
 } from "./render-contracts.ts";
-import type { FontFamily } from "./text-metrics.ts";
+import type { FontFamily } from "./text/metrics.ts";
 
-export { fitTextSize } from "./text-metrics.ts";
+export { fitTextSize } from "./text/metrics.ts";
 
 export interface ToneColors {
   stroke: string;

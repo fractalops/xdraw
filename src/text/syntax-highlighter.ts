@@ -1,9 +1,9 @@
-import { HIGHLIGHT_LANGUAGES, hasProperty, isHighlightLanguage } from "./language-registry.ts";
-import type { HighlightLanguage } from "./language-registry.ts";
-import { tokenize } from "./tokenizer.ts";
+import { HIGHLIGHT_LANGUAGES, hasProperty, isHighlightLanguage } from "../language-registry.ts";
+import type { HighlightLanguage } from "../language-registry.ts";
+import { tokenize } from "../tokenizer.ts";
 import { MAX_HIGHLIGHT_LINE_CHARACTERS } from "./code-policy.ts";
-import type { DiagramDocument, SemanticDocument, SemanticStatement } from "./semantic-contracts.ts";
-import type { Token } from "./foundation-contracts.ts";
+import type { DiagramDocument, SemanticDocument, SemanticStatement } from "../semantic-contracts.ts";
+import type { Token } from "../foundation-contracts.ts";
 import type { HighlighterCore } from "shiki/core";
 
 export interface HighlightRun {

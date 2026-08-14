@@ -2,7 +2,7 @@ import { renderCompilation } from "./render.ts";
 import { prepareLayeredLayout } from "./layout/elk/prepare.ts";
 import { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "./semantic.ts";
 import { expandDocument } from "./expander.ts";
-import { prepareDocumentSyntaxHighlighting } from "./syntax-highlighter.ts";
+import { prepareDocumentSyntaxHighlighting } from "./text/syntax-highlighter.ts";
 import { documentHasFormulas, prepareDocumentFormulas } from "./nodes/math/formula.ts";
 import type { Drawing } from "./document.ts";
 import type { DiagramDocument, SemanticDocument } from "./semantic-contracts.ts";

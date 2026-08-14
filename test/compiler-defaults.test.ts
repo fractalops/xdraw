@@ -7,7 +7,7 @@ import { createMeasurer } from "../src/measurement.ts";
 import { createSceneGraph } from "../src/scene.ts";
 import { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "../src/semantic.ts";
 import { parseSource } from "../src/source-language.ts";
-import { measureTextWidth } from "../src/text-metrics.ts";
+import { measureTextWidth } from "../src/text/metrics.ts";
 import { requireElementById } from "../test-support/assertions.ts";
 import type { Bounds } from "../src/foundation-contracts.ts";
 import type { SceneGraph } from "../src/layout-contracts.ts";

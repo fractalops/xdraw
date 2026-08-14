@@ -6,7 +6,7 @@ import {
   prepareSyntaxHighlighting,
   sourceFromHighlight,
   supportsHighlighting,
-} from "../src/syntax-highlighter.ts";
+} from "../src/text/syntax-highlighter.ts";
 
 test("highlighting support uses a closed language vocabulary", () => {
   assert.equal(supportsHighlighting("sql"), true);

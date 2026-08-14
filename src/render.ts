@@ -18,7 +18,7 @@ import { createSceneGraph, layoutWithAdapter } from "./scene.ts";
 import { createMeasurer } from "./measurement.ts";
 import { createStyleResolver } from "./styles.ts";
 import { createDiagnosticCollector } from "./diagnostics.ts";
-import { measureTextWidth } from "./text-metrics.ts";
+import { measureTextWidth } from "./text/metrics.ts";
 import { layoutGap } from "./routing/clearances.ts";
 import { SECTION_TYPES } from "./layout/sections.ts";
 import { validateArchitectureUsage } from "./nodes/architecture.ts";
@@ -36,7 +36,7 @@ import type {
   DrawingElement,
   TextElement,
 } from "./render-contracts.ts";
-import type { FontFamily } from "./text-metrics.ts";
+import type { FontFamily } from "./text/metrics.ts";
 import type { FormulaPreparation } from "./nodes/math/formula.ts";
 
 interface RenderOptions {

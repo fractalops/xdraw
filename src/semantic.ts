@@ -3,7 +3,7 @@ import {
   MAX_CODE_LINE_CHARACTERS,
   MAX_CODE_LINES,
   MAX_CODE_SOURCE_CHARACTERS,
-} from "./code-policy.ts";
+} from "./text/code-policy.ts";
 import {
   hasValidFreedrawPoints,
   hasValidFreedrawPressures,

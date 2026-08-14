@@ -13,13 +13,13 @@ import type {
   FillStyle,
   StrokeStyle,
 } from "../render-contracts.ts";
-import type { FontFamily } from "../text-metrics.ts";
+import type { FontFamily } from "../text/metrics.ts";
 import type { ArchitectureNodePlan } from "../rich-node-contracts.ts";
 
 import { fitTextSize, measureCard, tone } from "../components.ts";
 import type { ToneName } from "../components.ts";
 import { arrow, ellipse, frame, rectangle, text } from "../elements.ts";
-import { wrapTextToWidth } from "../text-metrics.ts";
+import { wrapTextToWidth } from "../text/metrics.ts";
 
 const ARCHITECTURE_KINDS = new Set([
   "architecture-person",

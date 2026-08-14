@@ -25,7 +25,7 @@ import type {
   TextStyleStatement,
   TreeStatement,
 } from "./semantic-contracts.ts";
-import type { FontFamily } from "./text-metrics.ts";
+import type { FontFamily } from "./text/metrics.ts";
 
 export type LayoutCapability =
   | "nestedNodes"

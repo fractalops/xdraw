@@ -3,7 +3,7 @@ import type {
   EmbeddedAssetFiles,
   Point,
 } from "./foundation-contracts.ts";
-import type { FontFamily } from "./text-metrics.ts";
+import type { FontFamily } from "./text/metrics.ts";
 
 export type StrokeStyle = "solid" | "dashed" | "dotted";
 export type FillStyle = "solid" | "hachure" | "cross-hatch";

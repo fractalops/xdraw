@@ -8,8 +8,8 @@ import {
   renderableCode,
   resolveContainerGap,
 } from "../measurement.ts";
-import { wrapTextToWidth } from "../text-metrics.ts";
-import { codeBlockRequiredWidth } from "../code-block.ts";
+import { wrapTextToWidth } from "../text/metrics.ts";
+import { codeBlockRequiredWidth } from "../text/code-block.ts";
 import { arrangedItems, childSections } from "./sections.ts";
 import type {
   ArrangedStatement,

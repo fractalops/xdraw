@@ -3,9 +3,9 @@ import {
   DEFAULT_CONNECTOR_LABEL_SIZE,
   measureConnectorLabelWidth,
   wrapTextToWidth,
-} from "./text-metrics.ts";
+} from "./text/metrics.ts";
 import { layoutGap } from "./routing/clearances.ts";
-import { codeBlockRequiredWidth, measureCodeBlock } from "./code-block.ts";
+import { codeBlockRequiredWidth, measureCodeBlock } from "./text/code-block.ts";
 import { arrangedItems, childSections } from "./layout/sections.ts";
 import {
   planRichNode,

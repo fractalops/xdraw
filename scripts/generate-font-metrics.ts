@@ -22,7 +22,7 @@ function sourceFont(directory: string): fontkit.Font {
   throw new Error(`No complete printable-ASCII font found for ${directory}`);
 }
 
-const target = "src/font-metrics.generated.ts";
+const target = "src/text/font-metrics.generated.ts";
 
 export function generatedFileMatches(path: string, expected: string): boolean {
   try {
