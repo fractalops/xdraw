@@ -249,13 +249,97 @@ function documentTemplates(
   return templates;
 }
 
+
+/**
+ * The manifests already record which library exports each constructor, so an
+ * unresolved name can carry its own fix rather than sending the reader to
+ * search. Returns "" when nothing provides the name.
+ */
+function importHint(constructorName: string, alias?: string): string {
+  const providers = BUILTIN_LIBRARY_MANIFESTS.filter((manifest) => (
+    manifest.constructors.some((item) => item.name === constructorName)
+  ));
+  const provider = providers[0];
+  if (!provider || providers.length > 1) return "";
+  const suggested = alias ?? provider.name.split("/").at(-1) ?? provider.name;
+  return `; add: use "${provider.name}" as ${suggested}`;
+}
+
+
+/**
+ * Vocabulary a reader brings from CSS or other diagram tools. These are not
+ * misspellings, so edit distance finds the wrong answer for them: 'fill' is
+ * two edits from 'fit' but one concept away from 'background'.
+ */
+const PROPERTY_SYNONYMS: Readonly<Record<string, string>> = Object.freeze({
+  fill: "background",
+  "background-color": "background",
+  color: "stroke",
+  "stroke-color": "stroke",
+  "font-size": "font-size",
+  font: "font-family",
+  fontfamily: "font-family",
+  width: "size",
+  height: "size",
+  w: "size",
+  h: "size",
+  x: "at",
+  y: "at",
+  position: "at",
+  text: "body",
+  label: "body",
+  border: "stroke",
+  "border-width": "stroke-width",
+  radius: "roughness",
+});
+
+function editDistance(left: string, right: string): number {
+  const rows = Array.from({ length: left.length + 1 }, (_, index) => (
+    [index, ...Array.from({ length: right.length }, () => 0)]
+  ));
+  for (let column = 0; column <= right.length; column += 1) rows[0][column] = column;
+  for (let row = 1; row <= left.length; row += 1) {
+    for (let column = 1; column <= right.length; column += 1) {
+      rows[row][column] = Math.min(
+        rows[row - 1][column] + 1,
+        rows[row][column - 1] + 1,
+        rows[row - 1][column - 1] + (left[row - 1] === right[column - 1] ? 0 : 1),
+      );
+    }
+  }
+  return rows[left.length][right.length];
+}
+
+/**
+ * Suggests a replacement for an unaccepted property: a known synonym first,
+ * then a near-miss typo. Silent when neither is confident, because a wrong
+ * suggestion costs more than none.
+ */
+function propertySuggestion(typed: string, accepted: readonly string[]): string {
+  const synonym = PROPERTY_SYNONYMS[typed.toLocaleLowerCase()];
+  if (synonym && accepted.includes(synonym)) return `; did you mean '${synonym}'?`;
+  const ranked = accepted
+    .map((candidate) => ({ candidate, distance: editDistance(typed.toLocaleLowerCase(), candidate) }))
+    .sort((left, right) => left.distance - right.distance);
+  const best = ranked[0];
+  if (!best) return "";
+  const limit = typed.length <= 4 ? 1 : 2;
+  return best.distance <= limit ? `; did you mean '${best.candidate}'?` : "";
+}
+
 function resolveConstructor(name: string, context: ValidationContext, node: SourceNode): ResolvedConstructor {
   const separator = name.indexOf(".");
   if (separator >= 0) {
     const alias = name.slice(0, separator);
     const constructorName = name.slice(separator + 1);
     const imported = context.imports.get(alias);
-    if (!imported) fail("unknown-import-alias", `unknown import alias '${alias}'`, node);
+    if (!imported) {
+      fail(
+        "unknown-import-alias",
+        `unknown import alias '${alias}'${importHint(constructorName, alias)}`,
+        node,
+      );
+    }
     const manifest = constructorByName(imported.manifest, constructorName);
     if (!manifest) {
       fail(
@@ -273,7 +357,7 @@ function resolveConstructor(name: string, context: ValidationContext, node: Sour
   const template = context.templates.get(name);
   if (template) return { name, manifest: null, template };
 
-  fail("unknown-constructor", `unknown constructor '${name}'`, node);
+  fail("unknown-constructor", `unknown constructor '${name}'${importHint(name)}`, node);
 }
 
 function completeParameterName(value: SourcePropertyValue, node: SourceNode): string {
@@ -469,7 +553,12 @@ function validateProperties(
     seen.add(property.name);
     const specification = specifications.get(property.name);
     if (!specification) {
-      fail("unknown-property", `constructor '${resolved.name}' does not accept property '${property.name}'`, property);
+      fail(
+        "unknown-property",
+        `constructor '${resolved.name}' does not accept property '${property.name}'`
+          + propertySuggestion(property.name, [...specifications.keys()]),
+        property,
+      );
     }
     validateParameterReferences(property.value, property.valueKind, specification.kind, template, property);
     if (!matchesKind(property.value, property.valueKind, specification.kind)) {

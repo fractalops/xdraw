@@ -466,3 +466,44 @@ test("deeply nested documents fail with a diagnostic rather than a stack overflo
   assert.doesNotMatch(String(error.message), /call stack/i, "must not surface as a stack overflow");
   assert.match(String(error.message), /nest/i);
 });
+
+test("errors name the import that provides an unresolved constructor", () => {
+  // The registry knows which library exports each name, so the compiler can
+  // print the exact `use` line rather than leaving the reader to search.
+  assert.throws(
+    () => parseSource('diagram "D" { f: math.formula """x^2""" }'),
+    /use "xdraw\/math" as math/,
+  );
+  assert.throws(
+    () => parseSource('diagram "D" { t: table.table "T" {} }'),
+    /use "xdraw\/table" as table/,
+  );
+  assert.throws(
+    () => parseSource('diagram "D" { n: note "hi" }'),
+    /use "xdraw\/annotations"/,
+  );
+  // An alias nothing provides must not invent an import.
+  assert.throws(
+    () => parseSource('diagram "D" { a: nonsense.thing "x" }'),
+    /unknown import alias 'nonsense'/,
+  );
+});
+
+test("unknown properties suggest the XDraw name for familiar vocabulary", () => {
+  // Vocabulary carried over from CSS and other tools is not a misspelling, so
+  // edit distance cannot find it: 'fill' is closer to 'fit' than 'background'.
+  const attempt = (property, value = '"#eee"') => () =>
+    parseSource(`diagram "D" { a: rectangle "A" { ${property} ${value} } }`);
+  assert.throws(attempt("fill"), /did you mean 'background'/);
+  assert.throws(attempt("color"), /did you mean 'stroke'/);
+  assert.throws(attempt("width", "100"), /did you mean 'size'/);
+  assert.throws(attempt("height", "50"), /did you mean 'size'/);
+  assert.throws(attempt("font"), /did you mean 'font-family'/);
+
+  // A genuine typo is close enough for edit distance to catch.
+  assert.throws(attempt("backgroud"), /did you mean 'background'/);
+
+  // Something unrelated must not attract a bogus suggestion.
+  assert.throws(attempt("xyzzy"), /does not accept property 'xyzzy'/);
+  assert.doesNotThrow(() => parseSource('diagram "D" { a: rectangle "A" { background "#eee" } }'));
+});
