@@ -639,3 +639,31 @@ test("request bounds must be positive integers", () => {
     /maxPages must be a positive integer/,
   );
 });
+
+test("the API base URL must be a transport that can protect the credential", () => {
+  // The client sends the API key as a bearer token to whatever baseUrl says,
+  // and baseUrl can come from EXCALIDRAW_API_URL. An unvalidated value sends
+  // the credential to an arbitrary host, in cleartext.
+  for (const baseUrl of [
+    "http://attacker.example.com",
+    "file:///etc",
+    "javascript:alert(1)",
+    "not-a-url",
+    "ftp://example.com",
+  ]) {
+    assert.throws(
+      () => new ExcalidrawApiClient({ apiKey: "secret", baseUrl, fetch: async () => new Response("{}") }),
+      /base URL/,
+      `expected ${baseUrl} to be rejected`,
+    );
+  }
+
+  // https anywhere, and plain http only for loopback development.
+  for (const baseUrl of [
+    "https://api.excalidraw.com/api/v1",
+    "http://localhost:3000",
+    "http://127.0.0.1:8080/api",
+  ]) {
+    assert.ok(new ExcalidrawApiClient({ apiKey: "secret", baseUrl, fetch: async () => new Response("{}") }));
+  }
+});

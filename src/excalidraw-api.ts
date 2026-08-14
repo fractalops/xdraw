@@ -558,6 +558,27 @@ function assertPatchTargets(updates: readonly SceneUpdate[], deletes: readonly s
   if (conflict) throw new Error(`patch cannot update and delete '${conflict}'`);
 }
 
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+
+/**
+ * The API key travels as a bearer token to whatever this URL names, and the URL
+ * can come from EXCALIDRAW_API_URL. Require a transport that keeps it secret:
+ * https anywhere, plain http only for loopback development.
+ */
+function assertCredentialSafeBaseUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`Excalidraw API base URL must be an absolute https URL: ${value}`);
+  }
+  if (url.protocol === "https:") return value;
+  if (url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname)) return value;
+  throw new Error(
+    `Excalidraw API base URL must use https, or http on localhost: ${value}`,
+  );
+}
+
 export class ExcalidrawApiClient {
   readonly apiKey: string;
   readonly baseUrl: string;
@@ -579,7 +600,7 @@ export class ExcalidrawApiClient {
     if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) throw new Error("timeoutMs must be a positive integer");
     if (!Number.isInteger(maxPages) || maxPages <= 0) throw new Error("maxPages must be a positive integer");
     this.apiKey = apiKey.replace(/^Bearer\s+/i, "");
-    this.baseUrl = baseUrl.replace(/\/$/, "");
+    this.baseUrl = assertCredentialSafeBaseUrl(baseUrl).replace(/\/$/, "");
     this.fetch = fetch_;
     this.signal = signal;
     this.timeoutMs = timeoutMs;
