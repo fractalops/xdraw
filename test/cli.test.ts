@@ -257,3 +257,20 @@ test("CLI rejects malformed scene documents before connecting", async () => {
   );
   assert.equal(connections, 0);
 });
+
+test("build rejects output extensions it cannot produce", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "xdraw-cli-"));
+  const source = 'diagram "D" { a: rectangle "A" }';
+  // .pdf used to be written as Excalidraw JSON under a misleading name.
+  for (const extension of [".pdf", ".jpg", ".txt", ".excalidraw.bak"]) {
+    await assert.rejects(
+      () => run(["build", "-e", source, "-o", join(directory, `out${extension}`)]),
+      /must end in/,
+      `expected ${extension} to be rejected`,
+    );
+  }
+  for (const extension of [".excalidraw", ".json", ".png", ".svg"]) {
+    const message = await run(["build", "-e", source, "-o", join(directory, `ok${extension}`)]);
+    assert.match(message, /^Created /);
+  }
+});

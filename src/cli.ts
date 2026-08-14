@@ -46,6 +46,8 @@ const COMMAND_OPTIONS = {
   padding: { type: "string" },
 } as const;
 
+const BUILD_OUTPUT_EXTENSIONS = [".excalidraw", ".json", ".png", ".svg"];
+
 function parseCommandArguments(args: readonly string[]) {
   return parseArgs({ args, allowPositionals: true, strict: true, options: COMMAND_OPTIONS });
 }
@@ -376,6 +378,11 @@ export async function run(argv: readonly string[], {
   const targetExtension = target === "-" ? "" : extname(target).toLocaleLowerCase();
   if (options.remote.background !== undefined && targetExtension !== ".png" && targetExtension !== ".svg") {
     throw new Error("--background requires a .png or .svg output");
+  }
+  if (target !== "-" && !BUILD_OUTPUT_EXTENSIONS.includes(targetExtension)) {
+    // Anything else used to be written as Excalidraw JSON under a misleading
+    // name, so `-o report.pdf` produced a file no reader could open.
+    throw new Error(`build output must end in ${BUILD_OUTPUT_EXTENSIONS.join(", ")}`);
   }
   if (target === "-") return JSON.stringify(drawing.toJSON(), null, 2);
   const resolvedTarget = resolve(target);
