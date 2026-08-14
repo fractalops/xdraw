@@ -87,11 +87,6 @@ test("packed package installs a working xdraw executable", async () => {
   ]);
   const executable = join(prefix, "node_modules", ".bin", "xdraw");
   assert.equal((await execute(executable, ["--version"])).stdout.trim(), `xdraw ${packageJson.version}`);
-  assert.match((await execute(executable, ["library", "list"])).stdout, /xdraw\/architecture/);
-  const installedManifest = JSON.parse((await execute(
-    executable, ["library", "show", "xdraw/sequence", "--json"],
-  )).stdout);
-  assert.equal(installedManifest.name, "xdraw/sequence");
   await execute(process.execPath, [
     "--input-type=module",
     "--eval",

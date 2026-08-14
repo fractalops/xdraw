@@ -173,18 +173,10 @@ Available libraries are:
 Imports require an alias. Use qualified names such as `arch.system`; imports
 do not add unqualified constructors.
 
-Use the CLI to discover the same library contracts that XDraw validates:
-
-```bash
-xdraw library list
-xdraw library show xdraw/architecture
-xdraw library show xdraw/sequence --json
-```
-
-`xdraw library show` reports exported values, constructor arguments, and
-properties. Add `--json` for the complete manifest, including defaults and child rules. Use
-`xdraw/core` to inspect unqualified constructors such as `rectangle`,
-`section`, and `template`.
+The compiler validates every document against these library manifests, and
+reports the offending constructor or property with its source location when a
+document does not match. Tools that need the manifests programmatically can
+import `listLibraryManifests` and `getLibraryManifest` from the package.
 
 Tables calculate column widths from their content and wrap cells when space
 is constrained. The generated cells remain editable Excalidraw rectangles and

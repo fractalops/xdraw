@@ -11,18 +11,11 @@ import { parseSource } from "./language/parser.ts";
 import { formatSceneResource, parseSceneDocument, parseSceneResource } from "./io/scene-document.ts";
 import { writeDrawing } from "./io/writer.ts";
 import { formatDiagnostic } from "./io/diagnostics.ts";
-import {
-  summarizeLibraryManifest,
-  type ConstructorArgumentManifest,
-  type ConstructorManifest,
-  type LibraryManifest,
-} from "./language/library-manifest.ts";
-import { getLibraryManifest, listLibraryManifests } from "./language/registry.ts";
 import type {
   SceneDocument,
 } from "./io/scene-document.ts";
 
-type Command = "build" | "check" | "apply" | "list" | "pull" | "library-list" | "library-show";
+type Command = "build" | "check" | "apply" | "list" | "pull";
 type Action = Command | "help" | "version";
 
 interface RemoteOptions {
@@ -53,16 +46,8 @@ const COMMAND_OPTIONS = {
   padding: { type: "string" },
 } as const;
 
-const LIBRARY_SHOW_OPTIONS = {
-  json: { type: "boolean" },
-} as const;
-
 function parseCommandArguments(args: readonly string[]) {
   return parseArgs({ args, allowPositionals: true, strict: true, options: COMMAND_OPTIONS });
-}
-
-function parseLibraryShowArguments(args: readonly string[]) {
-  return parseArgs({ args, allowPositionals: true, strict: true, options: LIBRARY_SHOW_OPTIONS });
 }
 
 type RemoteClient = Pick<
@@ -93,8 +78,6 @@ Usage:
   xdraw apply -e <source>
   xdraw list [<collection>]
   xdraw pull <address-or-id> [-o <output>]
-  xdraw library list
-  xdraw library show <canonical-name> [--json]
   xdraw --help
   xdraw --version
 
@@ -104,7 +87,6 @@ Commands:
   apply    Apply a replace or patch scene document to Excalidraw+.
   list     List hosted scenes and their copyable addresses.
   pull     Retrieve a hosted scene as editable JSON, PNG, or SVG.
-  library  Inspect built-in language libraries.
 
 Options:
   -e, --expression <source>  Read XDraw source from the command line.
@@ -127,37 +109,7 @@ Examples:
   cat architecture.scene.xdraw | xdraw apply
   xdraw list
   xdraw pull "excalidraw::default::Architecture::System overview"
-  xdraw pull <scene-id> -o architecture.png
-  xdraw library list
-  xdraw library show xdraw/architecture`;
-
-const LIBRARY_HELP = `Inspect XDraw's built-in language libraries.
-
-Usage:
-  xdraw library list
-  xdraw library show <canonical-name> [--json]
-
-Commands:
-  list  List canonical library names and summaries.
-  show  Show a library's constructors and usage.
-
-Examples:
-  xdraw library list
-  xdraw library show xdraw/sequence
-  xdraw library show xdraw/architecture --json`;
-
-const LIBRARY_LIST_HELP = `List XDraw's built-in language libraries.
-
-Usage:
-  xdraw library list`;
-
-const LIBRARY_SHOW_HELP = `Show one built-in language library.
-
-Usage:
-  xdraw library show <canonical-name> [--json]
-
-Options:
-  --json  Emit the complete manifest as JSON.`;
+  xdraw pull <scene-id> -o architecture.png`;
 
 async function version(): Promise<string> {
   const packageFile = new URL("../package.json", import.meta.url);
@@ -191,43 +143,8 @@ function remoteSelector(value: string): string | ReturnType<typeof parseSceneRes
   return value.includes("::") ? parseSceneResource(value) : value;
 }
 
-function parseLibraryArguments(args: readonly string[]): ParsedArguments {
-  if (!args.length || args[0] === "-h" || args[0] === "--help") {
-    return { action: "help", help: LIBRARY_HELP, remote: {} };
-  }
-  const [command, ...rest] = args;
-  if (command === "list") {
-    if (rest.includes("-h") || rest.includes("--help")) {
-      return { action: "help", help: LIBRARY_LIST_HELP, remote: {} };
-    }
-    if (rest.length > 0) throw new Error(`unexpected argument: ${rest[0]}`);
-    return { action: "library-list", remote: {} };
-  }
-  if (command === "show") {
-    if (rest.includes("-h") || rest.includes("--help")) {
-      return { action: "help", help: LIBRARY_SHOW_HELP, remote: {} };
-    }
-    let parsed: ReturnType<typeof parseLibraryShowArguments>;
-    try {
-      parsed = parseLibraryShowArguments(rest);
-    } catch (error) {
-      throw new Error(error instanceof Error ? error.message : String(error));
-    }
-    if (parsed.positionals.length === 0) throw new Error("library show requires a canonical library name");
-    if (parsed.positionals.length > 1) throw new Error(`unexpected argument: ${parsed.positionals[1]}`);
-    return {
-      action: "library-show",
-      input: parsed.positionals[0],
-      json: parsed.values.json,
-      remote: {},
-    };
-  }
-  throw new Error(`unknown library command '${command}'\n\n${LIBRARY_HELP}`);
-}
-
 function parseArguments(argv: readonly string[]): ParsedArguments {
   if (!argv.length) return { action: "help", help: HELP, remote: {} };
-  if (argv[0] === "library") return parseLibraryArguments(argv.slice(1));
   if (argv.includes("-h") || argv.includes("--help")) return { action: "help", help: HELP, remote: {} };
   if (argv.includes("-v") || argv.includes("--version")) return { action: "version", remote: {} };
   const [command, ...args] = argv;
@@ -294,56 +211,6 @@ function parseArguments(argv: readonly string[]): ParsedArguments {
     }
   }
   return { action: command as Command, input, expression, output, remote };
-}
-
-function argumentUsage(argument: ConstructorArgumentManifest): string {
-  const value = `${argument.name}: ${argument.kind}${argument.variadic ? "..." : ""}`;
-  return argument.required ? `<${value}>` : `[${value}]`;
-}
-
-function constructorUsage(constructor: ConstructorManifest): string {
-  const argumentsUsage = constructor.arguments.map(argumentUsage).join(" ");
-  return argumentsUsage ? `${constructor.name} ${argumentsUsage}` : constructor.name;
-}
-
-function renderLibraryList(): string {
-  const summaries = listLibraryManifests().map(summarizeLibraryManifest);
-  const nameWidth = Math.max("LIBRARY".length, ...summaries.map((summary) => summary.name.length));
-  const constructorWidth = Math.max("CONSTRUCTORS".length, ...summaries.map((summary) => String(summary.constructors.length).length));
-  const valueWidth = Math.max("VALUES".length, ...summaries.map((summary) => String(summary.values.length).length));
-  return [
-    `${"LIBRARY".padEnd(nameWidth)}  ${"CONSTRUCTORS".padStart(constructorWidth)}  ${"VALUES".padStart(valueWidth)}  DESCRIPTION`,
-    ...summaries.map((summary) => (
-      `${summary.name.padEnd(nameWidth)}  ${String(summary.constructors.length).padStart(constructorWidth)}  ${String(summary.values.length).padStart(valueWidth)}  ${summary.synopsis}`
-    )),
-  ].join("\n");
-}
-
-function renderLibrary(manifest: LibraryManifest): string {
-  const constructors = manifest.constructors.flatMap((constructor) => {
-    const properties = constructor.properties.map((property) => (
-      `${property.name}: ${property.kind}${property.required ? " (required)" : ""}`
-    )).join(", ");
-    return [
-      `  ${constructorUsage(constructor)}`,
-      `    ${constructor.documentation.synopsis}`,
-      ...(properties ? [`    Properties: ${properties}`] : []),
-    ];
-  });
-  const values = manifest.values.map((value) => `  ${value.name}: ${value.kind} - ${value.synopsis}`);
-  return [
-    manifest.name,
-    manifest.documentation.synopsis,
-    "",
-    "Constructors:",
-    ...(constructors.length ? constructors : ["  None"]),
-    "",
-    "Values:",
-    ...(values.length ? values : ["  None"]),
-    "",
-    "Examples:",
-    ...manifest.documentation.examples.map((example) => `  ${example}`),
-  ].join("\n");
 }
 
 function requiredInput(options: ParsedArguments): string {
@@ -427,13 +294,6 @@ export async function run(argv: readonly string[], {
   const options = parseArguments(argv);
   if (options.action === "help") return options.help ?? HELP;
   if (options.action === "version") return `xdraw ${await version()}`;
-  if (options.action === "library-list") return renderLibraryList();
-  if (options.action === "library-show") {
-    const name = requiredInput(options);
-    const manifest = getLibraryManifest(name);
-    if (!manifest) throw new Error(`unknown library '${name}'; run 'xdraw library list' to see available libraries`);
-    return options.json ? JSON.stringify(manifest, null, 2) : renderLibrary(manifest);
-  }
   if (["build", "check", "apply"].includes(options.action)
       && options.input === undefined && options.expression === undefined && stdin.isTTY === true) return HELP;
 

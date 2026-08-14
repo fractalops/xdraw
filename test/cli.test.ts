@@ -14,67 +14,6 @@ test("CLI exposes help and version without Node-specific invocation", async () =
   assert.equal(await run(["--version"]), `xdraw ${packageJson.version}`);
 });
 
-test("CLI exposes nested library help", async () => {
-  assert.match(await run(["library"]), /^Inspect XDraw's built-in language libraries/m);
-  assert.match(await run(["library", "--help"]), /xdraw library show <canonical-name>/);
-  assert.match(await run(["library", "list", "--help"]), /^List XDraw's built-in language libraries/m);
-  assert.match(await run(["library", "show", "--help"]), /^Show one built-in language library/m);
-  assert.match(await run(["library", "show", "xdraw/core", "--help"]), /^Show one built-in language library/m);
-});
-
-test("CLI lists built-in libraries deterministically without remote access", async () => {
-  let connections = 0;
-  const output = await run(["library", "list"], {
-    remoteFactory: async () => {
-      connections += 1;
-      throw new Error("library inspection must remain local");
-    },
-  });
-  const rows = output.split("\n");
-  assert.match(rows[0], /^LIBRARY\s+CONSTRUCTORS\s+VALUES\s+DESCRIPTION$/);
-  assert.deepEqual(rows.slice(1).map((row) => row.trim().split(/\s+/u)[0]), [
-    "xdraw/annotations",
-    "xdraw/architecture",
-    "xdraw/assets",
-    "xdraw/connectors",
-    "xdraw/core",
-    "xdraw/math",
-    "xdraw/palette",
-    "xdraw/process",
-    "xdraw/sequence",
-    "xdraw/table",
-  ]);
-  assert.equal(connections, 0);
-});
-
-test("CLI shows human-readable and JSON library manifests", async () => {
-  const human = await run(["library", "show", "xdraw/sequence"]);
-  assert.match(human, /^xdraw\/sequence\nSequence interaction notation\./);
-  assert.match(human, /participant \[label: string\]/);
-  assert.match(human, /sequence\n\s+Sequence interaction container\./);
-
-  const json = JSON.parse(await run(["library", "show", "xdraw/sequence", "--json"]));
-  assert.equal(json.name, "xdraw/sequence");
-  assert.deepEqual(json.constructors.map((constructor) => constructor.name), ["participant", "sequence"]);
-  assert.equal(json.constructors.find((constructor) => constructor.name === "sequence")
-    .children.roles.find((role) => role.name === "participants").minimum, 2);
-
-  const palette = await run(["library", "show", "xdraw/palette"]);
-  assert.match(palette, /Values:\n\s+accent: tone - Accent emphasis\./);
-  const paletteJson = JSON.parse(await run(["library", "show", "xdraw/palette", "--json"]));
-  assert.deepEqual(paletteJson.values.map((value) => value.name), [
-    "accent", "danger", "info", "neutral", "success", "warning",
-  ]);
-});
-
-test("CLI rejects invalid library inspection requests", async () => {
-  await assert.rejects(() => run(["library", "show"]), /requires a canonical library name/);
-  await assert.rejects(() => run(["library", "show", "sequence"]), /unknown library 'sequence'/);
-  await assert.rejects(() => run(["library", "show", "xdraw/missing"]), /xdraw library list/);
-  await assert.rejects(() => run(["library", "list", "extra"]), /unexpected argument: extra/);
-  await assert.rejects(() => run(["library", "inspect"]), /unknown library command 'inspect'/);
-});
-
 test("CLI checks source and chooses a neighboring output by default", async () => {
   const directory = await mkdtemp(join(tmpdir(), "xdraw-cli-"));
   const input = join(directory, "hello.xdraw");

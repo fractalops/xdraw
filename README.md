@@ -84,14 +84,6 @@ the self-explaining [`examples/`](examples/), or read the
 [language specification](docs/spec.md) is the authoritative syntax and
 semantics reference.
 
-Inspect the built-in vocabulary from the CLI:
-
-```bash
-xdraw library list
-xdraw library show xdraw/core
-xdraw library show xdraw/table --json
-```
-
 ## Rich Content
 
 Formulas use TeX source and compile to portable SVG assets inside the editable
@@ -156,8 +148,6 @@ xdraw check [<file>|-]
 xdraw apply [<file>|-]
 xdraw list [<collection>]
 xdraw pull <address-or-id> [-o <output>]
-xdraw library list
-xdraw library show <canonical-name> [--json]
 ```
 
 - `check` validates without creating output.
