@@ -94,14 +94,6 @@
       "count": 1
     }
   },
-  "src/language/semantic.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/language/tokenizer.ts": {
     "complexity": {
       "count": 1
