@@ -1,4 +1,4 @@
-import { nonceFor, seedFor } from "../identity.ts";
+import { nonceFor, seedFor } from "../language/identity.ts";
 import { measureTextWidth } from "../text/metrics.ts";
 import type { Bounds, Point } from "../foundation-contracts.ts";
 import type {

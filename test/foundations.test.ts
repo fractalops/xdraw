@@ -4,7 +4,7 @@ import test from "node:test";
 import { layoutGap, ROUTING_CLEARANCE, SPACING_PRESETS } from "../src/routing/clearances.ts";
 import { createDiagnosticCollector, formatDiagnostic } from "../src/io/diagnostics.ts";
 import { splitEndpoint } from "../src/routing/endpoints.ts";
-import { nonceFor, seedFor, stableHash } from "../src/identity.ts";
+import { nonceFor, seedFor, stableHash } from "../src/language/identity.ts";
 
 test("diagnostics retain locations and suppress exact duplicates", () => {
   const collector = createDiagnosticCollector();

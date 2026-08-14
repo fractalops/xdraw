@@ -1,5 +1,5 @@
-import type { ToneName } from "./excalidraw/components.ts";
-import type { ConstructorDefinition } from "./language-registry.ts";
+import type { ToneName } from "../excalidraw/components.ts";
+import type { ConstructorDefinition } from "./registry.ts";
 
 export type ManifestValueKind =
   | "string"

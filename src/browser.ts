@@ -25,7 +25,7 @@ export type { CompileOptions } from "./pipeline.ts";
 export { createMeasurer } from "./measurement.ts";
 export { createStyleResolver } from "./styles.ts";
 export { LAYERED_LAYOUT, LAYERED_LAYOUT_CAPABILITIES } from "./layout/layered.ts";
-export { parseSource as parse, parseSource, parseSyntax } from "./source-language.ts";
+export { parseSource as parse, parseSource, parseSyntax } from "./language/parser.ts";
 export { formatSceneResource, parseSceneDocument } from "./io/scene-document.ts";
 export type {
   SceneAdditionDocument,
@@ -76,7 +76,7 @@ export type {
 } from "./render-contracts.ts";
 export { endpointLabelBounds, synchronizeEndpointLabels } from "./routing/labels.ts";
 export type { EndpointLabelSynchronization } from "./routing/labels.ts";
-export { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "./semantic.ts";
+export { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "./language/semantic.ts";
 export {
   assertLayoutCapabilities,
   BUILTIN_LAYOUT_CAPABILITIES,
@@ -133,5 +133,5 @@ export type {
   LibraryValueManifest,
   ManifestDocumentation,
   ManifestValueKind,
-} from "./library-manifest.ts";
-export { getLibraryManifest, listLibraryManifests } from "./language-registry.ts";
+} from "./language/library-manifest.ts";
+export { getLibraryManifest, listLibraryManifests } from "./language/registry.ts";

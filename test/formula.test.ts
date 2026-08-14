@@ -3,12 +3,12 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import { compile, compileAsync } from "../src/pipeline.ts";
-import { expandDocument } from "../src/expander.ts";
+import { expandDocument } from "../src/language/expander.ts";
 import { FORMULA_LIMITS } from "../src/nodes/math/formula.ts";
 import { renderScenePng } from "../src/io/local-renderer.ts";
 import { renderFormulaSvg } from "../src/nodes/math/renderer.ts";
-import { buildSemanticIR, DiagnosticError } from "../src/semantic.ts";
-import { parseSource } from "../src/source-language.ts";
+import { buildSemanticIR, DiagnosticError } from "../src/language/semantic.ts";
+import { parseSource } from "../src/language/parser.ts";
 import type { DrawingJson, ImageElement, LinearElement } from "../src/render-contracts.ts";
 import type { NodeStatement } from "../src/semantic-contracts.ts";
 

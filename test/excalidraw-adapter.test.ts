@@ -11,7 +11,7 @@ import {
   renderImage,
   renderSceneVisuals,
 } from "../src/excalidraw/adapter.ts";
-import { parseSource } from "../src/source-language.ts";
+import { parseSource } from "../src/language/parser.ts";
 
 const embeddedFile = {
   id: "asset-file",

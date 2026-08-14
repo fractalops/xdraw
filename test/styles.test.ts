@@ -3,8 +3,8 @@ import test from "node:test";
 
 import { compile } from "../src/pipeline.ts";
 import { createMeasurer } from "../src/measurement.ts";
-import { buildSemanticIR } from "../src/semantic.ts";
-import { parseSource } from "../src/source-language.ts";
+import { buildSemanticIR } from "../src/language/semantic.ts";
+import { parseSource } from "../src/language/parser.ts";
 import { createStyleResolver } from "../src/styles.ts";
 
 function semantic(source) {

@@ -3,7 +3,7 @@ import type {
   TemplateUseStatement,
   DiagramDocument,
   SemanticStatement,
-} from "./semantic-contracts.ts";
+} from "../semantic-contracts.ts";
 
 function substitute(value: string, bindings: ReadonlyMap<string, unknown>): string {
   return value.replace(/\{([A-Za-z_][A-Za-z0-9_-]*)\}/g, (match, name: string) => (

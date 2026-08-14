@@ -13,9 +13,9 @@ import {
   BUILTIN_LIBRARY_MANIFESTS,
   defineLibraryManifest,
   type LibraryManifest,
-} from "../src/library-manifest.ts";
-import { LanguageValidationError, validateLanguageDocument } from "../src/language-validator.ts";
-import { parseSyntax } from "../src/source-language.ts";
+} from "../src/language/library-manifest.ts";
+import { LanguageValidationError, validateLanguageDocument } from "../src/language/validator.ts";
+import { parseSyntax } from "../src/language/parser.ts";
 
 function validate(source: string): SourceDocument {
   const document = parseSyntax(source);

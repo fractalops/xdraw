@@ -7,8 +7,8 @@ import {
   calculateSlotWidth,
 } from "../src/measurement.ts";
 import { compile } from "../src/pipeline.ts";
-import { buildSemanticIR } from "../src/semantic.ts";
-import { parseSource } from "../src/source-language.ts";
+import { buildSemanticIR } from "../src/language/semantic.ts";
+import { parseSource } from "../src/language/parser.ts";
 
 test("measurement helpers enforce finite non-negative geometry", () => {
   assert.throws(() => calculateSlotWidth(Number.NaN, 1, 0, "row"), /width must be positive and finite/);

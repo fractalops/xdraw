@@ -1,9 +1,9 @@
-import { isHighlightLanguage } from "./language-registry.ts";
+import { isHighlightLanguage } from "./registry.ts";
 import {
   MAX_CODE_LINE_CHARACTERS,
   MAX_CODE_LINES,
   MAX_CODE_SOURCE_CHARACTERS,
-} from "./text/code-policy.ts";
+} from "../text/code-policy.ts";
 import {
   hasValidFreedrawPoints,
   hasValidFreedrawPressures,
@@ -11,8 +11,8 @@ import {
   MAX_DOCUMENT_FREEDRAW_POINTS,
   MAX_FREEDRAW_COORDINATE,
   MAX_FREEDRAW_POINTS,
-} from "./excalidraw/freedraw-policy.ts";
-import { validateTableNode } from "./nodes/table.ts";
+} from "../excalidraw/freedraw-policy.ts";
+import { validateTableNode } from "../nodes/table.ts";
 import type {
   ConnectionStatement,
   DecisionBranchStatement,
@@ -23,13 +23,13 @@ import type {
   SemanticStatement,
   StyleStatement,
   ThemeStatement,
-} from "./semantic-contracts.ts";
+} from "../semantic-contracts.ts";
 import type {
   Diagnostic,
   DiagnosticNode,
   SourceLocation,
   SourceSpan,
-} from "./foundation-contracts.ts";
+} from "../foundation-contracts.ts";
 
 const PORTS = new Set([
   "north", "south", "east", "west", "top", "bottom", "left", "right", "center",

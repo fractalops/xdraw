@@ -1,7 +1,7 @@
 import { renderCompilation } from "./render.ts";
 import { prepareLayeredLayout } from "./layout/elk/prepare.ts";
-import { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "./semantic.ts";
-import { expandDocument } from "./expander.ts";
+import { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "./language/semantic.ts";
+import { expandDocument } from "./language/expander.ts";
 import { prepareDocumentSyntaxHighlighting } from "./text/syntax-highlighter.ts";
 import { documentHasFormulas, prepareDocumentFormulas } from "./nodes/math/formula.ts";
 import type { Drawing } from "./excalidraw/document.ts";

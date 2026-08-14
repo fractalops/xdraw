@@ -4,7 +4,7 @@ import test from "node:test";
 import { resolveAssets } from "../src/io/assets.ts";
 import { compile } from "../src/pipeline.ts";
 import { MemoryFileSystem } from "../src/io/filesystem.ts";
-import { parseSource, parseSyntax } from "../src/source-language.ts";
+import { parseSource, parseSyntax } from "../src/language/parser.ts";
 
 const FLOW = `
 use "xdraw/palette" as palette

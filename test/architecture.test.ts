@@ -5,7 +5,7 @@ import test from "node:test";
 import { BUILTIN_LAYOUT } from "../src/layout/builtin.ts";
 import { createMeasurer } from "../src/measurement.ts";
 import { createStyleResolver } from "../src/styles.ts";
-import { parseSource as parse } from "../src/source-language.ts";
+import { parseSource as parse } from "../src/language/parser.ts";
 import {
   assertLayoutCapabilities,
   BUILTIN_LAYOUT_CAPABILITIES,
@@ -13,7 +13,7 @@ import {
   createSceneGraph,
   layoutWithAdapter,
 } from "../src/scene.ts";
-import { buildSemanticIR } from "../src/semantic.ts";
+import { buildSemanticIR } from "../src/language/semantic.ts";
 
 test("built-in layout capabilities are enforced", () => {
   assert.doesNotThrow(() => assertLayoutCapabilities(

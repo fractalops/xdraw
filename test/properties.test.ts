@@ -7,8 +7,8 @@ import { compile } from "../src/pipeline.ts";
 import { alignBounds, box, column, distributeBounds, inset, row } from "../src/geometry.ts";
 import { measureRouteQuality } from "../src/routing/quality.ts";
 import { formatSceneResource, parseSceneResource } from "../src/io/scene-document.ts";
-import { parseSource } from "../src/source-language.ts";
-import { tokenize } from "../src/tokenizer.ts";
+import { parseSource } from "../src/language/parser.ts";
+import { tokenize } from "../src/language/tokenizer.ts";
 
 const RUNS = Number.parseInt(process.env.XDRAW_PROPERTY_RUNS ?? "250", 10);
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { SyntaxError, tokenize } from "../src/tokenizer.ts";
+import { SyntaxError, tokenize } from "../src/language/tokenizer.ts";
 
 test("tokenizer preserves exact spans and separates comments", () => {
   const tokens = tokenize('# heading\ndiagram "Flow" { source -> target }');

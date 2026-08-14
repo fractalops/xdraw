@@ -7,7 +7,7 @@ import { compileAsync } from "./pipeline.ts";
 import { ExcalidrawApiClient } from "./excalidraw-api.ts";
 import { RootedFileSystem } from "./io/filesystem.ts";
 import { renderScenePng, renderSceneSvg } from "./io/local-renderer.ts";
-import { parseSource } from "./source-language.ts";
+import { parseSource } from "./language/parser.ts";
 import { formatSceneResource, parseSceneDocument, parseSceneResource } from "./io/scene-document.ts";
 import { writeDrawing } from "./io/writer.ts";
 import { formatDiagnostic } from "./io/diagnostics.ts";
@@ -16,8 +16,8 @@ import {
   type ConstructorArgumentManifest,
   type ConstructorManifest,
   type LibraryManifest,
-} from "./library-manifest.ts";
-import { getLibraryManifest, listLibraryManifests } from "./language-registry.ts";
+} from "./language/library-manifest.ts";
+import { getLibraryManifest, listLibraryManifests } from "./language/registry.ts";
 import type {
   SceneDocument,
 } from "./io/scene-document.ts";

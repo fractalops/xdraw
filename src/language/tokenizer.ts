@@ -3,7 +3,7 @@ import type {
   Token,
   TokenList,
   TokenType,
-} from "./foundation-contracts.ts";
+} from "../foundation-contracts.ts";
 
 const SYMBOLS = new Set<TokenType>(["{", "}", "(", ")", ":", ",", ";", "@", "$"]);
 

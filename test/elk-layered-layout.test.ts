@@ -8,9 +8,9 @@ import { promisify } from "node:util";
 import { compile, compileAsync } from "../src/pipeline.ts";
 import { prepareLayeredLayout } from "../src/layout/elk/prepare.ts";
 import { runElkLayout } from "../src/layout/elk/worker-transport.ts";
-import { parseSource } from "../src/source-language.ts";
-import { buildSemanticIR } from "../src/semantic.ts";
-import { expandDocument } from "../src/expander.ts";
+import { parseSource } from "../src/language/parser.ts";
+import { buildSemanticIR } from "../src/language/semantic.ts";
+import { expandDocument } from "../src/language/expander.ts";
 import { requireArrow, requireElementById } from "../test-support/assertions.ts";
 import type { Drawing } from "../src/excalidraw/document.ts";
 import type { SemanticDocument } from "../src/semantic-contracts.ts";
@@ -163,7 +163,7 @@ test("layered output is deterministic across compiler processes", async () => {
   }`;
   const script = `
     import { compileAsync } from "./src/pipeline.ts";
-    import { parseSource } from "./src/source-language.ts";
+    import { parseSource } from "./src/language/parser.ts";
     const drawing = await compileAsync(parseSource(${JSON.stringify(source)}));
     process.stdout.write(JSON.stringify(drawing.toJSON()));
   `;

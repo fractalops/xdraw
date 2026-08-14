@@ -12,8 +12,8 @@ import {
   manifestForIntrospection,
   normalizeLibraryCatalog,
   summarizeLibraryManifest,
-} from "../src/library-manifest.ts";
-import { parseSource } from "../src/source-language.ts";
+} from "../src/language/library-manifest.ts";
+import { parseSource } from "../src/language/parser.ts";
 
 function validManifest(): Record<string, unknown> {
   return {

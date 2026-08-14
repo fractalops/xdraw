@@ -6,7 +6,7 @@ import { resolveAssets } from "../src/io/assets.ts";
 import { compileAsync } from "../src/pipeline.ts";
 import { RootedFileSystem } from "../src/io/filesystem.ts";
 import { parseSceneDocument } from "../src/io/scene-document.ts";
-import { parseSource } from "../src/source-language.ts";
+import { parseSource } from "../src/language/parser.ts";
 
 for (const file of [
   "README.md",

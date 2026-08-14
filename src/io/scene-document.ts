@@ -1,5 +1,5 @@
-import { parseSource } from "../source-language.ts";
-import { SyntaxError, tokenize } from "../tokenizer.ts";
+import { parseSource } from "../language/parser.ts";
+import { SyntaxError, tokenize } from "../language/tokenizer.ts";
 import type { DiagramDocument } from "../semantic-contracts.ts";
 import type { Token, TokenList } from "../foundation-contracts.ts";
 import type { ToneName } from "../excalidraw/components.ts";

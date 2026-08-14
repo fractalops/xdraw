@@ -1,4 +1,4 @@
-import { expandDocument } from "../expander.ts";
+import { expandDocument } from "../language/expander.ts";
 import { SaxesParser } from "saxes";
 
 import type {

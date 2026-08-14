@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { compile } from "../src/pipeline.ts";
-import { parseSource } from "../src/source-language.ts";
+import { parseSource } from "../src/language/parser.ts";
 
 const TABLE_SOURCE = `
 use "xdraw/table" as table

@@ -9,8 +9,8 @@ import {
   richNodePlanFor,
 } from "../src/nodes/rich-nodes.ts";
 import { createSceneGraph } from "../src/scene.ts";
-import { buildSemanticIR } from "../src/semantic.ts";
-import { parseSource } from "../src/source-language.ts";
+import { buildSemanticIR } from "../src/language/semantic.ts";
+import { parseSource } from "../src/language/parser.ts";
 import { createStyleResolver } from "../src/styles.ts";
 import { planTable, renderTable } from "../src/nodes/table.ts";
 import type { ArchitectureNodePlan, TableNodePlan } from "../src/rich-node-contracts.ts";

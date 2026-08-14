@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { compile } from "../src/pipeline.ts";
-import { parseSource as parse } from "../src/source-language.ts";
+import { parseSource as parse } from "../src/language/parser.ts";
 import { measureRouteQuality } from "../src/routing/quality.ts";
 import { Drawing } from "../src/excalidraw/document.ts";
 import { renderAnnotation, renderConnection } from "../src/routing/renderer.ts";

@@ -13,7 +13,7 @@ import {
   renderFormulaSvg,
 } from "./renderer.ts";
 import { createDiagnosticCollector } from "../../io/diagnostics.ts";
-import { DiagnosticError } from "../../semantic.ts";
+import { DiagnosticError } from "../../language/semantic.ts";
 import type { Bounds, EmbeddedAssetFiles } from "../../foundation-contracts.ts";
 import type { NodeMeasurementTarget, ResolvedNodeStyle } from "../../layout-contracts.ts";
 import type { FormulaNodePlan } from "../../rich-node-contracts.ts";

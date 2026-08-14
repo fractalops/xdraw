@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 import { expect, test } from "@playwright/test";
 import { compileAsync } from "../../src/pipeline.ts";
-import { parseSource } from "../../src/source-language.ts";
+import { parseSource } from "../../src/language/parser.ts";
 import type { DrawingJson } from "../../src/render-contracts.ts";
 import { downloadDrawing, openDiagram, paintedPixels } from "./helpers";
 

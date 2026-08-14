@@ -6,13 +6,13 @@ import type {
   SemanticStatement,
   StatementAttributes,
   TreeStatement,
-} from "./semantic-contracts.ts";
+} from "../semantic-contracts.ts";
 import type {
   Point,
   SpacingPreset,
   Token,
   TokenType,
-} from "./foundation-contracts.ts";
+} from "../foundation-contracts.ts";
 import type {
   SourceArrangement,
   SourceConnection,
@@ -25,13 +25,13 @@ import type {
   SourcePropertyValue,
   SourceStatement,
   SourceValueKind,
-} from "./language-contracts.ts";
+} from "../language-contracts.ts";
 import {
   normalizePropertyValue,
   resolveConstructor,
   resolveTone,
-} from "./language-registry.ts";
-import { validateLanguageDocument } from "./language-validator.ts";
+} from "./registry.ts";
+import { validateLanguageDocument } from "./validator.ts";
 
 function located<T extends object>(value: T, start: Token, end: Token): T & SourceNode {
   Object.defineProperty(value, "span", {

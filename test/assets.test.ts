@@ -4,8 +4,8 @@ import test from "node:test";
 import { mergeEmbeddedAssetFiles, resolveAssets } from "../src/io/assets.ts";
 import { compile } from "../src/pipeline.ts";
 import { MemoryFileSystem } from "../src/io/filesystem.ts";
-import { parseSource as parse } from "../src/source-language.ts";
-import { buildSemanticIR } from "../src/semantic.ts";
+import { parseSource as parse } from "../src/language/parser.ts";
+import { buildSemanticIR } from "../src/language/semantic.ts";
 
 const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><rect width="80" height="40" fill="red"/></svg>';
 

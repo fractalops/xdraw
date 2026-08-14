@@ -5,8 +5,8 @@ import { compile, compileAsync } from "../src/pipeline.ts";
 import { codeBlockRequiredWidth } from "../src/text/code-block.ts";
 import { FONT } from "../src/excalidraw/elements.ts";
 import { renderSceneSvg } from "../src/io/local-renderer.ts";
-import { buildSemanticIR } from "../src/semantic.ts";
-import { parseSource } from "../src/source-language.ts";
+import { buildSemanticIR } from "../src/language/semantic.ts";
+import { parseSource } from "../src/language/parser.ts";
 
 const SOURCE = `diagram "Code blocks" {
   example: code """

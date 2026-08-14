@@ -6,7 +6,7 @@ import {
   renderArchitectureNode,
 } from "../src/nodes/architecture.ts";
 import { compile } from "../src/pipeline.ts";
-import { parseSource } from "../src/source-language.ts";
+import { parseSource } from "../src/language/parser.ts";
 
 const SOURCE = `
 use "xdraw/architecture" as arch
