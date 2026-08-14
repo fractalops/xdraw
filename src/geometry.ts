@@ -141,8 +141,10 @@ export function distributeBounds(bounds: Bounds[], axis: Axis): Bounds[] {
   const { start, size } = AXIS_PROPERTIES[axis];
   const ordered = bounds.map((item, index) => ({ item, index }))
     .sort((left, right) => left.item[start] + left.item[size] / 2 - (right.item[start] + right.item[size] / 2));
-  const minimum = Math.min(...bounds.map((item) => item[start]));
-  const maximum = Math.max(...bounds.map((item) => item[start] + item[size]));
+  const first = ordered[0].item;
+  const last = ordered[ordered.length - 1].item;
+  const minimum = first[start];
+  const maximum = last[start] + last[size];
   const totalSize = bounds.reduce((sum, item) => sum + item[size], 0);
   const gap = (maximum - minimum - totalSize) / (bounds.length - 1);
   const result = [...bounds];
@@ -154,8 +156,7 @@ export function distributeBounds(bounds: Bounds[], axis: Axis): Bounds[] {
     }
     return result;
   }
-  const firstCenter = ordered[0].item[start] + ordered[0].item[size] / 2;
-  const last = ordered[ordered.length - 1].item;
+  const firstCenter = first[start] + first[size] / 2;
   const lastCenter = last[start] + last[size] / 2;
   const centerStep = (lastCenter - firstCenter) / (ordered.length - 1);
   ordered.forEach(({ item, index }, position) => {

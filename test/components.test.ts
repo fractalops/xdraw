@@ -120,6 +120,20 @@ test("distributeBounds is byte-stable when applied repeatedly", () => {
   assert.deepEqual(distributeBounds(once, "x"), once);
 });
 
+test("overlapping mixed-size bounds do not change distribution modes on repetition", () => {
+  const bounds = [
+    box(0, 0, 1, 272),
+    box(0, 0, 1, 194),
+    box(0, 0, 1, 183),
+    box(0, 0, 1, 3),
+    box(0, -450, 1, 294),
+    box(0, 0, 1, 4),
+    box(0, 499, 1, 1),
+  ];
+  const once = distributeBounds(bounds, "y");
+  assert.deepEqual(distributeBounds(once, "y"), once);
+});
+
 test("card creates a frame with title and body", () => {
   const elements = card("summary", box(0, 0, 300, 150), {
     tone: "info",
