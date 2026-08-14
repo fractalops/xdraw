@@ -12,6 +12,7 @@ import { parseSource } from "../src/language/parser.ts";
 import { buildSemanticIR } from "../src/language/semantic.ts";
 import { expandDocument } from "../src/language/expander.ts";
 import { requireArrow, requireElementById } from "../test-support/assertions.ts";
+import { budgetMs } from "../test-support/budget.ts";
 import type { Drawing } from "../src/excalidraw/document.ts";
 import type { SemanticDocument } from "../src/contracts/semantic.ts";
 import type { DrawingElement } from "../src/contracts/render.ts";
@@ -190,7 +191,7 @@ test("ELK preparation fails closed instead of changing layout algorithms", async
   );
   const started = performance.now();
   await assert.rejects(prepareLayeredLayout(document, { timeoutMs: 1 }), /exceeded 1 ms/);
-  assert.ok(performance.now() - started < 500, "worker termination must bound timeout latency");
+  assert.ok(performance.now() - started < budgetMs(500), "worker termination must bound timeout latency");
   const recovered = await prepareLayeredLayout(document);
   assert.equal(recovered.status, "prepared");
   assert.equal(recovered.bounds?.size, 1);
@@ -299,5 +300,5 @@ test("ELK places 200 layered nodes within the acceptance budget", async () => {
   const drawing = await compileAsync(parseSource(`diagram "Scale" { arrange layered { gap 12 } ${nodes} ${edges} }`));
   const elapsed = performance.now() - started;
   assert.equal(drawing.toJSON().elements.filter((element) => element.id.endsWith(":frame")).length, count);
-  assert.ok(elapsed < 4_000, `200-node asynchronous compile took ${elapsed.toFixed(1)} ms`);
+  assert.ok(elapsed < budgetMs(4_000), `200-node asynchronous compile took ${elapsed.toFixed(1)} ms`);
 });

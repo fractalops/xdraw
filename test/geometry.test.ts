@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { compile, parse } from "../src/index.ts";
 import { measureRouteQuality } from "../src/routing/quality.ts";
+import { budgetMs } from "../test-support/budget.ts";
 
 function elements(source) {
   return compile(parse(source)).toJSON().elements;
@@ -215,7 +216,7 @@ for (const count of [10, 50, 200]) {
         assert.equal(overlap, false);
       }
     }
-    assert.ok(elapsed < 3_000, `${count}-node compile took ${elapsed.toFixed(1)} ms`);
+    assert.ok(elapsed < budgetMs(3_000), `${count}-node compile took ${elapsed.toFixed(1)} ms`);
     assert.ok(Math.max(...frames.map((frame) => frame.x + frame.width)) < 10_000);
     assert.ok(Math.max(...frames.map((frame) => frame.y + frame.height)) < 30_000);
   });
