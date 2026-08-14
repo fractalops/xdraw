@@ -44,9 +44,17 @@ function located<T extends object>(value: T, start: Token, end: Token): T & Sour
   return value;
 }
 
+/**
+ * Recursive descent has no natural floor: without a limit, a deeply nested
+ * document exhausts the stack and surfaces as RangeError rather than as a
+ * syntax error a caller can handle. Real documents nest a handful deep.
+ */
+const MAX_NESTING_DEPTH = 64;
+
 export function parseSyntax(source: string): SourceDocument {
   const tokens = tokenize(source);
   let index = 0;
+  let depth = 0;
 
   const peek = (type: TokenType, value?: string | number | null, offset = 0): boolean => {
     const current = tokens[index + offset];
@@ -214,12 +222,21 @@ export function parseSyntax(source: string): SourceDocument {
 
   function block(): SourceStatement[] {
     take("{", undefined, "expected '{'");
+    depth += 1;
+    if (depth > MAX_NESTING_DEPTH) {
+      throw new SyntaxError(
+        `blocks may not nest more than ${MAX_NESTING_DEPTH} deep`,
+        source,
+        tokens[index - 1].offset,
+      );
+    }
     const statements = [];
     while (!peek("}")) {
       if (peek("eof")) throw new SyntaxError("unterminated block", source, tokens[index].offset);
       statements.push(statement());
     }
     take("}");
+    depth -= 1;
     return statements;
   }
 

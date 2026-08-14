@@ -449,3 +449,20 @@ test("precision transforms resolve namespaced selections before geometry", () =>
   assert.equal(frames[0].height, frames[2].height);
   assert.notEqual(frames[2].angle, 0);
 });
+
+test("deeply nested documents fail with a diagnostic rather than a stack overflow", () => {
+  // Recursive descent has no natural floor: past a few hundred frames the
+  // parser used to die with RangeError, which callers catching syntax errors
+  // never see coming.
+  const deep = (depth) => `diagram "D" {${'f: frame "F" {'.repeat(depth)}a: rectangle "A"${"}".repeat(depth)}}`;
+  assert.doesNotThrow(() => parseSource(deep(40)));
+  let error;
+  try {
+    parseSource(deep(5_000));
+  } catch (caught) {
+    error = caught;
+  }
+  assert.ok(error, "expected deeply nested source to be rejected");
+  assert.doesNotMatch(String(error.message), /call stack/i, "must not surface as a stack overflow");
+  assert.match(String(error.message), /nest/i);
+});
