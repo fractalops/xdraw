@@ -11,7 +11,7 @@ import {
   MAX_HIGHLIGHT_LINES,
   MAX_HIGHLIGHT_RUNS,
   MAX_HIGHLIGHT_SOURCE_CHARACTERS,
-} from "./code-policy.ts";
+} from "./policy.ts";
 
 const FONT_SIZE = 16;
 const LINE_HEIGHT = 1.45;

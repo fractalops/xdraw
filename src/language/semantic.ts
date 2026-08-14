@@ -3,7 +3,8 @@ import {
   MAX_CODE_LINE_CHARACTERS,
   MAX_CODE_LINES,
   MAX_CODE_SOURCE_CHARACTERS,
-} from "../text/code-policy.ts";
+  MAX_TEXT_CHARACTERS,
+} from "../text/policy.ts";
 import {
   hasValidFreedrawPoints,
   hasValidFreedrawPressures,
@@ -499,6 +500,24 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
           if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
             state.diagnostics.push(diagnostic("XD1236", `tree ${name} must be finite and non-negative`, statement));
           }
+        }
+      }
+    },
+  },
+  {
+    family: "text-length",
+    // Code is excluded: it has its own budget in code-policy.ts.
+    apply(statement, _context, state) {
+      if (statement.type === "code") return;
+      for (const field of ["title", "value"] as const) {
+        if (!(field in statement)) continue;
+        const text: unknown = Reflect.get(statement, field);
+        if (typeof text === "string" && text.length > MAX_TEXT_CHARACTERS) {
+          state.diagnostics.push(diagnostic(
+            "XD1245",
+            `${statement.type} ${field} exceeds the ${MAX_TEXT_CHARACTERS}-character text limit`,
+            statement,
+          ));
         }
       }
     },

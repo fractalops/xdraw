@@ -64,6 +64,22 @@ for (const [code, source] of CASES) {
   });
 }
 
+test("XD1245 caps display text that feeds measurement", () => {
+  const long = "x".repeat(10_001);
+  assert.ok(codes(wrap(`a: rectangle "${long}"`)).includes("XD1245"));
+  assert.ok(codes(wrap(`t: text "${long}"`)).includes("XD1245"));
+  assert.ok(codes(wrap(`a: rectangle "A" { body "${long}" }`)).includes("XD1245"));
+});
+
+test("XD1245 leaves text at the limit and long code blocks alone", () => {
+  assert.deepEqual(codes(wrap(`a: rectangle "${"x".repeat(10_000)}"`)), []);
+  // code has its own, much larger budget; this must not trip the text cap.
+  // Kept within the per-line code limit so only the text cap is under test.
+  const longCode = Array.from({ length: 400 }, () => "x".repeat(50)).join("\n");
+  assert.ok(longCode.length > 10_000);
+  assert.deepEqual(codes(wrap(`c: code """${longCode}"""`)), []);
+});
+
 test("valid documents produce no semantic diagnostics", () => {
   assert.deepEqual(codes(wrap('a: rectangle "A"\nb: rectangle "B"\na -> b "edge"')), []);
 });
@@ -120,6 +136,7 @@ const IR_CASES: ReadonlyArray<readonly [family: string, code: string, statements
   ["layout", "XD1235", [statement({ type: "layout", kind: "grid", gap: -1 })]],
   ["layout", "XD1243", [statement({ type: "layout", kind: "grid", columns: 0 })]],
   ["tree-spacing", "XD1236", [statement({ type: "tree", id: "t", levelGap: -1, statements: [] })]],
+  ["text-length", "XD1245", [statement({ type: "node", id: "n", kind: "rectangle", title: "x".repeat(10_001) })]],
   ["body-content", "XD1237", [statement({ type: "body", value: 3 })]],
   ["annotation-anchoring", "XD1212", [statement({ type: "note", id: "n" })]],
   ["annotation-anchoring", "XD1234", [statement({ type: "callout", id: "c" })]],
@@ -157,7 +174,7 @@ for (const [family, code, statements] of IR_CASES) {
 test("every diagnostic code in the registry has a rule test", () => {
   // Guards against a rule being added without coverage. Update alongside
   // VALIDATION_RULES in src/language/semantic.ts.
-  assert.equal(new Set(IR_CASES.map(([, code]) => code)).size, 59);
+  assert.equal(new Set(IR_CASES.map(([, code]) => code)).size, 60);
 });
 
 test("a malformed geometry selection halts the remaining geometry rules", () => {
