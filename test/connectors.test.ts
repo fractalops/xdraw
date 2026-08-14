@@ -3,11 +3,11 @@ import test from "node:test";
 
 import { compile } from "../src/pipeline.ts";
 import { parseSource as parse } from "../src/source-language.ts";
-import { measureRouteQuality } from "../src/route-quality.ts";
+import { measureRouteQuality } from "../src/routing/quality.ts";
 import { Drawing } from "../src/document.ts";
-import { renderAnnotation, renderConnection } from "../src/routing-renderer.ts";
-import { synchronizeEndpointLabels } from "../src/connector-labels.ts";
-import { routeConnection } from "../src/router.ts";
+import { renderAnnotation, renderConnection } from "../src/routing/renderer.ts";
+import { synchronizeEndpointLabels } from "../src/routing/labels.ts";
+import { routeConnection } from "../src/routing/router.ts";
 import { createMeasurer } from "../src/measurement.ts";
 
 test("explicit waypoints and endpoint labels compile deterministically", () => {

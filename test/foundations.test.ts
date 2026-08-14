@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { layoutGap, ROUTING_CLEARANCE, SPACING_PRESETS } from "../src/clearances.ts";
+import { layoutGap, ROUTING_CLEARANCE, SPACING_PRESETS } from "../src/routing/clearances.ts";
 import { createDiagnosticCollector, formatDiagnostic } from "../src/diagnostics.ts";
-import { splitEndpoint } from "../src/endpoints.ts";
+import { splitEndpoint } from "../src/routing/endpoints.ts";
 import { nonceFor, seedFor, stableHash } from "../src/identity.ts";
 
 test("diagnostics retain locations and suppress exact duplicates", () => {

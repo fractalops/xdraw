@@ -1,16 +1,16 @@
-import { card, connect } from "./components.ts";
-import { anchor, box } from "./geometry.ts";
+import { card, connect } from "../components.ts";
+import { anchor, box } from "../geometry.ts";
 import { inferredSides, routeConnection, splitEndpoint } from "./router.ts";
 import type {
   Bounds,
   EndpointSide,
   Point,
   Route,
-} from "./foundation-contracts.ts";
-import type { ConnectionStatement, NoteStatement } from "./semantic-contracts.ts";
-import type { SceneGraph } from "./layout-contracts.ts";
-import type { Drawing } from "./document.ts";
-import type { Arrowhead, DrawingElement, ElementBinding } from "./render-contracts.ts";
+} from "../foundation-contracts.ts";
+import type { ConnectionStatement, NoteStatement } from "../semantic-contracts.ts";
+import type { SceneGraph } from "../layout-contracts.ts";
+import type { Drawing } from "../document.ts";
+import type { Arrowhead, DrawingElement, ElementBinding } from "../render-contracts.ts";
 import type { CardinalSide } from "./router.ts";
 
 type ConnectionTone = keyof typeof COLORS;

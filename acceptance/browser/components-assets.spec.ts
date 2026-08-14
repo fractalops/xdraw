@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { endpointLabelBounds } from "../../src/connector-labels.ts";
+import { endpointLabelBounds } from "../../src/routing/labels.ts";
 import { downloadDrawing, openDiagram } from "./helpers";
 
 test("renders reusable templates and movable waypoint labels", async ({ page }) => {

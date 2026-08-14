@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { compile, parse } from "../src/index.ts";
-import { measureRouteQuality } from "../src/route-quality.ts";
+import { measureRouteQuality } from "../src/routing/quality.ts";
 
 function elements(source) {
   return compile(parse(source)).toJSON().elements;

@@ -1,11 +1,11 @@
-import { measureTextWidth } from "./text-metrics.ts";
-import type { Bounds, Point } from "./foundation-contracts.ts";
+import { measureTextWidth } from "../text-metrics.ts";
+import type { Bounds, Point } from "../foundation-contracts.ts";
 import type {
   DrawingElement,
   LinearElement,
   TextElement,
-} from "./render-contracts.ts";
-import type { FontFamily } from "./text-metrics.ts";
+} from "../render-contracts.ts";
+import type { FontFamily } from "../text-metrics.ts";
 
 export interface EndpointLabelSynchronization {
   elements: DrawingElement[];

@@ -1,6 +1,6 @@
 import { arrow, rectangle, text } from "./elements.ts";
 import { anchor, inset } from "./geometry.ts";
-import { endpointLabelBounds } from "./connector-labels.ts";
+import { endpointLabelBounds } from "./routing/labels.ts";
 import {
   DEFAULT_CONNECTOR_LABEL_SIZE,
   fitTextSize,
@@ -8,7 +8,7 @@ import {
   measureTextWidth,
   wrapTextToWidth,
 } from "./text-metrics.ts";
-import { ROUTING_CLEARANCE } from "./clearances.ts";
+import { ROUTING_CLEARANCE } from "./routing/clearances.ts";
 import type { Bounds, Point } from "./foundation-contracts.ts";
 import type {
   Arrowhead,

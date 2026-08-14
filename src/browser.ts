@@ -36,8 +36,8 @@ export type {
   SceneResource,
   SceneUpdate,
 } from "./scene-document.ts";
-export { measureRouteQuality } from "./route-quality.ts";
-export type { RouteQuality } from "./route-quality.ts";
+export { measureRouteQuality } from "./routing/quality.ts";
+export type { RouteQuality } from "./routing/quality.ts";
 export type { FontFamily } from "./text-metrics.ts";
 export type {
   ArrowElement,
@@ -74,8 +74,8 @@ export type {
   TextElementOptions,
   VerticalAlign,
 } from "./render-contracts.ts";
-export { endpointLabelBounds, synchronizeEndpointLabels } from "./connector-labels.ts";
-export type { EndpointLabelSynchronization } from "./connector-labels.ts";
+export { endpointLabelBounds, synchronizeEndpointLabels } from "./routing/labels.ts";
+export type { EndpointLabelSynchronization } from "./routing/labels.ts";
 export { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "./semantic.ts";
 export {
   assertLayoutCapabilities,

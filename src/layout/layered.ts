@@ -1,6 +1,6 @@
 import { anchor, box } from "../geometry.ts";
-import { ROUTING_CLEARANCE } from "../clearances.ts";
-import { inferredSides, routeConnection, splitEndpoint } from "../router.ts";
+import { ROUTING_CLEARANCE } from "../routing/clearances.ts";
+import { inferredSides, routeConnection, splitEndpoint } from "../routing/router.ts";
 import { BUILTIN_LAYOUT_CAPABILITIES, createLayoutAdapter } from "../scene.ts";
 import type {
   AdapterRoute,

@@ -4,7 +4,7 @@ import {
   measureConnectorLabelWidth,
   wrapTextToWidth,
 } from "./text-metrics.ts";
-import { layoutGap } from "./clearances.ts";
+import { layoutGap } from "./routing/clearances.ts";
 import { codeBlockRequiredWidth, measureCodeBlock } from "./code-block.ts";
 import { arrangedItems, childSections } from "./layout/sections.ts";
 import {

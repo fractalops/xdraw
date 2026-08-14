@@ -1,5 +1,5 @@
-import { layoutGap, ROUTING_CLEARANCE } from "../../clearances.ts";
-import { splitEndpoint } from "../../endpoints.ts";
+import { layoutGap, ROUTING_CLEARANCE } from "../../routing/clearances.ts";
+import { splitEndpoint } from "../../routing/endpoints.ts";
 import { createMeasurer } from "../../measurement.ts";
 import { createStyleResolver } from "../../styles.ts";
 import type { Bounds } from "../../foundation-contracts.ts";

@@ -1,5 +1,5 @@
 import { anchor, box, row } from "../geometry.ts";
-import { splitEndpoint } from "../router.ts";
+import { splitEndpoint } from "../routing/router.ts";
 import { BUILTIN_LAYOUT_CAPABILITIES, createLayoutAdapter } from "../scene.ts";
 import {
   calculateArrangedRows,

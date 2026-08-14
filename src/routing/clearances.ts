@@ -1,4 +1,4 @@
-import type { SpacingPreset } from "./foundation-contracts.ts";
+import type { SpacingPreset } from "../foundation-contracts.ts";
 
 export const SPACING_PRESETS: Readonly<Record<SpacingPreset, number>> = Object.freeze({
   tight: 24,

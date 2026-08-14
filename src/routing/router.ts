@@ -1,4 +1,4 @@
-import { anchor } from "./geometry.ts";
+import { anchor } from "../geometry.ts";
 import { ROUTING_CLEARANCE } from "./clearances.ts";
 import { splitEndpoint } from "./endpoints.ts";
 import type {
@@ -6,7 +6,7 @@ import type {
   EndpointSide,
   Point,
   Route,
-} from "./foundation-contracts.ts";
+} from "../foundation-contracts.ts";
 
 export { splitEndpoint };
 

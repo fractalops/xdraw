@@ -12,14 +12,14 @@ import {
   renderSceneVisuals,
 } from "./excalidraw-adapter.ts";
 import { applyGeometryStatements } from "./geometry-pass.ts";
-import { renderAnnotation, renderConnection } from "./routing-renderer.ts";
-import { splitEndpoint } from "./router.ts";
+import { renderAnnotation, renderConnection } from "./routing/renderer.ts";
+import { splitEndpoint } from "./routing/router.ts";
 import { createSceneGraph, layoutWithAdapter } from "./scene.ts";
 import { createMeasurer } from "./measurement.ts";
 import { createStyleResolver } from "./styles.ts";
 import { createDiagnosticCollector } from "./diagnostics.ts";
 import { measureTextWidth } from "./text-metrics.ts";
-import { layoutGap } from "./clearances.ts";
+import { layoutGap } from "./routing/clearances.ts";
 import { SECTION_TYPES } from "./layout/sections.ts";
 import { validateArchitectureUsage } from "./architecture.ts";
 import type {
