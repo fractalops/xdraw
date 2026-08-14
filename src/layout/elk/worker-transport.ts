@@ -1,3 +1,5 @@
+import { createWorkerHost } from "../../platform/worker-host.ts";
+import type { WorkerHost } from "../../platform/worker-host.ts";
 import type { ElkNode } from "elkjs/lib/elk-api.js";
 
 const LAYOUT_TIMEOUT_MS = 3_000;
@@ -8,26 +10,18 @@ export interface ElkWorkerMessage {
   error?: unknown;
 }
 
-export interface LayoutWorker {
-  postMessage(message: unknown): void;
-  terminate(): void | Promise<number>;
-  onMessage(handler: (message: ElkWorkerMessage) => void): void;
-  onError(handler: (error: Error) => void): void;
-  onExit?(handler: (code: number) => void): void;
-}
+export type LayoutWorker = WorkerHost<unknown, ElkWorkerMessage>;
 
 export interface ElkTransportOptions {
   timeoutMs?: number;
   createWorker?: () => Promise<LayoutWorker>;
 }
 
-async function createLayoutWorker(): Promise<LayoutWorker> {
-  if (typeof process !== "undefined" && process.versions?.node) {
-    const { createNodeLayoutWorker } = await import("./worker-adapter-node.ts");
-    return createNodeLayoutWorker();
-  }
-  const { createBrowserLayoutWorker } = await import("./worker-adapter-browser.ts");
-  return createBrowserLayoutWorker();
+function createLayoutWorker(): Promise<LayoutWorker> {
+  return createWorkerHost<unknown, ElkWorkerMessage>({
+    base: import.meta.url,
+    browserWorker: () => new Worker(new URL("./worker-browser.js", import.meta.url), { type: "module" }),
+  });
 }
 
 export async function runElkLayout(

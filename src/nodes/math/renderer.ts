@@ -1,3 +1,5 @@
+import { createWorkerHost } from "../../platform/worker-host.ts";
+import type { WorkerHost } from "../../platform/worker-host.ts";
 import type { RenderedFormulaSvg } from "./core.ts";
 
 export const FORMULA_RENDER_TIMEOUT_MS = 10_000;
@@ -13,12 +15,7 @@ interface FormulaResponse {
   readonly error?: { readonly type: "syntax" | "renderer"; readonly message: string };
 }
 
-interface FormulaWorker {
-  postMessage(message: FormulaRequest): void;
-  terminate(): void | Promise<unknown>;
-  onMessage(listener: (message: FormulaResponse) => void): () => void;
-  onError(listener: (error: Error) => void): () => void;
-}
+type FormulaWorker = WorkerHost<FormulaRequest, FormulaResponse>;
 
 export class FormulaSyntaxError extends Error {}
 export class FormulaRenderTimeoutError extends Error {}
@@ -32,41 +29,12 @@ function abortReason(signal: AbortSignal): Error {
   return signal.reason instanceof Error ? signal.reason : new Error(String(signal.reason));
 }
 
-async function createWorker(): Promise<FormulaWorker> {
-  if (typeof Worker === "function") {
-    const instance = new Worker(new URL("./worker-browser.ts", import.meta.url), { type: "module" });
-    return {
-      postMessage: (message) => instance.postMessage(message),
-      terminate: () => instance.terminate(),
-      onMessage: (listener) => {
-        const handler = (event: MessageEvent<FormulaResponse>): void => listener(event.data);
-        instance.addEventListener("message", handler);
-        return () => instance.removeEventListener("message", handler);
-      },
-      onError: (listener) => {
-        const handler = (event: ErrorEvent): void => listener(
-          event.error instanceof Error ? event.error : new Error(event.message),
-        );
-        instance.addEventListener("error", handler);
-        return () => instance.removeEventListener("error", handler);
-      },
-    };
-  }
-  const { Worker: NodeWorker } = await import("node:worker_threads");
-  const instance = new NodeWorker(new URL("./worker-node.ts", import.meta.url), { execArgv: [] });
-  instance.unref();
-  return {
-    postMessage: (message) => instance.postMessage(message),
-    terminate: () => instance.terminate(),
-    onMessage: (listener) => {
-      instance.on("message", listener);
-      return () => instance.off("message", listener);
-    },
-    onError: (listener) => {
-      instance.on("error", listener);
-      return () => instance.off("error", listener);
-    },
-  };
+function createWorker(): Promise<FormulaWorker> {
+  return createWorkerHost<FormulaRequest, FormulaResponse>({
+    base: import.meta.url,
+    unref: true,
+    browserWorker: () => new Worker(new URL("./worker-browser.js", import.meta.url), { type: "module" }),
+  });
 }
 
 async function terminateWorker(): Promise<void> {

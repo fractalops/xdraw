@@ -142,9 +142,9 @@ test("ELK transport bounds worker creation and reports premature exits", async (
       createWorker: async () => ({
         postMessage: () => exit?.(2),
         terminate: () => undefined,
-        onMessage: () => undefined,
-        onError: () => undefined,
-        onExit: (handler) => { exit = handler; },
+        onMessage: () => () => undefined,
+        onError: () => () => undefined,
+        onExit: (handler) => { exit = handler; return () => undefined; },
       }),
     }),
     /exited with code 2/,

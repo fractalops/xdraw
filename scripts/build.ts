@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { readFile, rename, rm, mkdtemp, writeFile } from "node:fs/promises";
+import { rename, rm, mkdtemp } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -17,14 +17,6 @@ let movedPrevious = false;
 try {
   await execute(tsc, ["-p", join(root, "tsconfig.build.json"), "--outDir", staging], { cwd: root });
   await rewriteDeclarationImports(staging);
-  const mathRenderer = join(staging, "nodes", "math", "renderer.js");
-  await writeFile(
-    mathRenderer,
-    (await readFile(mathRenderer, "utf8")).replaceAll(
-      /\.\/worker-(browser|node)\.ts/gu,
-      "./worker-$1.js",
-    ),
-  );
   await execute(process.execPath, ["--check", join(staging, "xdraw.js")], { cwd: root });
 
   try {
