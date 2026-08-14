@@ -12,7 +12,7 @@ import { parseSource } from "../src/source-language.ts";
 import { buildSemanticIR } from "../src/semantic.ts";
 import { expandDocument } from "../src/expander.ts";
 import { requireArrow, requireElementById } from "../test-support/assertions.ts";
-import type { Drawing } from "../src/document.ts";
+import type { Drawing } from "../src/excalidraw/document.ts";
 import type { SemanticDocument } from "../src/semantic-contracts.ts";
 import type { DrawingElement } from "../src/render-contracts.ts";
 

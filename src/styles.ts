@@ -1,6 +1,6 @@
-import { tone } from "./components.ts";
-import type { ToneName } from "./components.ts";
-import { FONT } from "./elements.ts";
+import { tone } from "./excalidraw/components.ts";
+import type { ToneName } from "./excalidraw/components.ts";
+import { FONT } from "./excalidraw/elements.ts";
 import type {
   FreedrawStatement,
   SemanticDocument,

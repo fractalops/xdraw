@@ -1,12 +1,12 @@
-export { Drawing } from "./document.ts";
+export { Drawing } from "./excalidraw/document.ts";
 export {
   EXCALIDRAW_API_URL,
   ExcalidrawApiClient,
 } from "./excalidraw-api.ts";
 export { resolveAssets } from "./io/assets.ts";
-export { FONT, arrow, diamond, ellipse, frame, freedraw, image, rectangle, text } from "./elements.ts";
+export { FONT, arrow, diamond, ellipse, frame, freedraw, image, rectangle, text } from "./excalidraw/elements.ts";
 export { alignBounds, anchor, box, column, distributeBounds, inset, row } from "./geometry.ts";
-export { boundText, card, connect, fitTextSize, heading, lane, tone, wrapText } from "./components.ts";
+export { boundText, card, connect, fitTextSize, heading, lane, tone, wrapText } from "./excalidraw/components.ts";
 export type {
   AnchorSide,
   BoundTextOptions,
@@ -19,7 +19,7 @@ export type {
   ShapeFactory,
   ToneColors,
   ToneName,
-} from "./components.ts";
+} from "./excalidraw/components.ts";
 export { compile, compileAsync } from "./pipeline.ts";
 export type { CompileOptions } from "./pipeline.ts";
 export { createMeasurer } from "./measurement.ts";

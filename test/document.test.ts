@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Drawing } from "../src/document.ts";
-import { arrow, frame, rectangle, text } from "../src/elements.ts";
+import { Drawing } from "../src/excalidraw/document.ts";
+import { arrow, frame, rectangle, text } from "../src/excalidraw/elements.ts";
 
 const box = (x, y, width = 100, height = 60) => ({ x, y, width, height });
 

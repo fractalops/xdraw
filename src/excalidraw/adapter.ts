@@ -1,13 +1,13 @@
 import { boundText, card, fitTextSize, lane, tone } from "./components.ts";
 import { arrow, diamond, ellipse, frame, freedraw, image, text } from "./elements.ts";
-import { box } from "./geometry.ts";
-import { wrapTextToWidth } from "./text/metrics.ts";
-import { renderCodeBlock } from "./text/code-block.ts";
-import { planRichNode, renderRichNode, richNodePlanFor } from "./nodes/rich-nodes.ts";
+import { box } from "../geometry.ts";
+import { wrapTextToWidth } from "../text/metrics.ts";
+import { renderCodeBlock } from "../text/code-block.ts";
+import { planRichNode, renderRichNode, richNodePlanFor } from "../nodes/rich-nodes.ts";
 import {
   isArchitectureBoundaryKind,
   renderArchitectureBoundary,
-} from "./nodes/architecture.ts";
+} from "../nodes/architecture.ts";
 import type {
   AssetUseStatement,
   BodyStatement,
@@ -15,21 +15,21 @@ import type {
   NodeStatement,
   RenderableFreedrawStatement,
   TextStatement,
-} from "./semantic-contracts.ts";
-import type { Bounds } from "./foundation-contracts.ts";
+} from "../semantic-contracts.ts";
+import type { Bounds } from "../foundation-contracts.ts";
 import type {
   ResolvedFreedrawStyle,
   ResolvedNodeStyle,
   ResolvedTextStyle,
   SceneVisual,
-} from "./layout-contracts.ts";
+} from "../layout-contracts.ts";
 import type { Drawing } from "./document.ts";
 import type {
   FreedrawElement,
   ImageCrop,
   TextAlign,
   VerticalAlign,
-} from "./render-contracts.ts";
+} from "../render-contracts.ts";
 import type { ToneName } from "./components.ts";
 
 const KIND_LABEL_COLORS = { person: "#7c3aed", database: "#475569" } as const;

@@ -2,7 +2,7 @@ import { alignBounds, distributeBounds } from "./geometry.ts";
 import type { AlignmentMode, Bounds, Point } from "./foundation-contracts.ts";
 import type { GeometryStatement, RenderableGeometryStatement, SemanticStatement } from "./semantic-contracts.ts";
 import type { SceneGraph } from "./layout-contracts.ts";
-import type { Drawing } from "./document.ts";
+import type { Drawing } from "./excalidraw/document.ts";
 import type { DrawingElement } from "./render-contracts.ts";
 
 function isGeometryStatement(statement: SemanticStatement): statement is GeometryStatement {

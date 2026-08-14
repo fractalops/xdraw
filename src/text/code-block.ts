@@ -1,10 +1,10 @@
-import { FONT, rectangle, text } from "../elements.ts";
+import { FONT, rectangle, text } from "../excalidraw/elements.ts";
 import { measureTextWidth } from "./metrics.ts";
 import { highlightSource, sourceFromHighlight } from "./syntax-highlighter.ts";
 import type { HighlightLines } from "./syntax-highlighter.ts";
 import type { Bounds } from "../foundation-contracts.ts";
 import type { RenderableCodeStatement } from "../semantic-contracts.ts";
-import type { Drawing } from "../document.ts";
+import type { Drawing } from "../excalidraw/document.ts";
 import {
   MAX_DRAWING_HIGHLIGHT_RUNS,
   MAX_HIGHLIGHT_LINE_CHARACTERS,

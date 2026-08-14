@@ -11,7 +11,7 @@ import {
   image,
   rectangle,
   text,
-} from "../src/elements.ts";
+} from "../src/excalidraw/elements.ts";
 
 const bounds = { x: 10, y: 20, width: 120, height: 80 };
 

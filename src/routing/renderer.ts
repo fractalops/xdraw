@@ -1,4 +1,4 @@
-import { card, connect } from "../components.ts";
+import { card, connect } from "../excalidraw/components.ts";
 import { anchor, box } from "../geometry.ts";
 import { inferredSides, routeConnection, splitEndpoint } from "./router.ts";
 import type {
@@ -9,7 +9,7 @@ import type {
 } from "../foundation-contracts.ts";
 import type { ConnectionStatement, NoteStatement } from "../semantic-contracts.ts";
 import type { SceneGraph } from "../layout-contracts.ts";
-import type { Drawing } from "../document.ts";
+import type { Drawing } from "../excalidraw/document.ts";
 import type { Arrowhead, DrawingElement, ElementBinding } from "../render-contracts.ts";
 import type { CardinalSide } from "./router.ts";
 

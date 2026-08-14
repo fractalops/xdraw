@@ -4,7 +4,7 @@ import {
   encodeAssetBase64,
   inspectSvgDimensions,
 } from "../../io/assets.ts";
-import { image, rectangle } from "../../elements.ts";
+import { image, rectangle } from "../../excalidraw/elements.ts";
 import {
   FORMULA_RENDER_TIMEOUT_MS,
   FormulaRenderInfrastructureError,

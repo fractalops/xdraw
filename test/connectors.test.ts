@@ -4,7 +4,7 @@ import test from "node:test";
 import { compile } from "../src/pipeline.ts";
 import { parseSource as parse } from "../src/source-language.ts";
 import { measureRouteQuality } from "../src/routing/quality.ts";
-import { Drawing } from "../src/document.ts";
+import { Drawing } from "../src/excalidraw/document.ts";
 import { renderAnnotation, renderConnection } from "../src/routing/renderer.ts";
 import { synchronizeEndpointLabels } from "../src/routing/labels.ts";
 import { routeConnection } from "../src/routing/router.ts";

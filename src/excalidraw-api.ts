@@ -1,8 +1,8 @@
 import { generateNKeysBetween } from "fractional-indexing";
 
 import { digestEmbeddedAssetFile, mergeEmbeddedAssetFiles } from "./io/assets.ts";
-import { tone } from "./components.ts";
-import type { ToneName } from "./components.ts";
+import { tone } from "./excalidraw/components.ts";
+import type { ToneName } from "./excalidraw/components.ts";
 import { nonceFor } from "./identity.ts";
 import type { EmbeddedAssetFiles, Point } from "./foundation-contracts.ts";
 import type { DrawingAppState, DrawingElement, DrawingJson } from "./render-contracts.ts";

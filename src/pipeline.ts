@@ -4,7 +4,7 @@ import { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "./se
 import { expandDocument } from "./expander.ts";
 import { prepareDocumentSyntaxHighlighting } from "./text/syntax-highlighter.ts";
 import { documentHasFormulas, prepareDocumentFormulas } from "./nodes/math/formula.ts";
-import type { Drawing } from "./document.ts";
+import type { Drawing } from "./excalidraw/document.ts";
 import type { DiagramDocument, SemanticDocument } from "./semantic-contracts.ts";
 
 type CompileInput = DiagramDocument | SemanticDocument;

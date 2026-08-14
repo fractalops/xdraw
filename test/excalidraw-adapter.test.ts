@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { tone } from "../src/components.ts";
+import { tone } from "../src/excalidraw/components.ts";
 import { compile } from "../src/pipeline.ts";
-import { Drawing } from "../src/document.ts";
-import { image } from "../src/elements.ts";
+import { Drawing } from "../src/excalidraw/document.ts";
+import { image } from "../src/excalidraw/elements.ts";
 import {
   renderableFreedraw,
   renderFreedraw,
   renderImage,
   renderSceneVisuals,
-} from "../src/excalidraw-adapter.ts";
+} from "../src/excalidraw/adapter.ts";
 import { parseSource } from "../src/source-language.ts";
 
 const embeddedFile = {

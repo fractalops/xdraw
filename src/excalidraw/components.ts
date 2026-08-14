@@ -1,15 +1,15 @@
 import { arrow, rectangle, text } from "./elements.ts";
-import { anchor, inset } from "./geometry.ts";
-import { endpointLabelBounds } from "./routing/labels.ts";
+import { anchor, inset } from "../geometry.ts";
+import { endpointLabelBounds } from "../routing/labels.ts";
 import {
   DEFAULT_CONNECTOR_LABEL_SIZE,
   fitTextSize,
   measureConnectorLabelWidth,
   measureTextWidth,
   wrapTextToWidth,
-} from "./text/metrics.ts";
-import { ROUTING_CLEARANCE } from "./routing/clearances.ts";
-import type { Bounds, Point } from "./foundation-contracts.ts";
+} from "../text/metrics.ts";
+import { ROUTING_CLEARANCE } from "../routing/clearances.ts";
+import type { Bounds, Point } from "../foundation-contracts.ts";
 import type {
   Arrowhead,
   ElementBinding,
@@ -23,10 +23,10 @@ import type {
   TextElement,
   TextElementOptions,
   VerticalAlign,
-} from "./render-contracts.ts";
-import type { FontFamily } from "./text/metrics.ts";
+} from "../render-contracts.ts";
+import type { FontFamily } from "../text/metrics.ts";
 
-export { fitTextSize } from "./text/metrics.ts";
+export { fitTextSize } from "../text/metrics.ts";
 
 export interface ToneColors {
   stroke: string;

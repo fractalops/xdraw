@@ -1,16 +1,16 @@
-import { Drawing } from "./document.ts";
+import { Drawing } from "./excalidraw/document.ts";
 import { mergeEmbeddedAssetFiles } from "./io/assets.ts";
 import { BUILTIN_LAYOUT } from "./layout/builtin.ts";
 import { LAYERED_LAYOUT } from "./layout/layered.ts";
-import { heading } from "./components.ts";
-import { text } from "./elements.ts";
+import { heading } from "./excalidraw/components.ts";
+import { text } from "./excalidraw/elements.ts";
 import {
   renderableFreedraw,
   renderFreedraw,
   renderFreeText,
   renderImage,
   renderSceneVisuals,
-} from "./excalidraw-adapter.ts";
+} from "./excalidraw/adapter.ts";
 import { applyGeometryStatements } from "./geometry-pass.ts";
 import { renderAnnotation, renderConnection } from "./routing/renderer.ts";
 import { splitEndpoint } from "./routing/router.ts";

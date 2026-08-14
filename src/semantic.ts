@@ -11,7 +11,7 @@ import {
   MAX_DOCUMENT_FREEDRAW_POINTS,
   MAX_FREEDRAW_COORDINATE,
   MAX_FREEDRAW_POINTS,
-} from "./freedraw-policy.ts";
+} from "./excalidraw/freedraw-policy.ts";
 import { validateTableNode } from "./nodes/table.ts";
 import type {
   ConnectionStatement,

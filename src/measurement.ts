@@ -1,4 +1,4 @@
-import { measureCard } from "./components.ts";
+import { measureCard } from "./excalidraw/components.ts";
 import {
   DEFAULT_CONNECTOR_LABEL_SIZE,
   measureConnectorLabelWidth,

@@ -1,5 +1,5 @@
-import { boundText } from "../components.ts";
-import { rectangle } from "../elements.ts";
+import { boundText } from "../excalidraw/components.ts";
+import { rectangle } from "../excalidraw/elements.ts";
 import { box } from "../geometry.ts";
 import { measureTextWidth, wrapTextToWidth } from "../text/metrics.ts";
 import type { Bounds } from "../foundation-contracts.ts";

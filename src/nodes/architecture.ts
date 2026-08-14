@@ -16,9 +16,9 @@ import type {
 import type { FontFamily } from "../text/metrics.ts";
 import type { ArchitectureNodePlan } from "../rich-node-contracts.ts";
 
-import { fitTextSize, measureCard, tone } from "../components.ts";
-import type { ToneName } from "../components.ts";
-import { arrow, ellipse, frame, rectangle, text } from "../elements.ts";
+import { fitTextSize, measureCard, tone } from "../excalidraw/components.ts";
+import type { ToneName } from "../excalidraw/components.ts";
+import { arrow, ellipse, frame, rectangle, text } from "../excalidraw/elements.ts";
 import { wrapTextToWidth } from "../text/metrics.ts";
 
 const ARCHITECTURE_KINDS = new Set([

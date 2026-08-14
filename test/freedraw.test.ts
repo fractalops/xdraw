@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { compile, parse } from "../src/index.ts";
-import { MAX_FREEDRAW_POINTS } from "../src/freedraw-policy.ts";
+import { MAX_FREEDRAW_POINTS } from "../src/excalidraw/freedraw-policy.ts";
 
 function drawing(source) {
   return compile(parse(source)).toJSON();
