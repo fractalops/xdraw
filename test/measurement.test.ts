@@ -5,8 +5,8 @@ import {
   calculateArrangedRows,
   calculateRowPlan,
   calculateSlotWidth,
-} from "../src/measurement.ts";
-import { compile } from "../src/pipeline.ts";
+} from "../src/compile/measurement.ts";
+import { compile } from "../src/compile/pipeline.ts";
 import { buildSemanticIR } from "../src/language/semantic.ts";
 import { parseSource } from "../src/language/parser.ts";
 

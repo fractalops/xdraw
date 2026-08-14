@@ -1,23 +1,23 @@
-import { measureCard } from "./excalidraw/components.ts";
+import { measureCard } from "../excalidraw/components.ts";
 import {
   DEFAULT_CONNECTOR_LABEL_SIZE,
   measureConnectorLabelWidth,
   wrapTextToWidth,
-} from "./text/metrics.ts";
-import { layoutGap } from "./routing/clearances.ts";
-import { codeBlockRequiredWidth, measureCodeBlock } from "./text/code-block.ts";
-import { arrangedItems, childSections } from "./layout/sections.ts";
+} from "../text/metrics.ts";
+import { layoutGap } from "../routing/clearances.ts";
+import { codeBlockRequiredWidth, measureCodeBlock } from "../text/code-block.ts";
+import { arrangedItems, childSections } from "../layout/sections.ts";
 import {
   planRichNode,
   registerRichNodePlanner,
   richNodeMinimumWidth,
-} from "./nodes/rich-nodes.ts";
+} from "../nodes/rich-nodes.ts";
 import type {
   ArrangedStatement,
   Measurer,
   NodeMeasurementTarget,
   StyleResolver,
-} from "./layout-contracts.ts";
+} from "../layout-contracts.ts";
 import type {
   CodeStatement,
   ConnectionStatement,
@@ -28,10 +28,10 @@ import type {
   RenderableCodeStatement,
   SemanticStatement,
   TreeStatement,
-} from "./semantic-contracts.ts";
-import type { DiagnosticCollector } from "./foundation-contracts.ts";
-import type { RichNodePlan } from "./rich-node-contracts.ts";
-import type { FormulaPreparation } from "./nodes/math/formula.ts";
+} from "../semantic-contracts.ts";
+import type { DiagnosticCollector } from "../foundation-contracts.ts";
+import type { RichNodePlan } from "../rich-node-contracts.ts";
+import type { FormulaPreparation } from "../nodes/math/formula.ts";
 
 interface ArrangedRow {
   items: ArrangedStatement[];

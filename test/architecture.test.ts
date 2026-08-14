@@ -3,8 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { BUILTIN_LAYOUT } from "../src/layout/builtin.ts";
-import { createMeasurer } from "../src/measurement.ts";
-import { createStyleResolver } from "../src/styles.ts";
+import { createMeasurer } from "../src/compile/measurement.ts";
+import { createStyleResolver } from "../src/compile/styles.ts";
 import { parseSource as parse } from "../src/language/parser.ts";
 import {
   assertLayoutCapabilities,
@@ -12,7 +12,7 @@ import {
   createLayoutAdapter,
   createSceneGraph,
   layoutWithAdapter,
-} from "../src/scene.ts";
+} from "../src/compile/scene.ts";
 import { buildSemanticIR } from "../src/language/semantic.ts";
 
 test("built-in layout capabilities are enforced", () => {
@@ -80,8 +80,8 @@ test("layout adapters may return routes only when they declare ownership", () =>
 });
 
 test("compiler rendering delegates built-in section placement", async () => {
-  const facade = await readFile(new URL("../src/pipeline.ts", import.meta.url), "utf8");
-  const renderer = await readFile(new URL("../src/render.ts", import.meta.url), "utf8");
+  const facade = await readFile(new URL("../src/compile/pipeline.ts", import.meta.url), "utf8");
+  const renderer = await readFile(new URL("../src/compile/render.ts", import.meta.url), "utf8");
   assert.doesNotMatch(facade, /layoutWithAdapter|routeConnection|inferredSides|ARROWHEADS/);
   assert.doesNotMatch(renderer, /function (?:compile|layout)(?:Container|Tree|Sequence)/);
   assert.doesNotMatch(renderer, /routeConnection|inferredSides|ARROWHEADS/);

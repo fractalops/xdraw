@@ -5,7 +5,7 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
 import "./viewer.css";
 
-import { compileAsync } from "../src/pipeline.ts";
+import { compileAsync } from "../src/compile/pipeline.ts";
 import { synchronizeEndpointLabels } from "../src/routing/labels.ts";
 import { resolveAssets } from "../src/io/assets.ts";
 import { parseSource } from "../src/language/parser.ts";

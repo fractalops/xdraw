@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile } from "../src/pipeline.ts";
+import { compile } from "../src/compile/pipeline.ts";
 import { layoutBuiltInDocument } from "../src/layout/builtin.ts";
-import { createMeasurer } from "../src/measurement.ts";
-import { createSceneGraph } from "../src/scene.ts";
+import { createMeasurer } from "../src/compile/measurement.ts";
+import { createSceneGraph } from "../src/compile/scene.ts";
 import { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "../src/language/semantic.ts";
 import { parseSource } from "../src/language/parser.ts";
 import { measureTextWidth } from "../src/text/metrics.ts";

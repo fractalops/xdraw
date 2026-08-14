@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile, compileAsync } from "../src/pipeline.ts";
+import { compile, compileAsync } from "../src/compile/pipeline.ts";
 import { codeBlockRequiredWidth } from "../src/text/code-block.ts";
 import { FONT } from "../src/excalidraw/elements.ts";
 import { renderSceneSvg } from "../src/io/local-renderer.ts";

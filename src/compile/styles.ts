@@ -1,13 +1,13 @@
-import { tone } from "./excalidraw/components.ts";
-import type { ToneName } from "./excalidraw/components.ts";
-import { FONT } from "./excalidraw/elements.ts";
+import { tone } from "../excalidraw/components.ts";
+import type { ToneName } from "../excalidraw/components.ts";
+import { FONT } from "../excalidraw/elements.ts";
 import type {
   FreedrawStatement,
   SemanticDocument,
   StyleStatement,
   TextStyleStatement,
   ThemeStatement,
-} from "./semantic-contracts.ts";
+} from "../semantic-contracts.ts";
 import type {
   NodeStyleTarget,
   ResolvedFreedrawStyle,
@@ -15,8 +15,8 @@ import type {
   ResolvedTextStyle,
   StyleProperties,
   StyleResolver,
-} from "./layout-contracts.ts";
-import type { FontFamily } from "./text/metrics.ts";
+} from "../layout-contracts.ts";
+import type { FontFamily } from "../text/metrics.ts";
 
 const PROPERTY_NAMES: Readonly<Record<string, keyof StyleProperties>> = Object.freeze({
   stroke: "strokeColor",

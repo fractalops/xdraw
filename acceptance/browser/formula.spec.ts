@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { expect, test } from "@playwright/test";
-import { compileAsync } from "../../src/pipeline.ts";
+import { compileAsync } from "../../src/compile/pipeline.ts";
 import { parseSource } from "../../src/language/parser.ts";
 import type { DrawingJson } from "../../src/render-contracts.ts";
 import { downloadDrawing, openDiagram, paintedPixels } from "./helpers";

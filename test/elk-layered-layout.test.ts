@@ -5,7 +5,7 @@ import { performance } from "node:perf_hooks";
 import test from "node:test";
 import { promisify } from "node:util";
 
-import { compile, compileAsync } from "../src/pipeline.ts";
+import { compile, compileAsync } from "../src/compile/pipeline.ts";
 import { prepareLayeredLayout } from "../src/layout/elk/prepare.ts";
 import { runElkLayout } from "../src/layout/elk/worker-transport.ts";
 import { parseSource } from "../src/language/parser.ts";
@@ -162,7 +162,7 @@ test("layered output is deterministic across compiler processes", async () => {
     c -> b
   }`;
   const script = `
-    import { compileAsync } from "./src/pipeline.ts";
+    import { compileAsync } from "./src/compile/pipeline.ts";
     import { parseSource } from "./src/language/parser.ts";
     const drawing = await compileAsync(parseSource(${JSON.stringify(source)}));
     process.stdout.write(JSON.stringify(drawing.toJSON()));

@@ -1,7 +1,7 @@
 import { layoutGap, ROUTING_CLEARANCE } from "../../routing/clearances.ts";
 import { splitEndpoint } from "../../routing/endpoints.ts";
-import { createMeasurer } from "../../measurement.ts";
-import { createStyleResolver } from "../../styles.ts";
+import { createMeasurer } from "../../compile/measurement.ts";
+import { createStyleResolver } from "../../compile/styles.ts";
 import type { Bounds } from "../../foundation-contracts.ts";
 import type {
   ConnectionStatement,

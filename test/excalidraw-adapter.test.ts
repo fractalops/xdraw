@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { tone } from "../src/excalidraw/components.ts";
-import { compile } from "../src/pipeline.ts";
+import { compile } from "../src/compile/pipeline.ts";
 import { Drawing } from "../src/excalidraw/document.ts";
 import { image } from "../src/excalidraw/elements.ts";
 import {

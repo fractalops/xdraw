@@ -1,13 +1,13 @@
 import { anchor, box, row } from "../geometry.ts";
 import { splitEndpoint } from "../routing/router.ts";
-import { BUILTIN_LAYOUT_CAPABILITIES, createLayoutAdapter } from "../scene.ts";
+import { BUILTIN_LAYOUT_CAPABILITIES, createLayoutAdapter } from "../compile/scene.ts";
 import {
   calculateArrangedRows,
   calculateRowPlan,
   calculateSlotWidth,
   renderableCode,
   resolveContainerGap,
-} from "../measurement.ts";
+} from "../compile/measurement.ts";
 import { wrapTextToWidth } from "../text/metrics.ts";
 import { codeBlockRequiredWidth } from "../text/code-block.ts";
 import { arrangedItems, childSections } from "./sections.ts";

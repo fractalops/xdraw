@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile } from "../src/pipeline.ts";
-import { createMeasurer } from "../src/measurement.ts";
+import { compile } from "../src/compile/pipeline.ts";
+import { createMeasurer } from "../src/compile/measurement.ts";
 import { buildSemanticIR } from "../src/language/semantic.ts";
 import { parseSource } from "../src/language/parser.ts";
-import { createStyleResolver } from "../src/styles.ts";
+import { createStyleResolver } from "../src/compile/styles.ts";
 
 function semantic(source) {
   return buildSemanticIR(parseSource(source));

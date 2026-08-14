@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createMeasurer } from "../src/measurement.ts";
+import { createMeasurer } from "../src/compile/measurement.ts";
 import {
   planMeasuredRichNode,
   renderRichNode,
   richNodeFamilyName,
   richNodePlanFor,
 } from "../src/nodes/rich-nodes.ts";
-import { createSceneGraph } from "../src/scene.ts";
+import { createSceneGraph } from "../src/compile/scene.ts";
 import { buildSemanticIR } from "../src/language/semantic.ts";
 import { parseSource } from "../src/language/parser.ts";
-import { createStyleResolver } from "../src/styles.ts";
+import { createStyleResolver } from "../src/compile/styles.ts";
 import { planTable, renderTable } from "../src/nodes/table.ts";
 import type { ArchitectureNodePlan, TableNodePlan } from "../src/rich-node-contracts.ts";
 import type { NodeStatement } from "../src/semantic-contracts.ts";

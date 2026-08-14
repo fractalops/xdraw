@@ -5,7 +5,7 @@ import {
   isArchitectureBoundaryKind,
   renderArchitectureNode,
 } from "../src/nodes/architecture.ts";
-import { compile } from "../src/pipeline.ts";
+import { compile } from "../src/compile/pipeline.ts";
 import { parseSource } from "../src/language/parser.ts";
 
 const SOURCE = `

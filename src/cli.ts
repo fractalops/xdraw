@@ -3,7 +3,7 @@ import { basename, dirname, extname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
 import { resolveAssets } from "./io/assets.ts";
-import { compileAsync } from "./pipeline.ts";
+import { compileAsync } from "./compile/pipeline.ts";
 import { ExcalidrawApiClient } from "./excalidraw-api.ts";
 import { RootedFileSystem } from "./io/filesystem.ts";
 import { renderScenePng, renderSceneSvg } from "./io/local-renderer.ts";

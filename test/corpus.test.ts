@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { compileAsync } from "../src/pipeline.ts";
+import { compileAsync } from "../src/compile/pipeline.ts";
 import { resolveAssets } from "../src/io/assets.ts";
 import { RootedFileSystem } from "../src/io/filesystem.ts";
 import { parseSource } from "../src/language/parser.ts";

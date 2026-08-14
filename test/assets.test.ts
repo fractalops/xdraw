@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { mergeEmbeddedAssetFiles, resolveAssets } from "../src/io/assets.ts";
-import { compile } from "../src/pipeline.ts";
+import { compile } from "../src/compile/pipeline.ts";
 import { MemoryFileSystem } from "../src/io/filesystem.ts";
 import { parseSource as parse } from "../src/language/parser.ts";
 import { buildSemanticIR } from "../src/language/semantic.ts";

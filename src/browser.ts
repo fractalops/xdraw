@@ -20,10 +20,10 @@ export type {
   ToneColors,
   ToneName,
 } from "./excalidraw/components.ts";
-export { compile, compileAsync } from "./pipeline.ts";
-export type { CompileOptions } from "./pipeline.ts";
-export { createMeasurer } from "./measurement.ts";
-export { createStyleResolver } from "./styles.ts";
+export { compile, compileAsync } from "./compile/pipeline.ts";
+export type { CompileOptions } from "./compile/pipeline.ts";
+export { createMeasurer } from "./compile/measurement.ts";
+export { createStyleResolver } from "./compile/styles.ts";
 export { LAYERED_LAYOUT, LAYERED_LAYOUT_CAPABILITIES } from "./layout/layered.ts";
 export { parseSource as parse, parseSource, parseSyntax } from "./language/parser.ts";
 export { formatSceneResource, parseSceneDocument } from "./io/scene-document.ts";
@@ -84,7 +84,7 @@ export {
   createLayoutAdapter,
   createSceneGraph,
   layoutWithAdapter,
-} from "./scene.ts";
+} from "./compile/scene.ts";
 export type {
   AdapterRoute,
   AssetLimits,

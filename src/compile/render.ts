@@ -1,27 +1,27 @@
-import { Drawing } from "./excalidraw/document.ts";
-import { mergeEmbeddedAssetFiles } from "./io/assets.ts";
-import { BUILTIN_LAYOUT } from "./layout/builtin.ts";
-import { LAYERED_LAYOUT } from "./layout/layered.ts";
-import { heading } from "./excalidraw/components.ts";
-import { text } from "./excalidraw/elements.ts";
+import { Drawing } from "../excalidraw/document.ts";
+import { mergeEmbeddedAssetFiles } from "../io/assets.ts";
+import { BUILTIN_LAYOUT } from "../layout/builtin.ts";
+import { LAYERED_LAYOUT } from "../layout/layered.ts";
+import { heading } from "../excalidraw/components.ts";
+import { text } from "../excalidraw/elements.ts";
 import {
   renderableFreedraw,
   renderFreedraw,
   renderFreeText,
   renderImage,
   renderSceneVisuals,
-} from "./excalidraw/adapter.ts";
+} from "../excalidraw/adapter.ts";
 import { applyGeometryStatements } from "./geometry-pass.ts";
-import { renderAnnotation, renderConnection } from "./routing/renderer.ts";
-import { splitEndpoint } from "./routing/router.ts";
+import { renderAnnotation, renderConnection } from "../routing/renderer.ts";
+import { splitEndpoint } from "../routing/router.ts";
 import { createSceneGraph, layoutWithAdapter } from "./scene.ts";
 import { createMeasurer } from "./measurement.ts";
 import { createStyleResolver } from "./styles.ts";
-import { createDiagnosticCollector } from "./io/diagnostics.ts";
-import { measureTextWidth } from "./text/metrics.ts";
-import { layoutGap } from "./routing/clearances.ts";
-import { SECTION_TYPES } from "./layout/sections.ts";
-import { validateArchitectureUsage } from "./nodes/architecture.ts";
+import { createDiagnosticCollector } from "../io/diagnostics.ts";
+import { measureTextWidth } from "../text/metrics.ts";
+import { layoutGap } from "../routing/clearances.ts";
+import { SECTION_TYPES } from "../layout/sections.ts";
+import { validateArchitectureUsage } from "../nodes/architecture.ts";
 import type {
   AssetUseStatement,
   FreedrawStatement,
@@ -29,15 +29,15 @@ import type {
   SemanticDocument,
   SemanticStatement,
   TextStatement,
-} from "./semantic-contracts.ts";
-import type { Bounds } from "./foundation-contracts.ts";
-import type { SceneGraph } from "./layout-contracts.ts";
+} from "../semantic-contracts.ts";
+import type { Bounds } from "../foundation-contracts.ts";
+import type { SceneGraph } from "../layout-contracts.ts";
 import type {
   DrawingElement,
   TextElement,
-} from "./render-contracts.ts";
-import type { FontFamily } from "./text/metrics.ts";
-import type { FormulaPreparation } from "./nodes/math/formula.ts";
+} from "../render-contracts.ts";
+import type { FontFamily } from "../text/metrics.ts";
+import type { FormulaPreparation } from "../nodes/math/formula.ts";
 
 interface RenderOptions {
   syntaxHighlighting?: boolean;

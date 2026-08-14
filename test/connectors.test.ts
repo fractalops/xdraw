@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile } from "../src/pipeline.ts";
+import { compile } from "../src/compile/pipeline.ts";
 import { parseSource as parse } from "../src/language/parser.ts";
 import { measureRouteQuality } from "../src/routing/quality.ts";
 import { Drawing } from "../src/excalidraw/document.ts";
 import { renderAnnotation, renderConnection } from "../src/routing/renderer.ts";
 import { synchronizeEndpointLabels } from "../src/routing/labels.ts";
 import { routeConnection } from "../src/routing/router.ts";
-import { createMeasurer } from "../src/measurement.ts";
+import { createMeasurer } from "../src/compile/measurement.ts";
 
 test("explicit waypoints and endpoint labels compile deterministically", () => {
   const source = `use "xdraw/architecture" as arch

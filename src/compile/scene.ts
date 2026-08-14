@@ -1,5 +1,5 @@
-import { splitEndpoint } from "./routing/endpoints.ts";
-import { attachRichNodePlan, planMeasuredRichNode } from "./nodes/rich-nodes.ts";
+import { splitEndpoint } from "../routing/endpoints.ts";
+import { attachRichNodePlan, planMeasuredRichNode } from "../nodes/rich-nodes.ts";
 import type {
   AdapterRoute,
   LayoutAdapter,
@@ -12,9 +12,9 @@ import type {
   LayoutResult,
   SceneGraph,
   SceneGraphOptions,
-} from "./layout-contracts.ts";
-import type { ConnectionStatement, SemanticDocument, SemanticStatement } from "./semantic-contracts.ts";
-import type { Point } from "./foundation-contracts.ts";
+} from "../layout-contracts.ts";
+import type { ConnectionStatement, SemanticDocument, SemanticStatement } from "../semantic-contracts.ts";
+import type { Point } from "../foundation-contracts.ts";
 
 export const BUILTIN_LAYOUT_CAPABILITIES: LayoutCapabilities = Object.freeze({
   nestedNodes: true,
