@@ -1,0 +1,12 @@
+use "xdraw/math" as math
+
+diagram "Formula rendering" {
+  source: rectangle "TeX source"
+  formula: math.formula """
+    \sum_{k=1}^{n} k = \frac{n(n+1)}{2}
+  """
+  scene: rectangle "Editable scene"
+
+  source -> formula "render"
+  formula -> scene "embed SVG"
+}

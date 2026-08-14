@@ -74,12 +74,16 @@ function layoutLayered({ context, sections, options }: Readonly<LayoutRequest>):
     if (state.bounds.has(id)) throw new Error(`duplicate semantic id: ${id}`);
     state.place(id, bounds);
   };
+  const unsupported = sections.filter((statement) => !isNode(statement));
+  if (unsupported.length) {
+    throw new Error(`layered layout cannot place top-level ${unsupported[0].type} sections`);
+  }
   const nodes = sections.filter(isNode);
   const connections = state.document.statements.filter(isConnection);
   const ranks = ranksFor(nodes, connections);
   const layers = Map.groupBy(nodes, (node) => ranks.get(node.id) ?? 0);
   const nodeWidth = 240;
-  const minimumGap = ROUTING_CLEARANCE.endpoint * 2;
+  const minimumGap = ROUTING_CLEARANCE.endpoint * 2 + ROUTING_CLEARANCE.channel * 2;
   const requestedColumnGap = options.columnGap ?? 100;
   const requestedRowGap = options.gap ?? 36;
   const columnGap = Math.max(minimumGap, requestedColumnGap);
@@ -91,16 +95,34 @@ function layoutLayered({ context, sections, options }: Readonly<LayoutRequest>):
     );
   }
   let bottom = options.startY;
-  for (const [rank, layer] of [...layers].sort(([left], [right]) => left - right)) {
-    let y = options.startY;
-    for (const node of layer) {
-      const height = state.measurer.measureNode(node, nodeWidth);
-      const bounds = box((options.x ?? 0) + rank * (nodeWidth + columnGap), y, nodeWidth, height);
+  if (context.preparedLayeredBounds) {
+    const prepared = context.preparedLayeredBounds;
+    for (const node of nodes) {
+      const placement = prepared.get(node.id);
+      if (!placement) throw new Error(`ELK placement omitted node: ${node.id}`);
+      const bounds = box(
+        (options.x ?? 0) + placement.x,
+        options.startY + placement.y,
+        placement.width,
+        placement.height,
+      );
       registerBounds(node.id, bounds);
       state.nodeIds.add(node.id);
       state.addVisual({ type: "node", id: node.id, source: node.semanticId, node, bounds });
-      y += height + rowGap;
-      bottom = Math.max(bottom, y);
+      bottom = Math.max(bottom, bounds.y + bounds.height + rowGap);
+    }
+  } else {
+    for (const [rank, layer] of [...layers].sort(([leftRank], [rightRank]) => leftRank - rightRank)) {
+      let y = options.startY;
+      for (const node of layer) {
+        const height = state.measurer.measureNode(node, nodeWidth);
+        const bounds = box((options.x ?? 0) + rank * (nodeWidth + columnGap), y, nodeWidth, height);
+        registerBounds(node.id, bounds);
+        state.nodeIds.add(node.id);
+        state.addVisual({ type: "node", id: node.id, source: node.semanticId, node, bounds });
+        y += height + rowGap;
+        bottom = Math.max(bottom, y);
+      }
     }
   }
   const routes: AdapterRoute[] = [];
@@ -123,7 +145,7 @@ function layoutLayered({ context, sections, options }: Readonly<LayoutRequest>):
       const fromRank = ranks.get(from.id) ?? 0;
       const toRank = ranks.get(to.id) ?? 0;
       let points: Route;
-      if (Math.abs(toRank - fromRank) > 1) {
+      if (context.preparedLayeredBounds || Math.abs(toRank - fromRank) > 1) {
         points = routeConnection(
           routedScene,
           from.id,
@@ -132,6 +154,7 @@ function layoutLayered({ context, sections, options }: Readonly<LayoutRequest>):
           toBounds,
           startSide,
           endSide,
+          { avoidEndpointInteriors: true },
         );
       } else {
         const start = anchor[startSide](fromBounds);

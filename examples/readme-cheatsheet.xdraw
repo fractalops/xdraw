@@ -1,5 +1,3 @@
-use "xdraw/cards" as cards
-use "xdraw/containers" as containers
 use "xdraw/palette" as palette
 
 diagram "XDraw quick reference" {
@@ -8,7 +6,7 @@ diagram "XDraw quick reference" {
   default: theme { font-family normal; title-size 22; body-size 19 }
   arrange grid { columns 2; gap 28; width 2000 }
 
-  anatomy: containers.section "1. Declare" {
+  anatomy: section "1. Declare" {
     arrange column { gap 18 }
 
     declaration: code """
@@ -25,21 +23,21 @@ diagram "XDraw quick reference" {
 
     parts: group {
       arrange row { gap 18 }
-      id: cards.card "request" { body "Stable ID"; style palette.neutral }
-      constructor: cards.card "rectangle" { body "Primitive"; style palette.accent }
-      label: cards.card "Request" { body "Visible label"; style palette.info }
-      block: cards.card "{ ... }" { body "Details"; style palette.success }
+      id: rectangle "request" { body "Stable ID"; style palette.neutral }
+      constructor: rectangle "rectangle" { body "Primitive"; style palette.accent }
+      label: rectangle "Request" { body "Visible label"; style palette.info }
+      block: rectangle "{ ... }" { body "Details"; style palette.success }
     }
   }
 
-  vocabulary: containers.section "2. Choose primitives" {
+  vocabulary: section "2. Choose primitives" {
     arrange column { gap 18 }
 
     primitives: code """
       Shapes       rectangle  ellipse  diamond  freedraw
-      Containers   frame      group
+      Containers   frame      section  group
       Content      text       code     asset    image
-      Reuse        component  style    theme
+      Reuse        template   style    theme
     """ {
       title "Core constructors"
       language xdraw
@@ -60,7 +58,7 @@ diagram "XDraw quick reference" {
     }
   }
 
-  compose: containers.section "3. Compose" {
+  compose: section "3. Compose" {
     arrange column { gap 18 }
 
     composition: code """
@@ -81,13 +79,13 @@ diagram "XDraw quick reference" {
 
     guidance: group {
       arrange row { gap 18 }
-      nest: cards.card "Nest" { body "Braces create hierarchy"; style palette.neutral }
-      layout_card: cards.card "Arrange" { body "Layouts place siblings"; style palette.accent }
-      connect: cards.card "Connect" { body "Arrows remain editable"; style palette.info }
+      nest: rectangle "Nest" { body "Braces create hierarchy"; style palette.neutral }
+      layout_card: rectangle "Arrange" { body "Layouts place siblings"; style palette.accent }
+      connect: rectangle "Connect" { body "Arrows remain editable"; style palette.info }
     }
   }
 
-  example: containers.section "4. Build an editable scene" {
+  example: section "4. Build an editable scene" {
     arrange column { gap 18 }
 
     source: code """

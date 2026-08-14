@@ -30,6 +30,7 @@ function Viewer() {
         if (!active) return;
         const compiled = (await compileAsync(document)).toJSON();
         if (!active) return;
+        (window as typeof window & { __xdrawCompiled?: unknown }).__xdrawCompiled = structuredClone(compiled);
         setScene(restore({
           elements: compiled.elements as any,
           appState: compiled.appState as any,

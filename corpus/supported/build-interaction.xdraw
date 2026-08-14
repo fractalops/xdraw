@@ -1,7 +1,7 @@
 use "xdraw/sequence" as seq
 
 diagram "Build interaction" {
-  checkout: seq.diagram {
+  checkout: seq.sequence {
     cli: seq.participant "CLI"
     compiler: seq.participant "Compiler"
     writer: seq.participant "Writer"

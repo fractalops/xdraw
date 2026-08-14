@@ -1,20 +1,19 @@
 use "xdraw/palette" as palette
 use "xdraw/process" as process
-use "xdraw/cards" as cards
 
 diagram "Document states" {
   state: process.lane "XDraw document" {
     arrange row { gap 120 }
 
-    source: cards.card "Parsed" {
+    source: rectangle "Parsed" {
       body "Syntax and source spans"
       style palette.info
     }
-    validated: cards.card "Validated" {
+    validated: rectangle "Validated" {
       body "References and properties checked"
       style palette.warning
     }
-    compiled: cards.card "Compiled" {
+    compiled: rectangle "Compiled" {
       body "Editable elements emitted"
       style palette.success
     }

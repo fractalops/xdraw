@@ -1,5 +1,6 @@
 import { generateNKeysBetween } from "fractional-indexing";
 
+import { digestEmbeddedAssetFile, mergeEmbeddedAssetFiles } from "./assets.ts";
 import { tone } from "./components.ts";
 import type { ToneName } from "./components.ts";
 import { nonceFor } from "./identity.ts";
@@ -350,7 +351,7 @@ function isEmbeddedFiles(value: unknown): value is EmbeddedAssetFiles {
   ));
 }
 
-function sceneContent(value: unknown): SceneContentResource {
+async function sceneContent(value: unknown): Promise<SceneContentResource> {
   if (
     !isRecord(value)
     || value.type !== "excalidraw"
@@ -363,13 +364,33 @@ function sceneContent(value: unknown): SceneContentResource {
   ) {
     throw new Error("Excalidraw API did not return valid scene content");
   }
+  const files = mergeEmbeddedAssetFiles([value.files]);
+  for (const element of value.elements) {
+    if (element.type === "image" && (typeof element.fileId !== "string" || !files[element.fileId])) {
+      throw new Error(`Excalidraw API returned image '${element.id}' without its embedded file`);
+    }
+    if (!isRecord(element) || !isRecord(element.customData) || !isRecord(element.customData.xdraw)) continue;
+    const metadata = element.customData.xdraw;
+    if (metadata.type !== "formula") continue;
+    if (element.type !== "image" || typeof element.fileId !== "string") {
+      throw new Error("Excalidraw API returned formula metadata on a non-image element");
+    }
+    const file = files[element.fileId];
+    if (!file || typeof metadata.digest !== "string") {
+      throw new Error("Excalidraw API returned incomplete formula asset metadata");
+    }
+    const digest = await digestEmbeddedAssetFile(file.dataURL);
+    if (digest !== metadata.digest || element.fileId !== digest.slice(0, 40)) {
+      throw new Error("Excalidraw API returned a formula asset with invalid integrity metadata");
+    }
+  }
   return {
     type: value.type,
     version: value.version,
     source: value.source,
     elements: value.elements,
     appState: value.appState,
-    files: value.files,
+    files,
   };
 }
 

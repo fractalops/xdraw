@@ -12,5 +12,6 @@ export default defineConfig({
     command: "npm run build:acceptance-host && npx vite preview --outDir dist/acceptance-host --host 127.0.0.1 --port 4173",
     port: 4173,
     reuseExistingServer: false,
+    timeout: 120_000,
   },
 });

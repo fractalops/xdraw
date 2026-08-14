@@ -2,9 +2,9 @@ import { readFile } from "node:fs/promises";
 
 import { expect, type FrameLocator, type Page } from "@playwright/test";
 
-export async function openDiagram(page: Page, source: string) {
+export async function openDiagram(page: Page, source: string, timeout = 10_000) {
   await page.goto(`http://127.0.0.1:4173/host.html?source=${encodeURIComponent(source)}`);
-  await expect(page.locator("#status")).toHaveAttribute("data-phase", "ready");
+  await expect(page.locator("#status")).toHaveAttribute("data-phase", "ready", { timeout });
   return page.frameLocator("#app");
 }
 

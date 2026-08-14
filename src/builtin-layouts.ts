@@ -16,7 +16,7 @@ import type {
   LayoutContext,
   LayoutOptions,
   NodeMeasurementTarget,
-  SectionStatement,
+  LayoutSectionStatement,
   SceneGraph,
   SceneVisualInput,
   StyleResolver,
@@ -559,7 +559,7 @@ function layoutSequence(
 
 export function layoutBuiltInSection(
   context: BuiltinLayoutContext,
-  node: SectionStatement,
+  node: LayoutSectionStatement,
   bounds: SectionBounds,
 ): number {
   const { x, y, width } = bounds;
@@ -572,7 +572,7 @@ export function layoutBuiltInSection(
   }
   if (node.type === "tree") return layoutTree(context, node, x, y, width);
   if (node.type === "sequence") return layoutSequence(context, node, x, y, width);
-  if (node.type === "lane" || node.type === "group" || node.type === "frame") {
+  if (["lane", "group", "frame", "section"].includes(node.type)) {
     return layoutContainer(context, node, x, y, width);
   }
   throw new Error("unsupported layout section");
@@ -580,7 +580,7 @@ export function layoutBuiltInSection(
 
 export function layoutBuiltInDocument(
   context: BuiltinLayoutContext,
-  sections: readonly SectionStatement[],
+  sections: readonly LayoutSectionStatement[],
   options: LayoutOptions,
 ): number {
   const { columnGap = 24, columns = 2, contentWidth, gap, kind, startY, x = 70 } = options;
@@ -610,11 +610,12 @@ export const BUILTIN_LAYOUT = createLayoutAdapter({
   name: "built-in",
   capabilities: BUILTIN_LAYOUT_CAPABILITIES,
   layoutDocument: ({ context, sections, options }) => {
-    const supported = sections.filter((section): section is SectionStatement => (
+    const supported = sections.filter((section): section is LayoutSectionStatement => (
       section.type === "code"
       || section.type === "frame"
       || section.type === "group"
       || section.type === "lane"
+      || section.type === "section"
       || section.type === "sequence"
       || section.type === "tree"
     ));

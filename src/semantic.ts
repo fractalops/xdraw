@@ -12,6 +12,7 @@ import {
   MAX_FREEDRAW_COORDINATE,
   MAX_FREEDRAW_POINTS,
 } from "./freedraw-policy.ts";
+import { validateTableNode } from "./table.ts";
 import type {
   ConnectionStatement,
   DecisionBranchStatement,
@@ -35,7 +36,7 @@ const PORTS = new Set([
 ]);
 
 const DEFINITIONS = new Set<SemanticStatement["type"]>([
-  "lane", "group", "frame", "tree", "branch", "leaf", "participant", "note", "callout", "node", "text", "layout-text", "code", "image", "icon", "freedraw",
+  "lane", "group", "frame", "section", "tree", "branch", "leaf", "participant", "note", "callout", "node", "text", "layout-text", "code", "image", "icon", "freedraw",
 ]);
 const SPACING = new Set(["tight", "normal", "airy"]);
 const ALIGNMENT_MODES = new Set(["left", "center-x", "right", "top", "center-y", "bottom"]);
@@ -43,7 +44,7 @@ const DISTRIBUTION_AXES = new Set(["x", "y"]);
 const CODE_GEOMETRY_OPERATIONS = new Set<GeometryStatement["type"]>(["alignment", "distribution", "offset", "snap"]);
 const FREEDRAW_GEOMETRY_OPERATIONS = new Set<GeometryStatement["type"]>(["alignment", "distribution", "offset", "rotation", "snap"]);
 
-type SemanticContext = "document" | "sequence" | "container" | "tree";
+type SemanticContext = "document" | "sequence" | "container" | "table" | "tree";
 
 interface ValidationReference {
   id?: string;
@@ -196,7 +197,9 @@ function collectStatements(
     visit(statement, context);
     const childContext: SemanticContext = statement.type === "sequence"
       ? "sequence"
-      : ["lane", "group", "frame"].includes(statement.type)
+      : statement.type === "node" && statement.kind === "table"
+        ? "table"
+      : ["lane", "group", "frame", "section"].includes(statement.type)
         ? "container"
         : statement.type === "tree" || statement.type === "branch"
           ? "tree"
@@ -229,6 +232,21 @@ export function validateSemanticDocument(document: SemanticValidationDocument): 
         `tree may contain only branches and leaves, not ${statement.type}`,
         statement,
       ));
+    }
+    if (context === "table" && statement.type !== "table-header" && statement.type !== "table-row") {
+      diagnostics.push(diagnostic(
+        "XD1250",
+        `table may contain only a header and rows, not ${statement.type}`,
+        statement,
+      ));
+    }
+    if ((statement.type === "table-header" || statement.type === "table-row") && context !== "table") {
+      diagnostics.push(diagnostic("XD1251", `${statement.type} must be declared inside a table`, statement));
+    }
+    if (statement.type === "node" && statement.kind === "table") {
+      diagnostics.push(...validateTableNode(statement).map((issue) => (
+        diagnostic(issue.code, issue.message, issue.node)
+      )));
     }
     if (statement.type === "sequence") {
       const participantIds = new Set(
@@ -389,7 +407,7 @@ export function validateSemanticDocument(document: SemanticValidationDocument): 
       diagnostics.push(diagnostic("XD1237", "body content must be text", statement));
     }
     if (statement.type === "note" && !statement.target && !statement.at && context !== "container") {
-      diagnostics.push(diagnostic("XD1212", "an unanchored note must be declared inside a lane, group, or frame", statement));
+      diagnostics.push(diagnostic("XD1212", "an unanchored note must be declared inside a lane, group, frame, or section", statement));
     }
     if (statement.type === "callout" && !statement.target && !statement.at) {
       diagnostics.push(diagnostic("XD1234", "a callout requires a target or explicit position", statement));
@@ -556,7 +574,7 @@ export function buildSemanticIR(ast: DiagramDocument): SemanticDocument {
     objects: { value: index.objects, enumerable: false },
     origins: { value: index.origins, enumerable: false },
     references: { value: index.references, enumerable: false },
-    assetFiles: { value: ast.assetFiles, enumerable: false },
+    assetFiles: { value: ast.assetFiles ?? {}, enumerable: false },
   });
   return ir;
 }

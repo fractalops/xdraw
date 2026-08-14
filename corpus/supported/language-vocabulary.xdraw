@@ -1,9 +1,7 @@
-use "xdraw/containers" as containers
 use "xdraw/palette" as palette
-use "xdraw/cards" as cards
 
 diagram "Language design" {
-  map: containers.section "XDraw" {
+  map: section "XDraw" {
     arrange tree {
       root root
       direction right
@@ -11,16 +9,16 @@ diagram "Language design" {
       sibling-gap 28
     }
 
-    root: cards.card "XDraw" { style palette.accent }
-    syntax: cards.card "Syntax"
-    layout: cards.card "Layout"
-    output: cards.card "Output"
-    ids: cards.card "Stable IDs"
-    strings: cards.card "Readable strings"
-    row: cards.card "Rows"
-    graph: cards.card "Graphs"
-    excalidraw: cards.card "Excalidraw"
-    svg: cards.card "SVG"
+    root: rectangle "XDraw" { style palette.accent }
+    syntax: rectangle "Syntax"
+    layout: rectangle "Layout"
+    output: rectangle "Output"
+    ids: rectangle "Stable IDs"
+    strings: rectangle "Readable strings"
+    row: rectangle "Rows"
+    graph: rectangle "Graphs"
+    excalidraw: rectangle "Excalidraw"
+    svg: rectangle "SVG"
 
     root -> syntax
     root -> layout

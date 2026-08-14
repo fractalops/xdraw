@@ -1,10 +1,8 @@
-use "xdraw/containers" as containers
-
 diagram "How XDraw resolves styles" {
   subtitle "Theme defaults, named styles and local properties form one precedence chain"
   base: theme { font-family normal }
   focus: style { stroke "#059669"; background "#ecfdf5"; text-color "#065f46"; title-size 21 }
-  examples: containers.section "Style layers" {
+  examples: section "Style layers" {
     source: rectangle "Theme default"
     target: ellipse "Named override" { style focus; link "https://example.com"; locked true }
     source -> target "higher precedence"

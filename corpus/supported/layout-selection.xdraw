@@ -1,20 +1,19 @@
 use "xdraw/palette" as palette
 use "xdraw/process" as process
-use "xdraw/cards" as cards
 
 diagram "Layout selection" {
   assess: process.lane "Requirements" {
     arrange row { gap 110 }
 
-    evidence: cards.card "Scene graph" { style palette.info }
-    decision: cards.card "Capability check" { style palette.warning }
+    evidence: rectangle "Scene graph" { style palette.info }
+    decision: rectangle "Capability check" { style palette.warning }
     evidence -> decision "inspect"
   }
 
   outcomes: process.lane "Adapter outcome" {
     arrange row { gap 70 }
 
-    hold: cards.card "Reject unsupported" { style palette.danger }
-    arranged_scene: cards.card "Arrange scene" { style palette.success }
+    hold: rectangle "Reject unsupported" { style palette.danger }
+    arranged_scene: rectangle "Arrange scene" { style palette.success }
   }
 }

@@ -1,4 +1,5 @@
 import { expandDocument } from "./expander.ts";
+import { SaxesParser } from "saxes";
 
 import type {
   AssetDeclaration,
@@ -23,13 +24,13 @@ const MIME_BY_EXTENSION: Readonly<Record<string, AssetMimeType>> = {
   ".svg": "image/svg+xml",
 };
 const SUPPORTED_MIME = new Set<AssetMimeType>(Object.values(MIME_BY_EXTENSION));
-const DEFAULT_LIMITS: Readonly<AssetLimits> = Object.freeze({
+export const DEFAULT_ASSET_LIMITS: Readonly<AssetLimits> = Object.freeze({
   fileBytes: 10 * 1024 * 1024,
   aggregateBytes: 25 * 1024 * 1024,
   dimension: 8192,
 });
 
-function base64(bytes: Uint8Array): string {
+export function encodeAssetBase64(bytes: Uint8Array): string {
   let binary = "";
   for (let index = 0; index < bytes.length; index += 0x8000) {
     binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
@@ -37,12 +38,16 @@ function base64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function decodeDataUrl(value: string): { mimeType: string; bytes: Uint8Array } {
+function decodeDataUrl(value: string, maxBytes = Number.POSITIVE_INFINITY): { mimeType: string; bytes: Uint8Array } {
   const match = value.match(/^data:([^;,]+)(;base64)?,(.*)$/s);
   if (!match) throw new Error("malformed asset data URL");
   const mimeType = match[1].toLowerCase();
   if (!match[2]) {
+    if (match[3].length > maxBytes * 3) throw new Error(`asset data exceeds the ${maxBytes}-byte file limit`);
     return { mimeType, bytes: new TextEncoder().encode(decodeURIComponent(match[3])) };
+  }
+  if (match[3].length > Math.ceil(maxBytes * 4 / 3) + 4) {
+    throw new Error(`asset data exceeds the ${maxBytes}-byte file limit`);
   }
   const binary = atob(match[3]);
   return {
@@ -101,35 +106,129 @@ function jpegDimensions(bytes: Uint8Array): Point | null {
   return null;
 }
 
-function svgDimensions(bytes: Uint8Array): Point | null {
+export function inspectSvgDimensions(bytes: Uint8Array): Point | null {
   const source = new TextDecoder().decode(bytes);
-  if (!/^\s*<svg\b/i.test(source)) return null;
-  const activeMarkup = /<!DOCTYPE\b|<\?(?:xml-stylesheet)\b|<(?:script|foreignObject|iframe|object|embed|style)\b/i;
-  const eventHandler = /\son[a-z][a-z0-9_-]*\s*=/i;
-  const externalReference = /\b(?:href|xlink:href|src)\s*=\s*["'](?!#)[^"']*["']/i;
-  const cssReference = /@import\b|url\s*\(/i;
-  if ([activeMarkup, eventHandler, externalReference, cssReference].some((pattern) => pattern.test(source))) {
+  const svgNamespace = "http://www.w3.org/2000/svg";
+  const xlinkNamespace = "http://www.w3.org/1999/xlink";
+  const allowedElements = new Set([
+    "circle", "clippath", "defs", "desc", "ellipse", "g", "line", "lineargradient",
+    "marker", "mask", "path", "pattern", "polygon", "polyline", "radialgradient", "rect",
+    "stop", "svg", "symbol", "text", "title", "tspan", "use",
+  ]);
+  const allowedAttributes = new Set([
+    "aria-label", "aria-labelledby", "class", "clip-path", "clip-rule", "cx", "cy", "d",
+    "dx", "dy", "fill", "fill-opacity", "fill-rule", "focusable", "font-family", "font-size",
+    "font-style", "font-weight", "fx", "fy", "gradienttransform", "gradientunits", "height", "id",
+    "marker-end", "marker-mid", "marker-start", "mask", "offset", "opacity", "pathlength", "points",
+    "preserveaspectratio", "r", "refx", "refy", "role", "rx", "ry", "spreadmethod", "stop-color",
+    "stop-opacity", "stroke", "stroke-dasharray", "stroke-dashoffset", "stroke-linecap",
+    "stroke-linejoin", "stroke-miterlimit", "stroke-opacity", "stroke-width", "text-anchor", "transform",
+    "viewbox", "width", "x", "x1", "x2", "y", "y1", "y2",
+  ]);
+  let rootSeen = false;
+  let rootDimensions: Point | null = null;
+  const reject = (): void => {
     throw new Error("SVG assets may not contain executable or remote content");
+  };
+  const parser = new SaxesParser({ xmlns: true });
+  parser.on("doctype", reject);
+  parser.on("processinginstruction", reject);
+  parser.on("error", (error) => {
+    throw error;
+  });
+  parser.on("opentag", (tag) => {
+    const localName = tag.local.toLowerCase();
+    if (tag.uri !== svgNamespace || !allowedElements.has(localName)) reject();
+    if (!rootSeen) {
+      rootSeen = true;
+      if (localName !== "svg") reject();
+    }
+    const values = new Map<string, string>();
+    for (const attribute of Object.values(tag.attributes)) {
+      if (attribute.uri === "http://www.w3.org/2000/xmlns/") continue;
+      const name = attribute.local.toLowerCase();
+      if (name.startsWith("on") || name === "style") reject();
+      const isHref = name === "href" && (!attribute.uri || attribute.uri === xlinkNamespace);
+      if (!isHref && (attribute.uri || !allowedAttributes.has(name))) reject();
+      if (isHref && !attribute.value.startsWith("#")) reject();
+      if (/url\s*\(\s*(?!#[^)]+\))/iu.test(attribute.value) || /@import/iu.test(attribute.value)) reject();
+      values.set(name, attribute.value);
+    }
+    if (localName === "svg" && !rootDimensions) {
+      const width = Number.parseFloat(values.get("width") ?? "");
+      const height = Number.parseFloat(values.get("height") ?? "");
+      if (Number.isFinite(width) && Number.isFinite(height)) rootDimensions = [width, height];
+      else {
+        const viewBox = (values.get("viewbox") ?? "").trim().split(/[ ,]+/u).map(Number);
+        if (viewBox.length === 4 && viewBox.every(Number.isFinite)) rootDimensions = [viewBox[2], viewBox[3]];
+      }
+    }
+  });
+  try {
+    parser.write(source).close();
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(String(error));
   }
-  const width = source.match(/\bwidth=["']([0-9.]+)(?:px)?["']/i)?.[1];
-  const height = source.match(/\bheight=["']([0-9.]+)(?:px)?["']/i)?.[1];
-  if (width && height) return [Number(width), Number(height)];
-  const viewBox = source.match(/\bviewBox=["'][^"']*?([0-9.]+)[ ,]+([0-9.]+)["']/i);
-  return viewBox ? [Number(viewBox[1]), Number(viewBox[2])] : null;
+  return rootSeen ? rootDimensions : null;
 }
 
 function dimensions(bytes: Uint8Array, mimeType: AssetMimeType): Point | null {
   if (mimeType === "image/png") return pngDimensions(bytes);
   if (mimeType === "image/gif") return gifDimensions(bytes);
   if (mimeType === "image/jpeg") return jpegDimensions(bytes);
-  return svgDimensions(bytes);
+  return inspectSvgDimensions(bytes);
 }
 
-async function digest(bytes: Uint8Array): Promise<string> {
+export function mergeEmbeddedAssetFiles(
+  sources: readonly EmbeddedAssetFiles[],
+  options: Partial<AssetLimits> = {},
+): EmbeddedAssetFiles {
+  const limits: AssetLimits = { ...DEFAULT_ASSET_LIMITS, ...options };
+  const files: EmbeddedAssetFiles = {};
+  let aggregateBytes = 0;
+  for (const source of sources) {
+    for (const [key, file] of Object.entries(source)) {
+      if (file.id !== key) throw new Error(`asset file '${key}' has mismatched identity '${file.id}'`);
+      const { mimeType, bytes } = decodeDataUrl(file.dataURL, limits.fileBytes);
+      if (mimeType !== file.mimeType || !SUPPORTED_MIME.has(file.mimeType)) {
+        throw new Error(`asset file '${key}' has inconsistent MIME metadata`);
+      }
+      if (bytes.length > limits.fileBytes) {
+        throw new Error(`asset file '${key}' exceeds the ${limits.fileBytes}-byte file limit`);
+      }
+      const measured = dimensions(bytes, file.mimeType);
+      if (!measured || !measured.every((value) => Number.isFinite(value) && value > 0)) {
+        throw new Error(`asset file '${key}' has malformed or missing dimensions`);
+      }
+      if (measured.some((value) => value > limits.dimension)) {
+        throw new Error(`asset file '${key}' exceeds the ${limits.dimension}-pixel dimension limit`);
+      }
+      const existing = files[key];
+      if (existing) {
+        if (existing.dataURL !== file.dataURL || existing.mimeType !== file.mimeType) {
+          throw new Error(`asset file '${key}' has conflicting content`);
+        }
+        continue;
+      }
+      aggregateBytes += bytes.length;
+      if (aggregateBytes > limits.aggregateBytes) {
+        throw new Error(`assets exceed the ${limits.aggregateBytes}-byte document limit`);
+      }
+      files[key] = file;
+    }
+  }
+  return files;
+}
+
+export async function digestAssetBytes(bytes: Uint8Array): Promise<string> {
   const hash = await crypto.subtle.digest("SHA-256", Uint8Array.from(bytes));
   return [...new Uint8Array(hash)]
     .map((value) => value.toString(16).padStart(2, "0"))
     .join("");
+}
+
+export function digestEmbeddedAssetFile(dataURL: string): Promise<string> {
+  return digestAssetBytes(decodeDataUrl(dataURL).bytes);
 }
 
 function collect<T extends SemanticStatement>(
@@ -158,7 +257,7 @@ export async function resolveAssets(
   options: Partial<AssetLimits> = {},
 ): Promise<DiagramDocument> {
   document = expandDocument(document);
-  const limits: AssetLimits = { ...DEFAULT_LIMITS, ...options };
+  const limits: AssetLimits = { ...DEFAULT_ASSET_LIMITS, ...options };
   const declarations = collect(document.statements, isAssetDeclaration);
   const uses = collect(document.statements, isAssetUse);
   const assets = new Map<string, ResolvedAsset>();
@@ -170,7 +269,7 @@ export async function resolveAssets(
     let bytes: Uint8Array;
     let mimeType: string;
     if (declaration.source.startsWith("data:")) {
-      ({ bytes, mimeType } = decodeDataUrl(declaration.source));
+      ({ bytes, mimeType } = decodeDataUrl(declaration.source, limits.fileBytes));
     } else {
       if (/^(?:\/|[A-Za-z]:[\\/])/.test(declaration.source)) {
         throw new Error(`asset '${declaration.id}' path must be relative to the configured root`);
@@ -194,8 +293,8 @@ export async function resolveAssets(
     if (measured.some((value) => value > limits.dimension)) {
       throw new Error(`asset '${declaration.id}' exceeds the ${limits.dimension}-pixel dimension limit`);
     }
-    const fileId = (await digest(bytes)).slice(0, 40);
-    const dataURL = `data:${supportedMimeType};base64,${base64(bytes)}`;
+    const fileId = (await digestAssetBytes(bytes)).slice(0, 40);
+    const dataURL = `data:${supportedMimeType};base64,${encodeAssetBase64(bytes)}`;
     const resolved: ResolvedAsset = {
       fileId,
       mimeType: supportedMimeType,

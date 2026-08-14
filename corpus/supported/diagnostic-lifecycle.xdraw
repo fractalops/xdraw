@@ -1,15 +1,14 @@
 use "xdraw/palette" as palette
 use "xdraw/process" as process
-use "xdraw/cards" as cards
 
 diagram "Diagnostic lifecycle" {
   response: process.lane "Compiler diagnostics" {
     arrange row { gap 180 }
 
-    alert: cards.card "Detect" { style palette.danger }
-    triage: cards.card "Locate" { style palette.warning }
-    contain: cards.card "Explain" { style palette.info }
-    recover: cards.card "Report" { style palette.success }
+    alert: rectangle "Detect" { style palette.danger }
+    triage: rectangle "Locate" { style palette.warning }
+    contain: rectangle "Explain" { style palette.info }
+    recover: rectangle "Report" { style palette.success }
 
     detected: alert -> triage "source span" { style palette.danger }
     investigate: triage -> contain "diagnostic code" { stroke-style dashed }

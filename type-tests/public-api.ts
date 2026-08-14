@@ -33,11 +33,13 @@ import {
   formatSceneResource,
   frame,
   freedraw,
+  getLibraryManifest,
   heading,
   image,
   inset,
   lane,
   layoutWithAdapter,
+  listLibraryManifests,
   measureRouteQuality,
   parse,
   parseSceneDocument,
@@ -53,6 +55,7 @@ import {
   wrapText,
   writeDrawing,
   type FontFamily,
+  type CompileOptions,
   type AdapterRoute,
   type FileSystem,
   type ArrowElement,
@@ -67,6 +70,7 @@ import {
   type SceneVisual,
   type RectangleElement,
   type LayoutAdapterDefinition,
+  type LibraryManifest,
   type RouteQuality,
 } from "xdraw";
 import { ExcalidrawApiClient as SubpathClient } from "xdraw/excalidraw-api";
@@ -85,6 +89,8 @@ const adapterRoute: AdapterRoute = {
 };
 const fontFamily: FontFamily = 3;
 const routeQuality: RouteQuality = measureRouteQuality([[[0, 0], [10, 0]]]);
+const libraryManifests: readonly LibraryManifest[] = listLibraryManifests();
+const architectureManifest: LibraryManifest | undefined = getLibraryManifest("xdraw/architecture");
 const customFileSystem: FileSystem = {
   async readText() { return ""; },
   async readBinary() { return new Uint8Array(); },
@@ -117,6 +123,9 @@ const componentElements = card("typed", box(0, 0, 160, 80), componentOptions);
 const connectorElements = connect("typed-edge", box(0, 0, 100, 50), box(200, 0, 100, 50), connectorOptions);
 const synchronization: EndpointLabelSynchronization = synchronizeEndpointLabels([...drawing.elements]);
 const semantic = buildSemanticIR(parse('diagram "Styled" { item: rectangle "Item" }'));
+const compileOptions: CompileOptions = { syntaxHighlighting: false };
+const synchronousDrawing: Drawing = compile(semantic, compileOptions);
+const asynchronousDrawing: Promise<Drawing> = compileAsync(semantic);
 const semanticNode = semantic.statements.find((item) => item.type === "node");
 if (!semanticNode) throw new Error("expected node");
 const resolvedNodeStyle: ResolvedNodeStyle = createStyleResolver(semantic).resolveNode(semanticNode);
@@ -200,16 +209,19 @@ const invalidAdapterRoute: AdapterRoute = {
 
 void [
   DiagnosticError, Drawing, EXCALIDRAW_API_URL, ExcalidrawApiClient, FONT, LAYERED_LAYOUT,
-  LAYERED_LAYOUT_CAPABILITIES, MemoryFileSystem, RootedFileSystem, SubpathClient, adapter,
+  LAYERED_LAYOUT_CAPABILITIES,
+  MemoryFileSystem, RootedFileSystem, SubpathClient, adapter,
   alignBounds, arrow, assertLayoutCapabilities, boundText, box, buildSemanticIR, card,
   collectLayoutRequirements, column, compile, compileAsync, connect, createMeasurer, createSceneGraph,
   createStyleResolver, diamond, distributeBounds, ellipse, endpointLabelBounds,
   fitTextSize, formatSceneResource, frame, heading, image, inset, lane, layoutWithAdapter,
+  getLibraryManifest, listLibraryManifests, libraryManifests, architectureManifest,
   measureRouteQuality, parse, parseSceneDocument, rectangle,
   renderScenePng, renderSceneSvg, resolveAssets, row, synchronizeEndpointLabels, text, tone,
   validateSemanticDocument, wrapText, writeDrawing, customFileSystem, fontFamily, routeQuality,
   boldFont, drawing, flowType, lineType, shapeType, stroke, variableLinear, writeResult,
   adapterRoute, componentElements, connectorElements, connectorPath, invalidAdapterRoute, invalidArrowVisual,
   conflictingFrameOwnership, invalidRenderableCode, renderableCode, resolvedNodeVisual, unresolvedNodeVisual,
-  measuredNode, measurer, resolvedNodeStyle, synchronization,
+  measuredNode, measurer, resolvedNodeStyle, synchronization, compileOptions,
+  synchronousDrawing, asynchronousDrawing,
 ];

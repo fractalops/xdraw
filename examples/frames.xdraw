@@ -1,5 +1,4 @@
 use "xdraw/architecture" as arch
-use "xdraw/cards" as cards
 
 diagram "How XDraw emits native frames" {
   subtitle "Frames preserve nested ownership, clipping and inherited locking"
@@ -22,6 +21,6 @@ diagram "How XDraw emits native frames" {
   }
 
   movable: frame "Unlocked output" {
-    draft: cards.card "Editable element"
+    draft: rectangle "Editable element"
   }
 }

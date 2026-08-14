@@ -1,10 +1,8 @@
-use "xdraw/cards" as cards
-
 diagram "Precision placement" {
-  source: cards.card "Explicit source" {
+  source: rectangle "Explicit source" {
     at (80, 120); size (220, 100)
   }
-  target: cards.card "Explicit target" {
+  target: rectangle "Explicit target" {
     at (420, 120); size (220, 100)
   }
 

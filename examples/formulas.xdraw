@@ -1,0 +1,20 @@
+use "xdraw/math" as math
+
+diagram "Mathematical formulas" {
+  subtitle "TeX source becomes a portable vector image with inspectable metadata"
+  arrange grid { columns 2; gap 48 }
+
+  gaussian: math.formula """
+\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+"""
+  number_set: math.formula """
+\mathbb{R} \supset \mathbb{Q} \supset \mathbb{Z}
+"""
+
+  matrix: math.formula """
+    A = \begin{bmatrix}
+      a & b \\
+      c & d
+    \end{bmatrix}
+  """
+}

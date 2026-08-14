@@ -1,6 +1,6 @@
 import type {
-  ComponentStatement,
-  ComponentUseStatement,
+  TemplateStatement,
+  TemplateUseStatement,
   DiagramDocument,
   SemanticStatement,
 } from "./semantic-contracts.ts";
@@ -22,7 +22,7 @@ function substituteValue(value: unknown, bindings: ReadonlyMap<string, unknown>)
 
 function localDefinitions(statements: readonly SemanticStatement[], result = new Set<string>()): Set<string> {
   for (const statement of statements) {
-    if (statement.id && statement.type !== "component") result.add(statement.id);
+    if (statement.id && statement.type !== "template") result.add(statement.id);
     if (statement.statements) localDefinitions(statement.statements, result);
   }
   return result;
@@ -53,7 +53,7 @@ function rewriteStatement(
   bindings: ReadonlyMap<string, unknown>,
   ids: ReadonlySet<string>,
   prefix: string,
-  component: string,
+  template: string,
 ): SemanticStatement {
   const statement = structuredClone(source);
   copyMetadata(statement, source);
@@ -61,6 +61,9 @@ function rewriteStatement(
   if (statement.id && ids.has(statement.id)) statement.id = `${prefix}.${statement.id}`;
   if ("title" in statement && typeof statement.title === "string") {
     statement.title = substitute(statement.title, bindings);
+  }
+  if ("authoredSource" in statement && typeof statement.authoredSource === "string") {
+    statement.authoredSource = substitute(statement.authoredSource, bindings);
   }
   if ("tone" in statement && typeof statement.tone === "string") {
     statement.tone = substitute(statement.tone, bindings);
@@ -109,74 +112,74 @@ function rewriteStatement(
 
   if (statement.statements) {
     statement.statements = statement.statements.map((child) => (
-      rewriteStatement(child, bindings, ids, prefix, component)
+      rewriteStatement(child, bindings, ids, prefix, template)
     ));
   }
   Object.defineProperty(statement, "expansion", {
-    value: { component, useSite: prefix, source: source.span ?? null },
+    value: { template, useSite: prefix, source: source.span ?? null },
     enumerable: false,
   });
   return statement;
 }
 
-function isComponentUse(statement: SemanticStatement): statement is ComponentUseStatement {
+function isTemplateUse(statement: SemanticStatement): statement is TemplateUseStatement {
   return statement.type === "use";
 }
 
 function expandStatements(
   statements: readonly SemanticStatement[],
-  components: ReadonlyMap<string, ComponentStatement>,
+  templates: ReadonlyMap<string, TemplateStatement>,
   stack: readonly string[] = [],
 ): SemanticStatement[] {
   const output: SemanticStatement[] = [];
   for (const source of statements) {
-    if (source.type === "component") continue;
-    if (isComponentUse(source)) {
-      const definition = components.get(source.component);
-      if (!definition) throw new Error(`unknown component '${source.component}' at use site '${source.id}'`);
-      if (stack.includes(source.component)) {
-        throw new Error(`component cycle: ${[...stack, source.component].join(" -> ")}`);
+    if (source.type === "template") continue;
+    if (isTemplateUse(source)) {
+      const definition = templates.get(source.template);
+      if (!definition) throw new Error(`unknown template '${source.template}' at use site '${source.id}'`);
+      if (stack.includes(source.template)) {
+        throw new Error(`template cycle: ${[...stack, source.template].join(" -> ")}`);
       }
       const supplied = new Map(Object.entries(source.arguments));
       const missing = definition.parameters.filter((name) => !supplied.has(name));
       const unknown = [...supplied.keys()].filter((name) => !definition.parameters.includes(name));
       const location = `${source.sourceFile ?? "<source>"}:${source.span?.start?.line ?? "?"}:${source.span?.start?.column ?? "?"}`;
       if (missing.length) {
-        throw new Error(`component '${source.component}' at '${source.id}' (${location}) is missing parameters: ${missing.join(", ")}`);
+        throw new Error(`template '${source.template}' at '${source.id}' (${location}) is missing parameters: ${missing.join(", ")}`);
       }
       if (unknown.length) {
-        throw new Error(`component '${source.component}' at '${source.id}' (${location}) has unknown parameters: ${unknown.join(", ")}`);
+        throw new Error(`template '${source.template}' at '${source.id}' (${location}) has unknown parameters: ${unknown.join(", ")}`);
       }
       const ids = localDefinitions(definition.statements);
       const instantiated = definition.statements.map((statement) => (
-        rewriteStatement(statement, supplied, ids, source.id, source.component)
+        rewriteStatement(statement, supplied, ids, source.id, source.template)
       ));
-      output.push(...expandStatements(instantiated, components, [...stack, source.component]));
+      output.push(...expandStatements(instantiated, templates, [...stack, source.template]));
       continue;
     }
     const statement = structuredClone(source);
     copyMetadata(statement, source);
-    if (source.statements) statement.statements = expandStatements(source.statements, components, stack);
+    if (source.statements) statement.statements = expandStatements(source.statements, templates, stack);
     output.push(statement);
   }
   return output;
 }
 
 export function expandDocument(document: DiagramDocument): DiagramDocument {
-  const components = new Map<string, ComponentStatement>();
+  const templates = new Map<string, TemplateStatement>();
   const collect = (statements: readonly SemanticStatement[], context = "document"): void => {
     for (const statement of statements) {
-      if (statement.type === "component") {
-        if (context !== "document") throw new Error(`component '${statement.id}' must be declared at document scope`);
-        if (components.has(statement.id)) throw new Error(`duplicate component '${statement.id}'`);
-        components.set(statement.id, statement);
+      if (statement.type === "template") {
+        if (context !== "document") throw new Error(`template '${statement.id}' must be declared at document scope`);
+        if (templates.has(statement.id)) throw new Error(`duplicate template '${statement.id}'`);
+        templates.set(statement.id, statement);
       }
       if (statement.statements) collect(statement.statements, "nested");
     }
   };
   collect(document.statements);
   const result = structuredClone(document);
-  result.statements = expandStatements(document.statements, components);
+  result.statements = expandStatements(document.statements, templates);
   for (const key of ["span", "source", "comments", "assetFiles"] as const) {
     const value = document[key];
     if (value !== undefined) Object.defineProperty(result, key, { value, enumerable: false });

@@ -16,11 +16,12 @@
     "precision-placement": "5bb3ace2f409204fc6f2c8f439c219e62c0127f3e30a4b255a87e2d14f8107ae",
     "style-resolution": "6d1a7830a0ce1a42be8fe357b353d087d658df7070e9b69e76e83ccada6de283",
     "frame-emission": "e77a7b892e636dd567aaaad048f1130396185a409007b27bbf40f0e873b91a98",
-    "layered-layout": "3e330e174812475712e0bca407093140445cc0177cd67f28a09bf4175f32fcf2",
+    "layered-layout": "e698ab34ab3497ade9d85b29931229c95a7de6fd37094908671033d6d217cf5d",
     "connector-routing": "99783b4d6d2639515ba383276210e8c37473d6c76623bfa54b1ab0faace17144",
-    "component-expansion": "e9d6bcb43997b5aa9aa229bea3a8f34ca3940537e64aedef1c48333187babd3b",
+    "template-expansion": "e9d6bcb43997b5aa9aa229bea3a8f34ca3940537e64aedef1c48333187babd3b",
     "portable-assets": "85891ed07f1bc53b2a51278235ac9a8df402686026d63c5f7cdc671153d42932",
-    "syntax-highlighting": "53d0bd5a4a4c259f0146c1989c95add35c97eeb306ddbf5858ecb7504e2d5182",
-    "freehand-output": "3d2f566488391a29bc72a7d0b8b106318ff54ca2847c59b973fb70896f93afa4"
+    "syntax-highlighting": "252113b6f1900f8f098b87500f6b4eb05a92db3254723373efb22bc6ae60cb1c",
+    "freehand-output": "3d2f566488391a29bc72a7d0b8b106318ff54ca2847c59b973fb70896f93afa4",
+    "math-formulas": "52942f8a98d7d031c730889dc59f2355f64f4e4eb29fb7d3e8f04bfc08f93403"
   }
 }

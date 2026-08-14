@@ -15,8 +15,9 @@
   { "id": "frame-emission", "file": "supported/frame-emission.xdraw", "tests": ["frame emission", "nested membership", "locking", "cross-frame connectors"] },
   { "id": "layered-layout", "file": "supported/layered-layout.xdraw", "tests": ["layered layout pass", "deterministic ranks", "flat graph routing"] },
   { "id": "connector-routing", "file": "supported/connector-routing.xdraw", "tests": ["routing internals", "explicit waypoints", "endpoint labels", "semantic junction"] },
-  { "id": "component-expansion", "file": "supported/component-expansion.xdraw", "tests": ["component expansion", "three reusable definitions", "parameter binding", "hygienic identifiers"] },
+  { "id": "template-expansion", "file": "supported/template-expansion.xdraw", "tests": ["template expansion", "three reusable definitions", "parameter binding", "hygienic identifiers"] },
   { "id": "portable-assets", "file": "supported/portable-assets.xdraw", "tests": ["local asset", "offline file embedding", "image and icon"] },
   { "id": "syntax-highlighting", "file": "supported/syntax-highlighting.xdraw", "tests": ["highlighting pipeline", "code block", "syntax highlighting", "editable source metadata"] },
-  { "id": "freehand-output", "file": "supported/freehand-output.xdraw", "tests": ["freehand emission", "native freehand", "pressure samples", "stroke styling"] }
+  { "id": "freehand-output", "file": "supported/freehand-output.xdraw", "tests": ["freehand emission", "native freehand", "pressure samples", "stroke styling"] },
+  { "id": "math-formulas", "file": "supported/math-formulas.xdraw", "tests": ["TeX input", "deterministic SVG", "embedded formula metadata", "formula connectors"] }
 ]

@@ -24,6 +24,7 @@ export interface InferredSides {
 
 export interface RouteOptions {
   around?: string;
+  avoidEndpointInteriors?: boolean;
 }
 
 export interface RoutingScene {
@@ -192,11 +193,14 @@ export function routeConnection(
     if (!required) throw new Error(`route constraint references unknown node: ${options.around}`);
     if (!obstacles.includes(required)) obstacles.push(required);
   }
-  const xChannels = obstacles.flatMap((bounds) => [
+  const channelBounds = options.avoidEndpointInteriors
+    ? [...obstacles, fromBounds, toBounds]
+    : obstacles;
+  const xChannels = channelBounds.flatMap((bounds) => [
     bounds.x - ROUTING_CLEARANCE.channel,
     bounds.x + bounds.width + ROUTING_CLEARANCE.channel,
   ]);
-  const yChannels = obstacles.flatMap((bounds) => [
+  const yChannels = channelBounds.flatMap((bounds) => [
     bounds.y - ROUTING_CLEARANCE.channel,
     bounds.y + bounds.height + ROUTING_CLEARANCE.channel,
   ]);
@@ -216,9 +220,23 @@ export function routeConnection(
       const segmentEnd = path[index + 1];
       length += Math.abs(segmentEnd[0] - segmentStart[0]) + Math.abs(segmentEnd[1] - segmentStart[1]);
       collisions += obstacles.filter((bounds) => segmentHitsBounds(segmentStart, segmentEnd, bounds)).length;
+      const leavesSource = segmentStart[0] === start[0]
+        && segmentStart[1] === start[1]
+        && segmentEnd[0] === startExit[0]
+        && segmentEnd[1] === startExit[1];
+      const entersTarget = segmentStart[0] === endExit[0]
+        && segmentStart[1] === endExit[1]
+        && segmentEnd[0] === end[0]
+        && segmentEnd[1] === end[1];
+      if (options.avoidEndpointInteriors) {
+        if (!leavesSource && segmentHitsBounds(segmentStart, segmentEnd, fromBounds)) collisions += 1;
+        if (!entersTarget && segmentHitsBounds(segmentStart, segmentEnd, toBounds)) collisions += 1;
+      }
       for (const route of scene.routes) {
         for (let routeIndex = 0; routeIndex < route.length - 1; routeIndex += 1) {
-          shared += sharedSegmentLength(segmentStart, segmentEnd, route[routeIndex], route[routeIndex + 1]);
+          if (!options.avoidEndpointInteriors || (!leavesSource && !entersTarget)) {
+            shared += sharedSegmentLength(segmentStart, segmentEnd, route[routeIndex], route[routeIndex + 1]);
+          }
           if (segmentsCross(segmentStart, segmentEnd, route[routeIndex], route[routeIndex + 1])) crossings += 1;
         }
       }

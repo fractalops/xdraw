@@ -1,6 +1,5 @@
 use "xdraw/palette" as palette
 use "xdraw/process" as process
-use "xdraw/cards" as cards
 
 diagram "Compilation pipeline" {
   subtitle "XDraw turns source text into editable scene elements"
@@ -8,9 +7,9 @@ diagram "Compilation pipeline" {
   flow: process.lane "Compiler" {
     arrange row { gap 55 }
 
-    source: cards.card "Source" { style palette.info }
-    semantic: cards.card "Semantic IR" { style palette.warning }
-    scene: cards.card "Scene" { style palette.success }
+    source: rectangle "Source" { style palette.info }
+    semantic: rectangle "Semantic IR" { style palette.warning }
+    scene: rectangle "Scene" { style palette.success }
     source -> semantic -> scene
   }
 }

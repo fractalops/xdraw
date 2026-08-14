@@ -1,9 +1,8 @@
 use "xdraw/annotations" as annotations
-use "xdraw/cards" as cards
 
 diagram "Diagnostic provenance" {
-  source: cards.card "Source statement"
-  target: cards.card "Compiler diagnostic"
+  source: rectangle "Source statement"
+  target: rectangle "Compiler diagnostic"
   compare: source -> target "retains span"
 
   mismatch: annotations.note "XD1004 at line 8, column 5" {

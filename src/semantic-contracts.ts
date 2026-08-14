@@ -11,7 +11,7 @@ import type {
 export type StatementAttributes = Record<string, unknown>;
 
 export interface ExpansionMetadata {
-  component: string;
+  template: string;
   useSite: string;
   source: SourceSpan | null;
 }
@@ -24,6 +24,7 @@ export interface StatementMetadata extends DiagnosticNode {
   semanticId?: string;
   origin?: SourceSpan | null;
   expansion?: ExpansionMetadata;
+  styleDefaults?: StatementAttributes;
 }
 
 export interface NestedStatement extends StatementMetadata {
@@ -107,16 +108,16 @@ export interface ConnectionStatement extends StatementMetadata {
   locked?: boolean;
 }
 
-export interface ComponentStatement extends NestedStatement {
-  type: "component";
+export interface TemplateStatement extends NestedStatement {
+  type: "template";
   id: string;
   parameters: string[];
 }
 
-export interface ComponentUseStatement extends StatementMetadata {
+export interface TemplateUseStatement extends StatementMetadata {
   type: "use";
   id: string;
-  component: string;
+  template: string;
   arguments: Record<string, unknown>;
 }
 
@@ -163,6 +164,11 @@ export interface ParticipantStatement extends StatementMetadata {
 export interface SequenceStatement extends NestedStatement {
   type: "sequence";
   id: string;
+}
+
+export interface TableRowStatement extends StatementMetadata {
+  type: "table-header" | "table-row";
+  cells: string[];
 }
 
 export interface NoteStatement extends StatementMetadata {
@@ -215,6 +221,7 @@ export interface NodeStatement extends NestedStatement {
   id: string;
   kind: string;
   title: string;
+  authoredSource?: string;
   tone?: string;
   attributes: StatementAttributes;
   at?: Point;
@@ -246,7 +253,7 @@ export interface LayoutTextStatement extends StatementMetadata {
 export type TextStyleStatement = TextStatement | LayoutTextStatement;
 
 export interface ContainerStatement extends NestedStatement {
-  type: "lane" | "group" | "frame";
+  type: "lane" | "group" | "frame" | "section";
   id: string;
   title: string;
   kind?: string;
@@ -280,8 +287,8 @@ export type SemanticStatement =
   | LayoutStatement
   | GeometryStatement
   | ConnectionStatement
-  | ComponentStatement
-  | ComponentUseStatement
+  | TemplateStatement
+  | TemplateUseStatement
   | PropertyStatement
   | StyleStatement
   | ThemeStatement
@@ -289,6 +296,7 @@ export type SemanticStatement =
   | AssetUseStatement
   | ParticipantStatement
   | SequenceStatement
+  | TableRowStatement
   | NoteStatement
   | CodeStatement
   | FreedrawStatement

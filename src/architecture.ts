@@ -6,7 +6,7 @@ import type {
   SemanticStatement,
 } from "./semantic-contracts.ts";
 import type { Bounds, DiagnosticCollector, Point } from "./foundation-contracts.ts";
-import type { ResolvedNodeStyle } from "./layout-contracts.ts";
+import type { NodeMeasurementTarget, ResolvedNodeStyle } from "./layout-contracts.ts";
 import type {
   BaseElementOptions,
   DrawingElement,
@@ -14,8 +14,9 @@ import type {
   StrokeStyle,
 } from "./render-contracts.ts";
 import type { FontFamily } from "./text-metrics.ts";
+import type { ArchitectureNodePlan } from "./rich-node-contracts.ts";
 
-import { fitTextSize, tone } from "./components.ts";
+import { fitTextSize, measureCard, tone } from "./components.ts";
 import type { ToneName } from "./components.ts";
 import { arrow, ellipse, frame, rectangle, text } from "./elements.ts";
 import { wrapTextToWidth } from "./text-metrics.ts";
@@ -107,9 +108,13 @@ function architectureStyle(style: ArchitectureStyleInput): ArchitectureStyle {
   };
 }
 
-function bodyOf(node: NodeStatement): string | undefined {
-  const body = node.statements.find((item): item is BodyStatement => item.type === "body")?.value;
+function bodyOf(node: NodeMeasurementTarget): string | undefined {
+  const body = node.statements?.find((item): item is BodyStatement => item.type === "body")?.value;
   return typeof body === "string" ? body : undefined;
+}
+
+function hasTechnology(node: NodeMeasurementTarget): boolean {
+  return node.statements?.some((item) => item.type === "property" && item.key === "technology") ?? false;
 }
 
 function propertyOf(node: NodeStatement, key: string): unknown {
@@ -400,6 +405,39 @@ export function isArchitectureNodeKind(kind: unknown): kind is string {
 
 export function isArchitectureBoundaryKind(kind: unknown): kind is string {
   return typeof kind === "string" && ARCHITECTURE_BOUNDARY_KINDS.has(kind);
+}
+
+export function architectureNodeMinimumWidth(kind: string): number {
+  return kind === "architecture-person" ? 180 : 220;
+}
+
+function architectureNodeMinimumHeight(node: NodeMeasurementTarget): number {
+  if (node.kind === "architecture-person") return bodyOf(node) ? 225 : 190;
+  if (node.kind === "architecture-database") return bodyOf(node) ? 172 : 148;
+  if (node.kind === "architecture-queue") return bodyOf(node) ? 160 : 138;
+  return bodyOf(node) ? (hasTechnology(node) ? 148 : 136) : 120;
+}
+
+export function planArchitectureNode(
+  node: NodeMeasurementTarget,
+  width: number,
+  style?: ResolvedNodeStyle,
+): ArchitectureNodePlan {
+  return Object.freeze({
+    type: "architecture",
+    width,
+    height: measureCard({
+      title: node.title,
+      body: bodyOf(node),
+      minimumHeight: architectureNodeMinimumHeight(node),
+      padding: style?.padding,
+      titleSize: style?.titleSize,
+      bodySize: style?.bodySize,
+      lineHeight: style?.lineHeight,
+      titleLineHeight: style?.titleLineHeight,
+      fontFamily: style?.fontFamily,
+    }, width),
+  });
 }
 
 export function renderArchitectureNode(

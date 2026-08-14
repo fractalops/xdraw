@@ -1,20 +1,21 @@
-import type { ArrangedStatement, SectionStatement } from "./layout-contracts.ts";
+import type { ArrangedStatement, LayoutSectionStatement } from "./layout-contracts.ts";
 import type { SemanticStatement } from "./semantic-contracts.ts";
 
 export const SECTION_TYPES = new Set<SemanticStatement["type"]>([
-  "code", "frame", "group", "lane", "sequence", "tree",
+  "code", "frame", "group", "lane", "section", "sequence", "tree",
 ]);
 
-export function isSectionStatement(item: SemanticStatement): item is SectionStatement {
+export function isSectionStatement(item: SemanticStatement): item is LayoutSectionStatement {
   return item.type === "code"
     || item.type === "frame"
     || item.type === "group"
     || item.type === "lane"
+    || item.type === "section"
     || item.type === "sequence"
     || item.type === "tree";
 }
 
-export function childSections(statements: readonly SemanticStatement[]): SectionStatement[] {
+export function childSections(statements: readonly SemanticStatement[]): LayoutSectionStatement[] {
   return statements.filter(isSectionStatement);
 }
 

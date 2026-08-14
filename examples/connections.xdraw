@@ -1,39 +1,37 @@
 use "xdraw/architecture" as arch
-use "xdraw/cards" as cards
-use "xdraw/containers" as containers
 
 diagram "How XDraw routes connectors" {
   subtitle "Connector intent selects straight, elbow, curved, and structural paths"
   arrange compact { gap 24 }
 
-  common: containers.section "Straight route" {
+  common: section "Straight route" {
     arrange row { gap 160 }
     straight_from: arch.system "Measured source" { description "Starts the direct path" }
     straight_to: arch.system "Measured target" { description "Ends the direct path" }
     straight_from -> straight_to "direct path" { route straight }
   }
 
-  routed: containers.section "Obstacle-aware route" {
+  routed: section "Obstacle-aware route" {
     arrange row { gap 160 }
     elbow_from: arch.system "Start anchor" { description "Starts the routed path" }
-    obstacle: cards.card "Occupied bounds"
+    obstacle: rectangle "Occupied bounds"
     elbow_to: arch.system "End anchor" { description "Ends the routed path" }
     elbow_from -> elbow_to "elbow route" { route elbow }
   }
 
-  explanatory: containers.section "Annotations and arrowheads" {
+  explanatory: section "Annotations and arrowheads" {
     arrange row { gap 140 }
-    curved_from: cards.card "Diagnostic"
-    curved_to: cards.card "Source span"
+    curved_from: rectangle "Diagnostic"
+    curved_to: rectangle "Source span"
     boundary: arch.system "Compiler boundary" { description "Receives the terminated connector" }
     curved_from -> curved_to "callout" { route curved; head arrow; stroke-style dashed }
     curved_to -> boundary "terminates" { route straight; head bar }
   }
 
-  structural: containers.section "Undirected structure" {
+  structural: section "Undirected structure" {
     arrange row { gap 120 }
-    relation_from: cards.card "Container"
-    relation_to: cards.card "Member"
+    relation_from: rectangle "Container"
+    relation_to: rectangle "Member"
     relation_from -- relation_to { head none }
   }
 }

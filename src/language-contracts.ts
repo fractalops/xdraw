@@ -14,6 +14,16 @@ export type SourcePropertyValue =
   | number[]
   | SourceEndpoint;
 
+export type SourceValueKind =
+  | "string"
+  | "raw-string"
+  | "identifier"
+  | "number"
+  | "boolean"
+  | "parameter"
+  | "tuple"
+  | "endpoint";
+
 export interface SourceNode {
   span?: SourceSpan;
 }
@@ -22,6 +32,7 @@ export interface SourceProperty extends SourceNode {
   type: "property";
   name: string;
   value: SourcePropertyValue;
+  valueKind: SourceValueKind;
 }
 
 export interface SourceSubtitle extends SourceNode {
@@ -59,8 +70,19 @@ export interface SourceDeclaration extends SourceNode {
   id: string;
   constructor: string;
   arguments: SourcePropertyValue[];
+  argumentKinds: SourceValueKind[];
   statements: SourceStatement[];
 }
+
+export interface SourceInvocation extends SourceNode {
+  type: "invocation";
+  constructor: string;
+  arguments: SourcePropertyValue[];
+  argumentKinds: SourceValueKind[];
+  statements: SourceStatement[];
+}
+
+export type SourceConstructorCall = SourceDeclaration | SourceInvocation;
 
 export type SourceStatement =
   | SourceProperty
@@ -68,7 +90,8 @@ export type SourceStatement =
   | SourceArrangement
   | SourceGeometryStatement
   | SourceConnection
-  | SourceDeclaration;
+  | SourceDeclaration
+  | SourceInvocation;
 
 export interface SourceImport extends SourceNode {
   type: "import";

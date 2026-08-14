@@ -160,7 +160,12 @@ export function createStyleResolver(document: SemanticDocument): StyleResolver {
     return named.get(name) ?? {};
   };
 
-  const propertiesFor = (statement: StyleTarget): { named: StyleProperties; local: StyleProperties } => ({
+  const propertiesFor = (statement: StyleTarget): {
+    defaults: StyleProperties;
+    named: StyleProperties;
+    local: StyleProperties;
+  } => ({
+    defaults: normalizeProperties(statement.styleDefaults ?? {}),
     named: namedStyle(statement),
     local: normalizeProperties(statement.attributes ?? {}),
   });
@@ -209,6 +214,7 @@ export function createStyleResolver(document: SemanticDocument): StyleResolver {
       strokeStyle: "solid",
       ...applicableTheme(NODE_PROPERTIES),
       ...kind,
+      ...properties.defaults,
       ...properties.named,
       ...properties.local,
     };
@@ -230,6 +236,7 @@ export function createStyleResolver(document: SemanticDocument): StyleResolver {
       locked: false,
       link: null,
       ...applicableTheme(TEXT_PROPERTIES),
+      ...properties.defaults,
       ...properties.named,
       ...(statement.fontSize === undefined ? {} : { fontSize: statement.fontSize }),
       ...properties.local,
@@ -249,6 +256,7 @@ export function createStyleResolver(document: SemanticDocument): StyleResolver {
       locked: false,
       link: null,
       ...applicableTheme(FREEDRAW_PROPERTIES),
+      ...properties.defaults,
       ...properties.named,
       ...properties.local,
     };

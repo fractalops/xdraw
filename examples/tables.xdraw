@@ -1,0 +1,12 @@
+use "xdraw/table" as table
+
+diagram "Editable tables" {
+  subtitle "Column widths follow the content; narrow cells wrap automatically."
+
+  orders: table.table "Orders" {
+    table.header "Order" "Customer" "Status" "Total"
+    table.row "1001" "A. Ndlovu" "Ready" "R450"
+    table.row "1002" "K. Singh" "Awaiting payment confirmation from the customer account owner" "R980"
+    table.row "1003" "L. Williams" "Dispatched" "R1,240"
+  }
+}

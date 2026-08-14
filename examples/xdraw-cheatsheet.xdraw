@@ -1,6 +1,4 @@
 use "xdraw/architecture" as arch
-use "xdraw/cards" as cards
-use "xdraw/containers" as containers
 use "xdraw/palette" as palette
 
 diagram "XDraw cheatsheet" {
@@ -9,7 +7,7 @@ diagram "XDraw cheatsheet" {
   default: theme { font-family normal }
   arrange grid { columns 4; gap 28; width 3300 }
 
-  read: containers.section "Read XDraw" {
+  read: section "Read XDraw" {
     arrange column { gap 18 }
 
     anatomy: code """
@@ -31,9 +29,9 @@ diagram "XDraw cheatsheet" {
 
     primitives: code """
       # Shapes: rectangle, ellipse, diamond
-      # Containers: frame, group
+      # Containers: frame, group, section
       # Content: freedraw, text, code, asset, image
-      # Definitions: component, style, theme
+      # Definitions: template, style, theme
     """ {
       title "Primitive constructors"
       language xdraw
@@ -57,10 +55,9 @@ diagram "XDraw cheatsheet" {
 
     libraries: code """
       use "xdraw/architecture" as arch
-      use "xdraw/cards" as cards
 
       api: arch.system "API"
-      request: cards.card "Request"
+      request: rectangle "Request"
 
       # Qualified constructors come from imports.
       # They add semantic vocabulary over the core.
@@ -72,11 +69,10 @@ diagram "XDraw cheatsheet" {
     }
 
     document: code """
-      use "xdraw/cards" as cards
 
       diagram "Compiler flow" {
-        source: cards.card "Source text"
-        target: cards.card "Scene graph"
+        source: rectangle "Source text"
+        target: rectangle "Scene graph"
         source -> target "compiles"
       }
     """ {
@@ -100,7 +96,7 @@ diagram "XDraw cheatsheet" {
     }
   }
 
-  draw: containers.section "Draw" {
+  draw: section "Draw" {
     arrange column { gap 18 }
 
     shapes: code """
@@ -131,7 +127,7 @@ diagram "XDraw cheatsheet" {
     }
 
     properties: code """
-      request: cards.card "Request" {
+      request: rectangle "Request" {
         body "Supporting detail"
         style palette.info
         size (240, 120)
@@ -197,7 +193,7 @@ diagram "XDraw cheatsheet" {
       use "xdraw/sequence" as seq
       use "xdraw/annotations" as annotations
 
-      interaction: seq.diagram {
+      interaction: seq.sequence {
         user: seq.participant "User"
         api: seq.participant "API"
         user -> api "Submit"
@@ -215,7 +211,7 @@ diagram "XDraw cheatsheet" {
     }
   }
 
-  arrange_and_reuse: containers.section "Arrange and reuse" {
+  arrange_and_reuse: section "Arrange and reuse" {
     arrange column { gap 18 }
 
     layouts: code """
@@ -274,8 +270,8 @@ diagram "XDraw cheatsheet" {
       highlight true
     }
 
-    components: code """
-      service: component(name, visual_style) {
+    templates: code """
+      service: template(name, visual_style) {
         api: arch.system "${name} API" {
           style $visual_style
         }
@@ -285,7 +281,7 @@ diagram "XDraw cheatsheet" {
 
       orders: service("Orders", palette.info)
     """ {
-      title "Reusable components"
+      title "Reusable templates"
       language xdraw
       line-numbers false
       highlight true
@@ -293,7 +289,7 @@ diagram "XDraw cheatsheet" {
 
   }
 
-  operate: containers.section "Build and edit" {
+  operate: section "Build and edit" {
     arrange column { gap 18 }
 
     cli: code """

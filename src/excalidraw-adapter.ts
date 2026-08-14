@@ -3,11 +3,10 @@ import { arrow, diamond, ellipse, frame, freedraw, image, text } from "./element
 import { box } from "./layout.ts";
 import { wrapTextToWidth } from "./text-metrics.ts";
 import { renderCodeBlock } from "./code-block.ts";
+import { planRichNode, renderRichNode, richNodePlanFor } from "./rich-nodes.ts";
 import {
   isArchitectureBoundaryKind,
-  isArchitectureNodeKind,
   renderArchitectureBoundary,
-  renderArchitectureNode,
 } from "./architecture.ts";
 import type {
   AssetUseStatement,
@@ -74,9 +73,12 @@ function renderNode(
   node: NodeStatement,
   bounds: Bounds,
   style: ResolvedNodeStyle,
+  visual?: Extract<SceneVisual, { type: "node" }>,
 ): void {
-  if (isArchitectureNodeKind(node.kind)) {
-    drawing.add(renderArchitectureNode(node, bounds, style));
+  const storedPlan = visual ? richNodePlanFor(visual) : undefined;
+  const richPlan = storedPlan === undefined ? planRichNode(node, bounds.width, style) : storedPlan;
+  if (richPlan) {
+    drawing.add(renderRichNode(node, bounds, style, richPlan));
     return;
   }
   const resolvedTextAlign = textAlign(nodeProperty(node, "text-align"));
@@ -213,7 +215,7 @@ export function renderSceneVisuals(drawing: Drawing, visuals: readonly SceneVisu
           }));
       }
     } else if (visual.type === "node") {
-      renderNode(drawing, visual.node, visual.bounds, visual.style);
+      renderNode(drawing, visual.node, visual.bounds, visual.style, visual);
     } else if (visual.type === "arrow") {
       drawing.add(arrow(visual.id, visual.start, visual.end, visual.options));
     } else if (visual.type === "text") {

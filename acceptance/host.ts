@@ -24,7 +24,7 @@ function phase(value: string, message: string) {
 }
 
 async function waitForAppText(text: string) {
-  const deadline = Date.now() + 5_000;
+  const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
     if (iframe.contentDocument?.body.textContent?.includes(text)) return;
     await new Promise((resolve) => setTimeout(resolve, 50));

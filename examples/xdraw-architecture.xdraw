@@ -1,11 +1,10 @@
 use "xdraw/architecture" as arch
-use "xdraw/containers" as containers
 
 diagram "Architecture views with xdraw/architecture" {
   subtitle "One system, shown at progressively deeper levels of detail"
   arrange grid { columns 2; spacing airy; width 2200 }
 
-  context: containers.section "1. System Context diagram for XDraw" {
+  context: section "1. System Context diagram for XDraw" {
     arrange row { spacing airy }
     author: arch.person "Diagram author" {
       description "Describes an editable technical diagram"
@@ -20,7 +19,7 @@ diagram "Architecture views with xdraw/architecture" {
     xdraw -> hosted "publishes to"
   }
 
-  containers: containers.section "2. Container diagram for XDraw" {
+  containers: section "2. Container diagram for XDraw" {
     arrange row { gap 92 }
     platform: arch.system-boundary "XDraw" {
       arrange row { spacing airy }
@@ -41,7 +40,7 @@ diagram "Architecture views with xdraw/architecture" {
     }
   }
 
-  components: containers.section "3. Component diagram for the compiler" {
+  components: section "3. Component diagram for the compiler" {
     compiler: arch.container-boundary "Diagram compiler" {
       arrange row { spacing airy }
       parser: arch.component "Parser" {
@@ -61,7 +60,7 @@ diagram "Architecture views with xdraw/architecture" {
     }
   }
 
-  deployment: containers.section "4. Deployment diagram for local authoring" {
+  deployment: section "4. Deployment diagram for local authoring" {
     workstation: arch.deployment-node "Developer workstation" {
       arrange row { spacing airy }
       executable: arch.container "xdraw executable" {

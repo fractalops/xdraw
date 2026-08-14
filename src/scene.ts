@@ -1,4 +1,5 @@
 import { splitEndpoint } from "./endpoints.ts";
+import { attachRichNodePlan, planMeasuredRichNode } from "./rich-nodes.ts";
 import type {
   AdapterRoute,
   LayoutAdapter,
@@ -65,7 +66,7 @@ export function collectLayoutRequirements(document: SemanticDocument): LayoutCap
   const connections: ConnectionStatement[] = [];
   const visit = (statements: SemanticStatement[], container = "document"): void => {
     for (const statement of statements) {
-      if (["lane", "group", "frame"].includes(statement.type)) required.add("nestedNodes");
+      if (["lane", "group", "frame", "section"].includes(statement.type)) required.add("nestedNodes");
       if (statement.id) {
         owners.set(statement.id, container);
         if (["node", "participant", "branch", "leaf"].includes(statement.type)) nodeIds.add(statement.id);
@@ -246,7 +247,14 @@ export function createSceneGraph(document: SemanticDocument, options: SceneGraph
       if (visual.type === "node") {
         const style = visual.style ?? graph.styles?.resolveNode(visual.node);
         if (!style) throw new Error(`node visual '${visual.id}' requires a style resolver`);
-        graph.visuals.push({ ...visual, style, origin });
+        const nodeVisual = { ...visual, style, origin };
+        attachRichNodePlan(nodeVisual, planMeasuredRichNode(
+          graph.measurer,
+          visual.node,
+          visual.bounds.width,
+          style,
+        ));
+        graph.visuals.push(nodeVisual);
       } else {
         graph.visuals.push({ ...visual, origin });
       }

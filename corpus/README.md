@@ -13,7 +13,7 @@ example only when it exercises a distinct semantic or layout capability.
 ## What the corpus currently says
 
 The diagrams cover the source-to-scene compiler, diagnostics, layout selection,
-routing, components, assets, styles, frames, hosted scenes, local rendering and
+routing, templates, assets, styles, frames, hosted scenes, local rendering and
 package verification. Together they also exercise linear and cross-lane flows,
 recursive trees, sequences, annotations, precision placement, highlighted code,
-native freehand and portable local assets.
+native freehand, portable local assets and deterministic mathematical formulas.

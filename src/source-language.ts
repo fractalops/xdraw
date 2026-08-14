@@ -24,14 +24,14 @@ import type {
   SourceProperty,
   SourcePropertyValue,
   SourceStatement,
+  SourceValueKind,
 } from "./language-contracts.ts";
 import {
-  hasProperty,
   normalizePropertyValue,
-  propertyKind,
   resolveConstructor,
   resolveTone,
 } from "./language-registry.ts";
+import { validateLanguageDocument } from "./language-validator.ts";
 
 function located<T extends object>(value: T, start: Token, end: Token): T & SourceNode {
   Object.defineProperty(value, "span", {
@@ -72,6 +72,24 @@ export function parseSyntax(source: string): SourceDocument {
     return [x, y];
   }
 
+  interface ParsedValue {
+    value: SourcePropertyValue;
+    kind: SourceValueKind;
+  }
+
+  function tuple(label: string): ParsedValue {
+    take("(", undefined, `expected '(' after ${label}`);
+    const result: SourcePropertyValue[] = [];
+    while (!peek(")")) {
+      if (peek("eof")) throw new SyntaxError(`unterminated tuple for ${label}`, source, tokens[index].offset);
+      result.push(value(label).value);
+      if (peek(",")) take(",");
+      else if (!peek(")")) throw new SyntaxError(`expected ',' or ')' in ${label}`, source, tokens[index].offset);
+    }
+    take(")");
+    return { value: result as SourcePropertyValue, kind: "tuple" };
+  }
+
   function selection(label: string): string[] {
     take("(", undefined, `expected '(' after ${label}`);
     const references = [identifier(undefined, `expected an element reference in ${label}`)];
@@ -83,38 +101,43 @@ export function parseSyntax(source: string): SourceDocument {
     return references;
   }
 
-  function value(label: string): SourcePropertyValue {
-    if (peek("string")) return String(take("string").value);
-    if (peek("number")) return Number(take("number").value);
-    if (peek("identifier")) return String(take("identifier").value);
-    if (peek("(")) return pair(label);
+  function value(label: string): ParsedValue {
+    if (peek("string")) {
+      const token = take("string");
+      return {
+        value: String(token.value),
+        kind: token.raw.startsWith('"""') ? "raw-string" : "string",
+      };
+    }
+    if (peek("number")) return { value: Number(take("number").value), kind: "number" };
+    if (peek("$")) {
+      take("$");
+      return {
+        value: `{${identifier(undefined, `expected a parameter name for ${label}`)}}`,
+        kind: "parameter",
+      };
+    }
+    if (peek("identifier")) {
+      const reference = identifier();
+      if (reference === "true") return { value: true, kind: "boolean" };
+      if (reference === "false") return { value: false, kind: "boolean" };
+      if (!peek("@")) return { value: reference, kind: "identifier" };
+      take("@");
+      return {
+        value: { reference, anchor: identifier(undefined, "expected an anchor after '@'") },
+        kind: "endpoint",
+      };
+    }
+    if (peek("(")) return tuple(label);
     throw new SyntaxError(`expected a value for ${label}`, source, tokens[index].offset);
   }
 
-  function points(label: string): Point[] {
-    take("(", undefined, `expected '(' after ${label}`);
-    const result = [pair(label)];
-    while (peek(",")) {
-      take(",");
-      result.push(pair(label));
+  function arguments_(): ParsedValue[] {
+    if (peek("string")) {
+      const result = [];
+      while (peek("string")) result.push(value("constructor argument"));
+      return result;
     }
-    take(")", undefined, `expected ')' after ${label}`);
-    return result;
-  }
-
-  function numbers(label: string): number[] {
-    take("(", undefined, `expected '(' after ${label}`);
-    const result = [Number(take("number", undefined, `expected a number in ${label}`).value)];
-    while (peek(",")) {
-      take(",");
-      result.push(Number(take("number", undefined, `expected a number in ${label}`).value));
-    }
-    take(")", undefined, `expected ')' after ${label}`);
-    return result;
-  }
-
-  function arguments_(): SourcePropertyValue[] {
-    if (peek("string")) return [String(take("string").value)];
     if (!peek("(")) return [];
     take("(");
     const result = [];
@@ -128,21 +151,13 @@ export function parseSyntax(source: string): SourceDocument {
   }
 
   function property(name: string, start: Token): SourceProperty {
-    const kind = propertyKind(name);
-    if (!kind) throw new SyntaxError(`unknown property '${name}'`, source, start.offset);
-    let propertyValue: SourcePropertyValue;
-    if (kind === "pair") propertyValue = pair(name);
-    else if (kind === "points") propertyValue = points(name);
-    else if (kind === "numbers") propertyValue = numbers(name);
-    else if (kind === "endpoint") propertyValue = endpoint();
-    else if (kind === "string") propertyValue = quoted(`expected a quoted string for ${name}`);
-    else if (kind === "identifier" && peek("$")) {
-      take("$");
-      propertyValue = `{${identifier(undefined, `expected a parameter name for ${name}`)}}`;
-    } else {
-      propertyValue = take(kind, undefined, `expected ${kind} value for ${name}`).value as SourcePropertyValue;
-    }
-    return located({ type: "property", name, value: propertyValue }, start, tokens[index - 1]);
+    const propertyValue = value(name);
+    return located({
+      type: "property",
+      name,
+      value: propertyValue.value,
+      valueKind: propertyValue.kind,
+    }, start, tokens[index - 1]);
   }
 
   function endpoint(): SourceEndpoint {
@@ -257,7 +272,8 @@ export function parseSyntax(source: string): SourceDocument {
         type: "declaration" as const,
         id: String(start.value),
         constructor,
-        arguments: args,
+        arguments: args.map((argument) => argument.value),
+        argumentKinds: args.map((argument) => argument.kind),
         statements,
       }, start, tokens[index - 1]);
     }
@@ -270,8 +286,18 @@ export function parseSyntax(source: string): SourceDocument {
       }
       return connection(undefined, firstEndpoint, start);
     }
-    if (hasProperty(String(start.value))) return property(String(start.value), start);
-    throw new SyntaxError(`unknown statement '${start.value}'`, source, start.offset);
+    if (String(start.value).includes(".")) {
+      const args = arguments_();
+      const statements = peek("{") ? block() : [];
+      return located({
+        type: "invocation",
+        constructor: String(start.value),
+        arguments: args.map((argument) => argument.value),
+        argumentKinds: args.map((argument) => argument.kind),
+        statements,
+      }, start, tokens[index - 1]);
+    }
+    return property(String(start.value), start);
   }
 
   const imports: SourceDocument["imports"] = [];
@@ -304,9 +330,11 @@ function copySpan<T extends object>(target: T, source: SourceNode): T {
 }
 
 function propertyMap(statement: SourceDeclaration): Map<string, SourcePropertyValue> {
-  return new Map(statement.statements
-    .filter((child) => child.type === "property")
-    .map((child) => [child.name, child.value]));
+  const properties = new Map<string, SourcePropertyValue>();
+  for (const child of statement.statements) {
+    if (child.type === "property") properties.set(child.name, child.value);
+  }
+  return properties;
 }
 
 function isDeclaration(statement: SourceStatement): statement is SourceDeclaration {
@@ -415,11 +443,12 @@ function codeValue(value: unknown): string {
 function lowerProperties(
   properties: ReadonlyMap<string, SourcePropertyValue>,
   imports: ReadonlyMap<string, string>,
+  connection = false,
 ): { attributes: StatementAttributes; tone?: string } {
   const attributes: StatementAttributes = {};
   for (const [name, value] of properties) {
     if (["at", "size", "body", "description", "style", "attach", "language", "line-numbers", "highlight", "points", "pressures", "simulate-pressure"].includes(name)) continue;
-    if (name === "stroke-style") attributes.dashed = value === "dashed";
+    if (name === "stroke-style" && connection) attributes.dashed = value === "dashed";
     else if (name === "route" && typeof value === "string" && ["auto", "straight", "elbow", "curved", "line"].includes(value)) {
       attributes.style = value;
     }
@@ -500,7 +529,7 @@ function lowerScope(
   path: readonly string[],
   parentScopes: readonly ReadonlyMap<string, string>[],
   imports: ReadonlyMap<string, string>,
-  components: ReadonlyMap<string, SourceDeclaration>,
+  templates: ReadonlyMap<string, SourceDeclaration>,
 ): SemanticStatement[] {
   const declarations = new Map<string, string>(statements
     .filter(isDeclaration)
@@ -531,7 +560,7 @@ function lowerScope(
     }
     if (statement.type === "connection") {
       const properties = new Map(statement.properties.map((property) => [property.name, property.value]));
-      const { attributes, tone } = lowerProperties(properties, imports);
+      const { attributes, tone } = lowerProperties(properties, imports, true);
       if (tone) attributes[tone] = true;
       if (statement.operator === "--") attributes.style = "line";
       return [copySpan({
@@ -543,43 +572,63 @@ function lowerScope(
       }, statement)];
     }
 
+    if (statement.type === "invocation") {
+      const constructor = resolveConstructor(statement.constructor, imports);
+      if (constructor.type !== "table-header" && constructor.type !== "table-row") {
+        throw new Error(`unsupported anonymous constructor '${statement.constructor}'`);
+      }
+      return [copySpan({
+        type: constructor.type,
+        cells: statement.arguments.map((value) => String(interpolationValue(value))),
+      }, statement)];
+    }
+
     const id = qualify(path, statement.id);
-    const component = components.get(statement.constructor);
-    if (component && statement.constructor !== "component") {
+    const template = templates.get(statement.constructor);
+    if (template && statement.constructor !== "template") {
       const supplied: Record<string, unknown> = {};
-      component.arguments.slice(0, statement.arguments.length).forEach((name, argumentIndex) => {
-        if (typeof name !== "string") throw new Error(`component '${statement.constructor}' has a non-text parameter name`);
-        const value = interpolationValue(statement.arguments[argumentIndex]);
+      template.arguments.slice(0, statement.arguments.length).forEach((name, argumentIndex) => {
+        if (typeof name !== "string") throw new Error(`template '${statement.constructor}' has a non-text parameter name`);
+        const argument = statement.arguments[argumentIndex];
+        const value = statement.argumentKinds[argumentIndex] === "raw-string"
+          ? argument
+          : interpolationValue(argument);
         supplied[name] = resolveTone(value, imports) ?? value;
       });
       return [copySpan({
         type: "use",
-        component: qualify([], statement.constructor),
+        template: qualify([], statement.constructor),
         id,
         arguments: supplied,
       }, statement)];
     }
 
     const constructor = resolveConstructor(statement.constructor, imports);
-    const properties = propertyMap(statement);
-    const { attributes, tone } = lowerProperties(properties, imports);
-    const children = lowerScope(statement.statements, [...path, statement.id], scopes, imports, components);
-    const interpolatedTitle = interpolationValue(statement.arguments[0] ?? statement.id);
-    const title = String(interpolatedTitle ?? statement.id);
+    const localProperties = propertyMap(statement);
+    const defaultProperties = new Map(
+      Object.entries(constructor.manifest.defaults.properties) as [string, SourcePropertyValue][],
+    );
+    const properties = new Map([...defaultProperties, ...localProperties]);
+    const { attributes, tone } = lowerProperties(localProperties, imports);
+    const { attributes: styleDefaults } = lowerProperties(defaultProperties, imports);
+    const children = lowerScope(statement.statements, [...path, statement.id], scopes, imports, templates);
+    const firstArgument = statement.arguments[0] ?? statement.id;
+    const interpolatedTitle = statement.argumentKinds[0] === "raw-string"
+      ? firstArgument
+      : interpolationValue(firstArgument);
+    const title = constructor.kind === "formula"
+      ? codeValue(interpolatedTitle ?? "")
+      : String(interpolatedTitle ?? statement.id);
 
     const tree = lowerTreeArrangement(statement, children, id, title);
     if (tree) return [tree];
 
-    if (constructor.type === "component") {
-      if (path.length) throw new Error(`component '${statement.id}' must be declared at document scope`);
-      if (!statement.arguments.every((parameter) => typeof parameter === "string")) {
-        throw new Error(`component '${statement.id}' parameters must be identifiers`);
-      }
+    if (constructor.type === "template") {
       return [copySpan({
-        type: "component",
+        type: "template",
         id,
-        parameters: statement.arguments.filter((parameter): parameter is string => typeof parameter === "string"),
-        statements: lowerScope(statement.statements, [], [], imports, components),
+        parameters: statement.arguments as string[],
+        statements: lowerScope(statement.statements, [], [], imports, templates),
       }, statement)];
     }
 
@@ -605,15 +654,10 @@ function lowerScope(
       }, statement)];
     }
     if (constructor.type === "asset") {
-      if (typeof statement.arguments[0] !== "string") throw new Error(`asset '${id}' requires a source string`);
-      return [copySpan({ type: "asset", id, source: statement.arguments[0], attributes }, statement)];
+      return [copySpan({ type: "asset", id, source: statement.arguments[0] as string, attributes }, statement)];
     }
     if (constructor.type === "image" || constructor.type === "icon") {
-      const asset = statement.arguments[0];
-      if (typeof asset !== "string") throw new Error(`${constructor.type} '${id}' requires an asset reference`);
-      if (!properties.has("at") || !properties.has("size")) {
-        throw new Error(`${constructor.type} '${id}' requires at and size properties`);
-      }
+      const asset = statement.arguments[0] as string;
       return [copySpan({
         type: constructor.type,
         id,
@@ -642,43 +686,18 @@ function lowerScope(
     }
 
     if (constructor.type === "code") {
-      if (statement.arguments.length !== 1 || typeof statement.arguments[0] !== "string") {
-        throw new Error(`code block '${id}' requires one source string`);
-      }
-      const unsupported = statement.statements.filter((child) => child.type !== "property");
-      if (unsupported.length) throw new Error(`code block '${id}' may contain only properties`);
-      const unsupportedProperties = [...properties.keys()].filter((name) => (
-        !["language", "title", "line-numbers", "highlight"].includes(name)
-      ));
-      if (unsupportedProperties.length) {
-        throw new Error(`code block '${id}' has unsupported properties: ${unsupportedProperties.join(", ")}`);
-      }
       return [copySpan({
         type: "code",
         id,
-        value: codeValue(statement.arguments[0]),
+        value: codeValue(statement.arguments[0] as string),
         language: stringProperty(properties, "language"),
         title: stringProperty(properties, "title"),
-        lineNumbers: normalizePropertyValue(properties.get("line-numbers") ?? true),
-        highlight: normalizePropertyValue(properties.get("highlight") ?? false),
+        lineNumbers: normalizePropertyValue(properties.get("line-numbers")),
+        highlight: normalizePropertyValue(properties.get("highlight")),
       }, statement)];
     }
 
     if (constructor.type === "freedraw") {
-      if (statement.arguments.length) throw new Error(`freedraw '${id}' does not accept constructor arguments`);
-      const unsupported = statement.statements.filter((child) => child.type !== "property");
-      if (unsupported.length) throw new Error(`freedraw '${id}' may contain only properties`);
-      const allowed = new Set([
-        "at", "points", "pressures", "simulate-pressure", "style", "stroke", "background",
-        "stroke-width", "roughness", "fill-style", "opacity", "locked", "link",
-      ]);
-      const unsupportedProperties = [...properties.keys()].filter((name) => !allowed.has(name));
-      if (unsupportedProperties.length) {
-        throw new Error(`freedraw '${id}' has unsupported properties: ${unsupportedProperties.join(", ")}`);
-      }
-      if (!properties.has("at") || !properties.has("points")) {
-        throw new Error(`freedraw '${id}' requires at and points properties`);
-      }
       const pressures = properties.get("pressures");
       return [copySpan({
         type: "freedraw",
@@ -689,6 +708,7 @@ function lowerScope(
         simulatePressure: normalizePropertyValue(
           properties.get("simulate-pressure") ?? (pressures === undefined),
         ),
+        styleDefaults,
         attributes,
       }, statement)];
     }
@@ -718,7 +738,9 @@ function lowerScope(
         kind: constructor.kind ?? "card",
         id,
         title,
+        authoredSource: constructor.kind === "formula" ? String(firstArgument) : undefined,
         tone: tone ?? constructor.tone,
+        styleDefaults,
         attributes,
         at: pointProperty(properties, "at", `node '${id}'`),
         size: pointProperty(properties, "size", `node '${id}'`) ?? (constructor.kind === "junction" ? [20, 20] : undefined),
@@ -737,6 +759,7 @@ function lowerScope(
           width: numberProperty(properties, "wrap-width"),
           align: stringProperty(properties, "align") ?? "left",
           fontSize: numberProperty(properties, "font-size"),
+          styleDefaults,
           attributes,
         }, statement)];
       }
@@ -748,42 +771,42 @@ function lowerScope(
         width: numberProperty(properties, "wrap-width"),
         align: stringProperty(properties, "align") ?? "left",
         fontSize: numberProperty(properties, "font-size"),
+        styleDefaults,
         attributes,
       }, statement)];
     }
-    if (constructor.type !== "lane" && constructor.type !== "group" && constructor.type !== "frame") {
-      throw new Error("unsupported container constructor type");
+    if (constructor.type === "lane" || constructor.type === "group"
+        || constructor.type === "frame" || constructor.type === "section") {
+      return [copySpan({
+        type: constructor.type,
+        id,
+        title,
+        kind: constructor.kind,
+        tone: tone ?? constructor.tone,
+        styleDefaults,
+        attributes: {
+          ...attributes,
+          ...(statement.constructor === "group" ? { invisible: true } : {}),
+        },
+        statements: children,
+      }, statement)];
     }
-    return [copySpan({
-      type: constructor.type,
-      id,
-      title,
-      kind: constructor.kind,
-      tone: tone ?? constructor.tone,
-      attributes: {
-        ...attributes,
-        ...(statement.constructor === "group" ? { invisible: true } : {}),
-      },
-      statements: children,
-    }, statement)];
+    throw new Error("unsupported container constructor type");
   });
 }
 
 export function lowerSyntax(sourceDocument: SourceDocument): DiagramDocument {
-  const imports = new Map<string, string>();
-  for (const import_ of sourceDocument.imports) {
-    if (imports.has(import_.alias)) throw new Error(`duplicate import alias '${import_.alias}'`);
-    imports.set(import_.alias, import_.source);
-  }
-  const components = new Map<string, SourceDeclaration>(sourceDocument.diagram.statements
+  validateLanguageDocument(sourceDocument);
+  const imports = new Map(sourceDocument.imports.map((import_) => [import_.alias, import_.source]));
+  const templates = new Map<string, SourceDeclaration>(sourceDocument.diagram.statements
     .filter((statement): statement is SourceDeclaration => (
-      statement.type === "declaration" && statement.constructor === "component"
+      statement.type === "declaration" && statement.constructor === "template"
     ))
     .map((statement) => [statement.id, statement]));
   const document = copySpan({
     type: "diagram" as const,
     title: sourceDocument.diagram.title,
-    statements: lowerScope(sourceDocument.diagram.statements, [], [], imports, components),
+    statements: lowerScope(sourceDocument.diagram.statements, [], [], imports, templates),
   }, sourceDocument.diagram);
   Object.defineProperties(document, {
     source: { value: sourceDocument.source, enumerable: false },

@@ -2,10 +2,10 @@ import { expect, test } from "@playwright/test";
 import { endpointLabelBounds } from "../../src/connector-labels.ts";
 import { downloadDrawing, openDiagram } from "./helpers";
 
-test("renders reusable components and movable waypoint labels", async ({ page }) => {
+test("renders reusable templates and movable waypoint labels", async ({ page }) => {
   const source = `use "xdraw/architecture" as arch
   diagram "Reusable connector" {
-    service: component(name) { node: arch.system "\${name}" }
+    service: template(name) { node: arch.system "\${name}" }
     source: service("Source")
     target: service("Target")
     source.node@right -> target.node@left "calls" {

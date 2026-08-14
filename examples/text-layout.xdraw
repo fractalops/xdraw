@@ -1,16 +1,14 @@
-use "xdraw/cards" as cards
-use "xdraw/containers" as containers
 use "xdraw/palette" as palette
 
 diagram "How XDraw lays out text" {
   subtitle "Measurement drives bound labels, rich cards, wrapping and alignment"
 
-  bound: containers.section "Bound text strategies" {
+  bound: section "Bound text strategies" {
     arrange row { gap 36 }
-    top_left: cards.card "Left and top" { style palette.info; align left; vertical-align top }
-    centered: cards.card "Native center" { style palette.success }
-    bottom_right: cards.card "Right and bottom" { style palette.warning; align right; vertical-align bottom }
-    rich: cards.card "Measured card" {
+    top_left: rectangle "Left and top" { style palette.info; align left; vertical-align top }
+    centered: rectangle "Native center" { style palette.success }
+    bottom_right: rectangle "Right and bottom" { style palette.warning; align right; vertical-align bottom }
+    rich: rectangle "Measured card" {
       style palette.accent
       body "The title and body retain separate typography and move as one grouped component."
       align left
@@ -18,7 +16,7 @@ diagram "How XDraw lays out text" {
     }
   }
 
-  free: containers.section "Independent text strategies" {
+  free: section "Independent text strategies" {
     automatic: text "Auto width follows measured content" { at (110, 570); font-size 18 }
     bounded: text "A declared width wraps text without binding it to a shape." {
       at (500, 560); wrap-width 260; align center; font-size 18

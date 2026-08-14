@@ -107,13 +107,17 @@ export function image(
   fileId: string,
   options: ImageElementOptions = {},
 ): ImageElement {
+  const customData = {
+    ...(options.customData ?? {}),
+    ...(options.description ? { description: options.description } : {}),
+  };
   return {
     ...baseElement(id, "image", bounds, { ...options, roundness: false }),
     fileId,
     status: "saved",
     scale: options.scale ?? [1, 1],
     crop: options.crop ?? null,
-    customData: options.description ? { description: options.description } : undefined,
+    customData: Object.keys(customData).length ? customData : undefined,
   };
 }
 

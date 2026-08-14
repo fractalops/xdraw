@@ -7,6 +7,11 @@ import {
 import { layoutGap } from "./clearances.ts";
 import { codeBlockRequiredWidth, measureCodeBlock } from "./code-block.ts";
 import { arrangedItems, childSections } from "./layout-items.ts";
+import {
+  planRichNode,
+  registerRichNodePlanner,
+  richNodeMinimumWidth,
+} from "./rich-nodes.ts";
 import type {
   ArrangedStatement,
   Measurer,
@@ -25,6 +30,8 @@ import type {
   TreeStatement,
 } from "./semantic-contracts.ts";
 import type { DiagnosticCollector } from "./foundation-contracts.ts";
+import type { RichNodePlan } from "./rich-node-contracts.ts";
+import type { FormulaPreparation } from "./formula.ts";
 
 interface ArrangedRow {
   items: ArrangedStatement[];
@@ -40,10 +47,6 @@ export interface RowPlan {
 function bodyOf(node: NodeMeasurementTarget): string | undefined {
   const value = node.statements?.find((item) => item.type === "body");
   return value?.type === "body" && typeof value.value === "string" ? value.value : undefined;
-}
-
-function hasTechnology(node: NodeMeasurementTarget): boolean {
-  return node.statements?.some((item) => item.type === "property" && item.key === "technology") ?? false;
 }
 
 function nodeStatements(statements: readonly SemanticStatement[]): NodeStatement[] {
@@ -144,8 +147,9 @@ export function renderableCode(statement: CodeStatement): RenderableCodeStatemen
 
 function arrangedItemMinimumWidth(item: ArrangedStatement): number {
   if (item.size?.[0]) return item.size[0];
-  if (item.type === "node" && String(item.kind).startsWith("architecture-")) {
-    return item.kind === "architecture-person" ? 180 : 220;
+  if (item.type === "node") {
+    const richMinimum = richNodeMinimumWidth(item);
+    if (richMinimum !== null) return richMinimum;
   }
   if (item.type === "layout-text") {
     return item.width ?? Math.min(220, Math.max(100, String(item.value).length * 10 + 20));
@@ -196,12 +200,6 @@ export function calculateArrangedRows(
 function nodeMinimumHeight(node: NodeMeasurementTarget): number {
   if (node.kind === "junction") return 20;
   if (node.kind === "decision") return 120;
-  if (node.kind === "architecture-person") return bodyOf(node) ? 225 : 190;
-  if (node.kind === "architecture-database") return bodyOf(node) ? 172 : 148;
-  if (node.kind === "architecture-queue") return bodyOf(node) ? 160 : 138;
-  if (["architecture-system", "architecture-external-system", "architecture-container", "architecture-component"].includes(node.kind)) {
-    return bodyOf(node) ? (hasTechnology(node) ? 148 : 136) : 120;
-  }
   return ["person", "database"].includes(node.kind) ? 112 : 88;
 }
 
@@ -223,12 +221,25 @@ function cached<T extends object, K, V>(
   return measured;
 }
 
-export function createMeasurer(styles?: StyleResolver): Measurer {
+export function createMeasurer(
+  styles?: StyleResolver,
+  formulaPreparation?: FormulaPreparation,
+): Measurer {
   const nodeCache = new WeakMap<NodeMeasurementTarget, Map<number, number>>();
+  const richPlanCache = new WeakMap<NodeMeasurementTarget, Map<number, RichNodePlan | null>>();
   const containerCache = new WeakMap<ContainerStatement, Map<string, number>>();
+
+  const planNode = (node: NodeMeasurementTarget, width: number): RichNodePlan | null => cached(
+    richPlanCache,
+    node,
+    width,
+    () => planRichNode(node, width, styles?.resolveNode(node), formulaPreparation),
+  );
 
   const measureNode: Measurer["measureNode"] = (node, width) => cached(nodeCache, node, width, () => {
     if (node.size) return node.size[1];
+    const richPlan = planNode(node, width);
+    if (richPlan) return richPlan.height;
     const style = styles?.resolveNode(node);
     return measureCard({
       title: node.title,
@@ -302,7 +313,7 @@ export function createMeasurer(styles?: StyleResolver): Measurer {
       return measureTree(section, width);
     }
     if (section.type === "sequence") return measureSequence(section, width);
-    if (section.type === "lane" || section.type === "group" || section.type === "frame") {
+    if (["lane", "group", "frame", "section"].includes(section.type)) {
       return measureContainer(section, width, y);
     }
     throw new Error("unsupported measured section");
@@ -402,5 +413,6 @@ export function createMeasurer(styles?: StyleResolver): Measurer {
     measureSequence,
     measureTree,
   };
+  registerRichNodePlanner(measurer, planNode);
   return measurer;
 }

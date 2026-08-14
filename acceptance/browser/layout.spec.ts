@@ -38,6 +38,8 @@ test("renders editable nested frames with locked membership", async ({ page }) =
 });
 
 test("renders deterministic layered placement", async ({ page }) => {
+  const requests: string[] = [];
+  page.on("request", (request) => requests.push(request.url()));
   const source = `use "xdraw/architecture" as arch
   diagram "Layered layout" {
     arrange layered { gap 30 }
@@ -57,4 +59,14 @@ test("renders deterministic layered placement", async ({ page }) => {
     (id) => drawing.elements.find((element: any) => element.id === `${id}:frame`),
   );
   expect(frames.every((frame, index) => index === 0 || frames[index - 1].x < frame.x)).toBe(true);
+  expect(requests.some((url) => url.includes("worker-browser-"))).toBe(true);
+});
+
+test("does not load ELK for built-in layouts", async ({ page }) => {
+  const requests: string[] = [];
+  page.on("request", (request) => requests.push(request.url()));
+
+  await openDiagram(page, 'diagram "Row" { source: rectangle "Source" }');
+
+  expect(requests.some((url) => url.includes("worker-browser-"))).toBe(false);
 });

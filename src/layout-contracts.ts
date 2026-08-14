@@ -60,6 +60,7 @@ export interface LayoutOptions {
 export interface LayoutContext {
   state: SceneGraph;
   registerBounds?(graph: SceneGraph, id: string, bounds: Bounds): unknown;
+  preparedLayeredBounds?: ReadonlyMap<string, Bounds>;
   [property: string]: unknown;
 }
 
@@ -152,8 +153,8 @@ export interface NodeMeasurementTarget extends NodeStyleTarget {
   statements?: readonly SemanticStatement[];
 }
 
-export type SectionStatement = CodeStatement | ContainerStatement | SequenceStatement | RootTreeStatement;
-export type ArrangedStatement = NodeStatement | LayoutTextStatement | SectionStatement;
+export type LayoutSectionStatement = CodeStatement | ContainerStatement | SequenceStatement | RootTreeStatement;
+export type ArrangedStatement = NodeStatement | LayoutTextStatement | LayoutSectionStatement;
 
 export interface Measurer {
   measureNode(node: NodeMeasurementTarget, width: number): number;
@@ -162,7 +163,7 @@ export interface Measurer {
   measureArrangedItem(node: ArrangedStatement, width: number, y: number): number;
   measureCodeBlock(node: RenderableCodeStatement): number;
   measureContainer(node: ContainerStatement, width: number, y?: number): number;
-  measureSection(node: SectionStatement, width: number, y?: number): number;
+  measureSection(node: LayoutSectionStatement, width: number, y?: number): number;
   measureSequence(node: SequenceStatement, width: number): number;
   measureTree(node: TreeStatement, width: number): number;
 }
@@ -233,6 +234,7 @@ export interface NodeStyleTarget {
   kind: string;
   title: string;
   tone?: string;
+  styleDefaults?: StatementAttributes;
   attributes?: StatementAttributes;
 }
 

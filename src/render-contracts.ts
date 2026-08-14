@@ -171,6 +171,7 @@ export interface ImageElementOptions extends BaseElementOptions {
   scale?: Point;
   crop?: ImageCrop | null;
   description?: string;
+  customData?: ElementCustomData;
 }
 
 export interface TextElementOptions extends BaseElementOptions {
