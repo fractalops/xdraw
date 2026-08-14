@@ -6,7 +6,7 @@ import type {
   ResolvedAsset,
   SourceSpan,
   SpacingPreset,
-} from "./foundation-contracts.ts";
+} from "./foundation.ts";
 
 export type StatementAttributes = Record<string, unknown>;
 

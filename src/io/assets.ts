@@ -6,7 +6,7 @@ import type {
   AssetUseStatement,
   DiagramDocument,
   SemanticStatement,
-} from "../semantic-contracts.ts";
+} from "../contracts/semantic.ts";
 import type {
   AssetLimits,
   AssetMimeType,
@@ -14,7 +14,7 @@ import type {
   FileSystem,
   Point,
   ResolvedAsset,
-} from "../foundation-contracts.ts";
+} from "../contracts/foundation.ts";
 
 const MIME_BY_EXTENSION: Readonly<Record<string, AssetMimeType>> = {
   ".gif": "image/gif",

@@ -6,7 +6,7 @@ import type {
   EndpointSide,
   Point,
   Route,
-} from "../foundation-contracts.ts";
+} from "../contracts/foundation.ts";
 
 export { splitEndpoint };
 

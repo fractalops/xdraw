@@ -13,8 +13,8 @@ import { buildSemanticIR } from "../src/language/semantic.ts";
 import { parseSource } from "../src/language/parser.ts";
 import { createStyleResolver } from "../src/compile/styles.ts";
 import { planTable, renderTable } from "../src/nodes/table.ts";
-import type { ArchitectureNodePlan, TableNodePlan } from "../src/rich-node-contracts.ts";
-import type { NodeStatement } from "../src/semantic-contracts.ts";
+import type { ArchitectureNodePlan, TableNodePlan } from "../src/contracts/rich-node.ts";
+import type { NodeStatement } from "../src/contracts/semantic.ts";
 
 function onlyNode(source: string): { document: ReturnType<typeof buildSemanticIR>; node: NodeStatement } {
   const document = buildSemanticIR(parseSource(source));

@@ -29,13 +29,13 @@ import type {
   SemanticDocument,
   SemanticStatement,
   TextStatement,
-} from "../semantic-contracts.ts";
-import type { Bounds } from "../foundation-contracts.ts";
-import type { SceneGraph } from "../layout-contracts.ts";
+} from "../contracts/semantic.ts";
+import type { Bounds } from "../contracts/foundation.ts";
+import type { SceneGraph } from "../contracts/layout.ts";
 import type {
   DrawingElement,
   TextElement,
-} from "../render-contracts.ts";
+} from "../contracts/render.ts";
 import type { FontFamily } from "../text/metrics.ts";
 import type { FormulaPreparation } from "../nodes/math/formula.ts";
 

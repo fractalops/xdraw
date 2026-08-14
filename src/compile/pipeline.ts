@@ -5,7 +5,7 @@ import { expandDocument } from "../language/expander.ts";
 import { prepareDocumentSyntaxHighlighting } from "../text/syntax-highlighter.ts";
 import { documentHasFormulas, prepareDocumentFormulas } from "../nodes/math/formula.ts";
 import type { Drawing } from "../excalidraw/document.ts";
-import type { DiagramDocument, SemanticDocument } from "../semantic-contracts.ts";
+import type { DiagramDocument, SemanticDocument } from "../contracts/semantic.ts";
 
 type CompileInput = DiagramDocument | SemanticDocument;
 

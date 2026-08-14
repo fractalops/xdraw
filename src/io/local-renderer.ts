@@ -1,7 +1,7 @@
 import { Resvg } from "@resvg/resvg-js";
 import { getStroke } from "perfect-freehand";
-import type { Point } from "../foundation-contracts.ts";
-import type { StrokeStyle, TextAlign } from "../render-contracts.ts";
+import type { Point } from "../contracts/foundation.ts";
+import type { StrokeStyle, TextAlign } from "../contracts/render.ts";
 
 type LocalElementType =
   | "arrow"

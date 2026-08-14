@@ -13,8 +13,8 @@ import { buildSemanticIR } from "../src/language/semantic.ts";
 import { expandDocument } from "../src/language/expander.ts";
 import { requireArrow, requireElementById } from "../test-support/assertions.ts";
 import type { Drawing } from "../src/excalidraw/document.ts";
-import type { SemanticDocument } from "../src/semantic-contracts.ts";
-import type { DrawingElement } from "../src/render-contracts.ts";
+import type { SemanticDocument } from "../src/contracts/semantic.ts";
+import type { DrawingElement } from "../src/contracts/render.ts";
 
 const execFileAsync = promisify(execFile);
 

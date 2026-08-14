@@ -3,7 +3,7 @@ import type {
   Point,
   Route,
   Segment,
-} from "../foundation-contracts.ts";
+} from "../contracts/foundation.ts";
 
 type Orientation = "vertical" | "horizontal" | "diagonal";
 

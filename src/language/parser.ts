@@ -6,13 +6,13 @@ import type {
   SemanticStatement,
   StatementAttributes,
   TreeStatement,
-} from "../semantic-contracts.ts";
+} from "../contracts/semantic.ts";
 import type {
   Point,
   SpacingPreset,
   Token,
   TokenType,
-} from "../foundation-contracts.ts";
+} from "../contracts/foundation.ts";
 import type {
   SourceArrangement,
   SourceConnection,
@@ -25,7 +25,7 @@ import type {
   SourcePropertyValue,
   SourceStatement,
   SourceValueKind,
-} from "../language-contracts.ts";
+} from "../contracts/language.ts";
 import {
   normalizePropertyValue,
   resolveConstructor,

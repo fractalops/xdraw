@@ -1,7 +1,7 @@
 import { createLayeredGraph, readLayeredBounds } from "./graph.ts";
 import { runElkLayout } from "./worker-transport.ts";
-import type { Bounds } from "../../foundation-contracts.ts";
-import type { SemanticDocument } from "../../semantic-contracts.ts";
+import type { Bounds } from "../../contracts/foundation.ts";
+import type { SemanticDocument } from "../../contracts/semantic.ts";
 import type { ElkLayout } from "./graph.ts";
 import type { FormulaPreparation } from "../../nodes/math/formula.ts";
 

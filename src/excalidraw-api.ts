@@ -4,8 +4,8 @@ import { digestEmbeddedAssetFile, mergeEmbeddedAssetFiles } from "./io/assets.ts
 import { tone } from "./excalidraw/components.ts";
 import type { ToneName } from "./excalidraw/components.ts";
 import { nonceFor } from "./language/identity.ts";
-import type { EmbeddedAssetFiles, Point } from "./foundation-contracts.ts";
-import type { DrawingAppState, DrawingElement, DrawingJson } from "./render-contracts.ts";
+import type { EmbeddedAssetFiles, Point } from "./contracts/foundation.ts";
+import type { DrawingAppState, DrawingElement, DrawingJson } from "./contracts/render.ts";
 
 const DEFAULT_BASE_URL = "https://api.excalidraw.com/api/v1";
 const DEFAULT_TIMEOUT_MS = 30_000;

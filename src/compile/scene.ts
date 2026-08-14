@@ -12,9 +12,9 @@ import type {
   LayoutResult,
   SceneGraph,
   SceneGraphOptions,
-} from "../layout-contracts.ts";
-import type { ConnectionStatement, SemanticDocument, SemanticStatement } from "../semantic-contracts.ts";
-import type { Point } from "../foundation-contracts.ts";
+} from "../contracts/layout.ts";
+import type { ConnectionStatement, SemanticDocument, SemanticStatement } from "../contracts/semantic.ts";
+import type { Point } from "../contracts/foundation.ts";
 
 export const BUILTIN_LAYOUT_CAPABILITIES: LayoutCapabilities = Object.freeze({
   nestedNodes: true,

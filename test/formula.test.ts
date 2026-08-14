@@ -9,8 +9,8 @@ import { renderScenePng } from "../src/io/local-renderer.ts";
 import { renderFormulaSvg } from "../src/nodes/math/renderer.ts";
 import { buildSemanticIR, DiagnosticError } from "../src/language/semantic.ts";
 import { parseSource } from "../src/language/parser.ts";
-import type { DrawingJson, ImageElement, LinearElement } from "../src/render-contracts.ts";
-import type { NodeStatement } from "../src/semantic-contracts.ts";
+import type { DrawingJson, ImageElement, LinearElement } from "../src/contracts/render.ts";
+import type { NodeStatement } from "../src/contracts/semantic.ts";
 
 const GAUSSIAN = String.raw`\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}`;
 

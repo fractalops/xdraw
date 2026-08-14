@@ -73,7 +73,7 @@ export type {
   TextElement,
   TextElementOptions,
   VerticalAlign,
-} from "./render-contracts.ts";
+} from "./contracts/render.ts";
 export { endpointLabelBounds, synchronizeEndpointLabels } from "./routing/labels.ts";
 export type { EndpointLabelSynchronization } from "./routing/labels.ts";
 export { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "./language/semantic.ts";
@@ -117,7 +117,7 @@ export type {
   SemanticStatement,
   StyleProperties,
   StyleResolver,
-} from "./contracts.ts";
+} from "./contracts/index.ts";
 
 export type {
   ChildPolicyManifest,

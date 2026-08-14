@@ -6,11 +6,11 @@ import type {
   EndpointSide,
   Point,
   Route,
-} from "../foundation-contracts.ts";
-import type { ConnectionStatement, NoteStatement } from "../semantic-contracts.ts";
-import type { SceneGraph } from "../layout-contracts.ts";
+} from "../contracts/foundation.ts";
+import type { ConnectionStatement, NoteStatement } from "../contracts/semantic.ts";
+import type { SceneGraph } from "../contracts/layout.ts";
 import type { Drawing } from "../excalidraw/document.ts";
-import type { Arrowhead, DrawingElement, ElementBinding } from "../render-contracts.ts";
+import type { Arrowhead, DrawingElement, ElementBinding } from "../contracts/render.ts";
 import type { CardinalSide } from "./router.ts";
 
 type ConnectionTone = keyof typeof COLORS;

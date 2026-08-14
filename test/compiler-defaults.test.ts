@@ -9,8 +9,8 @@ import { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "../s
 import { parseSource } from "../src/language/parser.ts";
 import { measureTextWidth } from "../src/text/metrics.ts";
 import { requireElementById } from "../test-support/assertions.ts";
-import type { Bounds } from "../src/foundation-contracts.ts";
-import type { SceneGraph } from "../src/layout-contracts.ts";
+import type { Bounds } from "../src/contracts/foundation.ts";
+import type { SceneGraph } from "../src/contracts/layout.ts";
 
 const imports = `use "xdraw/process" as process
 use "xdraw/annotations" as annotations`;

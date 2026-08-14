@@ -9,7 +9,7 @@ import {
   wrapTextToWidth,
 } from "../text/metrics.ts";
 import { ROUTING_CLEARANCE } from "../routing/clearances.ts";
-import type { Bounds, Point } from "../foundation-contracts.ts";
+import type { Bounds, Point } from "../contracts/foundation.ts";
 import type {
   Arrowhead,
   ElementBinding,
@@ -23,7 +23,7 @@ import type {
   TextElement,
   TextElementOptions,
   VerticalAlign,
-} from "../render-contracts.ts";
+} from "../contracts/render.ts";
 import type { FontFamily } from "../text/metrics.ts";
 
 export { fitTextSize } from "../text/metrics.ts";

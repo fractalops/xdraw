@@ -1,5 +1,5 @@
 import { hasValidFreedrawPoints, hasValidFreedrawPressures } from "./freedraw-policy.ts";
-import type { Diagnostic, EmbeddedAssetFiles } from "../foundation-contracts.ts";
+import type { Diagnostic, EmbeddedAssetFiles } from "../contracts/foundation.ts";
 import type {
   DrawingAppState,
   DrawingElement,
@@ -8,7 +8,7 @@ import type {
   DrawingOptions,
   LinearElement,
   TextElement,
-} from "../render-contracts.ts";
+} from "../contracts/render.ts";
 
 function isElementCollection(
   input: DrawingElementInput,

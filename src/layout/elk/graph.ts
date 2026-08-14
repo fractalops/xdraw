@@ -2,14 +2,14 @@ import { layoutGap, ROUTING_CLEARANCE } from "../../routing/clearances.ts";
 import { splitEndpoint } from "../../routing/endpoints.ts";
 import { createMeasurer } from "../../compile/measurement.ts";
 import { createStyleResolver } from "../../compile/styles.ts";
-import type { Bounds } from "../../foundation-contracts.ts";
+import type { Bounds } from "../../contracts/foundation.ts";
 import type {
   ConnectionStatement,
   LayoutStatement,
   NodeStatement,
   SemanticDocument,
   SemanticStatement,
-} from "../../semantic-contracts.ts";
+} from "../../contracts/semantic.ts";
 import type { ElkExtendedEdge, ElkNode } from "elkjs/lib/elk-api.js";
 import type { FormulaPreparation } from "../../nodes/math/formula.ts";
 

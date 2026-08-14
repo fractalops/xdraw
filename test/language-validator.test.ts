@@ -8,7 +8,7 @@ import type {
   SourcePropertyValue,
   SourceStatement,
   SourceValueKind,
-} from "../src/language-contracts.ts";
+} from "../src/contracts/language.ts";
 import {
   BUILTIN_LIBRARY_MANIFESTS,
   defineLibraryManifest,

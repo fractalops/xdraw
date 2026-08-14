@@ -20,8 +20,8 @@ import type {
   SceneGraph,
   SceneVisualInput,
   StyleResolver,
-} from "../layout-contracts.ts";
-import type { Bounds, Point } from "../foundation-contracts.ts";
+} from "../contracts/layout.ts";
+import type { Bounds, Point } from "../contracts/foundation.ts";
 import type {
   CodeStatement,
   ContainerStatement,
@@ -31,8 +31,8 @@ import type {
   SemanticStatement,
   SequenceStatement,
   TreeStatement,
-} from "../semantic-contracts.ts";
-import type { TextAlign } from "../render-contracts.ts";
+} from "../contracts/semantic.ts";
+import type { TextAlign } from "../contracts/render.ts";
 
 type RegisterBounds = NonNullable<LayoutContext["registerBounds"]>;
 

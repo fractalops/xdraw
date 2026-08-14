@@ -4,17 +4,17 @@ import type {
   PropertyStatement,
   SemanticDocument,
   SemanticStatement,
-} from "../semantic-contracts.ts";
-import type { Bounds, DiagnosticCollector, Point } from "../foundation-contracts.ts";
-import type { NodeMeasurementTarget, ResolvedNodeStyle } from "../layout-contracts.ts";
+} from "../contracts/semantic.ts";
+import type { Bounds, DiagnosticCollector, Point } from "../contracts/foundation.ts";
+import type { NodeMeasurementTarget, ResolvedNodeStyle } from "../contracts/layout.ts";
 import type {
   BaseElementOptions,
   DrawingElement,
   FillStyle,
   StrokeStyle,
-} from "../render-contracts.ts";
+} from "../contracts/render.ts";
 import type { FontFamily } from "../text/metrics.ts";
-import type { ArchitectureNodePlan } from "../rich-node-contracts.ts";
+import type { ArchitectureNodePlan } from "../contracts/rich-node.ts";
 
 import { fitTextSize, measureCard, tone } from "../excalidraw/components.ts";
 import type { ToneName } from "../excalidraw/components.ts";

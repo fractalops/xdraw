@@ -1,5 +1,5 @@
-import type { ArrangedStatement, LayoutSectionStatement } from "../layout-contracts.ts";
-import type { SemanticStatement } from "../semantic-contracts.ts";
+import type { ArrangedStatement, LayoutSectionStatement } from "../contracts/layout.ts";
+import type { SemanticStatement } from "../contracts/semantic.ts";
 
 export const SECTION_TYPES = new Set<SemanticStatement["type"]>([
   "code", "frame", "group", "lane", "section", "sequence", "tree",

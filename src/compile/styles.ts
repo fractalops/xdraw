@@ -7,7 +7,7 @@ import type {
   StyleStatement,
   TextStyleStatement,
   ThemeStatement,
-} from "../semantic-contracts.ts";
+} from "../contracts/semantic.ts";
 import type {
   NodeStyleTarget,
   ResolvedFreedrawStyle,
@@ -15,7 +15,7 @@ import type {
   ResolvedTextStyle,
   StyleProperties,
   StyleResolver,
-} from "../layout-contracts.ts";
+} from "../contracts/layout.ts";
 import type { FontFamily } from "../text/metrics.ts";
 
 const PROPERTY_NAMES: Readonly<Record<string, keyof StyleProperties>> = Object.freeze({

@@ -4,7 +4,7 @@ import type {
   DiagnosticNode,
   DiagnosticSeverity,
   SourceLocation,
-} from "../foundation-contracts.ts";
+} from "../contracts/foundation.ts";
 
 function locationOf(node?: DiagnosticNode | null): SourceLocation | null {
   const location = node?.span?.start ?? node?.start ?? null;

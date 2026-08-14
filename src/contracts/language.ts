@@ -1,4 +1,4 @@
-import type { Point, SourceSpan } from "./foundation-contracts.ts";
+import type { Point, SourceSpan } from "./foundation.ts";
 
 export type SourceScalar = string | number | boolean;
 

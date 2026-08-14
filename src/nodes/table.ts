@@ -2,10 +2,10 @@ import { boundText } from "../excalidraw/components.ts";
 import { rectangle } from "../excalidraw/elements.ts";
 import { box } from "../geometry.ts";
 import { measureTextWidth, wrapTextToWidth } from "../text/metrics.ts";
-import type { Bounds } from "../foundation-contracts.ts";
-import type { DrawingElement, RectangleElement, TextElement } from "../render-contracts.ts";
-import type { NodeStatement, SemanticStatement, TableRowStatement } from "../semantic-contracts.ts";
-import type { TableNodePlan } from "../rich-node-contracts.ts";
+import type { Bounds } from "../contracts/foundation.ts";
+import type { DrawingElement, RectangleElement, TextElement } from "../contracts/render.ts";
+import type { NodeStatement, SemanticStatement, TableRowStatement } from "../contracts/semantic.ts";
+import type { TableNodePlan } from "../contracts/rich-node.ts";
 
 const BODY_FONT_SIZE = 16;
 const HEADER_FONT_SIZE = 16;

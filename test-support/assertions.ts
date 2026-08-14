@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import type { ArrowElement, DrawingElement } from "../src/render-contracts.ts";
+import type { ArrowElement, DrawingElement } from "../src/contracts/render.ts";
 
 export function requireElementById(
   elements: readonly DrawingElement[],

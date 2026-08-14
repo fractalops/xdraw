@@ -17,7 +17,7 @@ import type {
   Measurer,
   NodeMeasurementTarget,
   StyleResolver,
-} from "../layout-contracts.ts";
+} from "../contracts/layout.ts";
 import type {
   CodeStatement,
   ConnectionStatement,
@@ -28,9 +28,9 @@ import type {
   RenderableCodeStatement,
   SemanticStatement,
   TreeStatement,
-} from "../semantic-contracts.ts";
-import type { DiagnosticCollector } from "../foundation-contracts.ts";
-import type { RichNodePlan } from "../rich-node-contracts.ts";
+} from "../contracts/semantic.ts";
+import type { DiagnosticCollector } from "../contracts/foundation.ts";
+import type { RichNodePlan } from "../contracts/rich-node.ts";
 import type { FormulaPreparation } from "../nodes/math/formula.ts";
 
 interface ArrangedRow {

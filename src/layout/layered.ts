@@ -7,9 +7,9 @@ import type {
   LayoutCapabilities,
   LayoutRequest,
   LayoutResponse,
-} from "../layout-contracts.ts";
-import type { Bounds, Route, Point } from "../foundation-contracts.ts";
-import type { ConnectionStatement, NodeStatement, SemanticStatement } from "../semantic-contracts.ts";
+} from "../contracts/layout.ts";
+import type { Bounds, Route, Point } from "../contracts/foundation.ts";
+import type { ConnectionStatement, NodeStatement, SemanticStatement } from "../contracts/semantic.ts";
 
 export const LAYERED_LAYOUT_CAPABILITIES: LayoutCapabilities = Object.freeze({
   ...BUILTIN_LAYOUT_CAPABILITIES,

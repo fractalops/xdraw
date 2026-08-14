@@ -3,7 +3,7 @@ import type {
   Axis,
   Bounds,
   Point,
-} from "./foundation-contracts.ts";
+} from "./contracts/foundation.ts";
 
 export function box(x: number, y: number, width: number, height: number): Bounds {
   return { x, y, width, height };

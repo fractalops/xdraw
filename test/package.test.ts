@@ -6,7 +6,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 import { requireElementById } from "../test-support/assertions.ts";
-import type { DrawingJson } from "../src/render-contracts.ts";
+import type { DrawingJson } from "../src/contracts/render.ts";
 
 const execute = promisify(execFile);
 const root = resolve(".");

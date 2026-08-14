@@ -23,13 +23,13 @@ import type {
   SemanticStatement,
   StyleStatement,
   ThemeStatement,
-} from "../semantic-contracts.ts";
+} from "../contracts/semantic.ts";
 import type {
   Diagnostic,
   DiagnosticNode,
   SourceLocation,
   SourceSpan,
-} from "../foundation-contracts.ts";
+} from "../contracts/foundation.ts";
 
 const PORTS = new Set([
   "north", "south", "east", "west", "top", "bottom", "left", "right", "center",

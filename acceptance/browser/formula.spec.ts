@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import { compileAsync } from "../../src/compile/pipeline.ts";
 import { parseSource } from "../../src/language/parser.ts";
-import type { DrawingJson } from "../../src/render-contracts.ts";
+import type { DrawingJson } from "../../src/contracts/render.ts";
 import { downloadDrawing, openDiagram, paintedPixels } from "./helpers";
 
 test("renders formulas as portable SVG assets with inspectable metadata", async ({ page }) => {

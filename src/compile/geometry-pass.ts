@@ -1,9 +1,9 @@
 import { alignBounds, distributeBounds } from "../geometry.ts";
-import type { AlignmentMode, Bounds, Point } from "../foundation-contracts.ts";
-import type { GeometryStatement, RenderableGeometryStatement, SemanticStatement } from "../semantic-contracts.ts";
-import type { SceneGraph } from "../layout-contracts.ts";
+import type { AlignmentMode, Bounds, Point } from "../contracts/foundation.ts";
+import type { GeometryStatement, RenderableGeometryStatement, SemanticStatement } from "../contracts/semantic.ts";
+import type { SceneGraph } from "../contracts/layout.ts";
 import type { Drawing } from "../excalidraw/document.ts";
-import type { DrawingElement } from "../render-contracts.ts";
+import type { DrawingElement } from "../contracts/render.ts";
 
 function isGeometryStatement(statement: SemanticStatement): statement is GeometryStatement {
   return ["alignment", "distribution", "offset", "match-size", "rotation", "snap"].includes(statement.type);

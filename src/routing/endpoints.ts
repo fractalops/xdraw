@@ -1,4 +1,4 @@
-import type { Endpoint, EndpointSide } from "../foundation-contracts.ts";
+import type { Endpoint, EndpointSide } from "../contracts/foundation.ts";
 
 const PORTS = Object.freeze({
   east: "right",

@@ -15,21 +15,21 @@ import type {
   NodeStatement,
   RenderableFreedrawStatement,
   TextStatement,
-} from "../semantic-contracts.ts";
-import type { Bounds } from "../foundation-contracts.ts";
+} from "../contracts/semantic.ts";
+import type { Bounds } from "../contracts/foundation.ts";
 import type {
   ResolvedFreedrawStyle,
   ResolvedNodeStyle,
   ResolvedTextStyle,
   SceneVisual,
-} from "../layout-contracts.ts";
+} from "../contracts/layout.ts";
 import type { Drawing } from "./document.ts";
 import type {
   FreedrawElement,
   ImageCrop,
   TextAlign,
   VerticalAlign,
-} from "../render-contracts.ts";
+} from "../contracts/render.ts";
 import type { ToneName } from "./components.ts";
 
 const KIND_LABEL_COLORS = { person: "#7c3aed", database: "#475569" } as const;

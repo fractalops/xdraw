@@ -1,4 +1,4 @@
-import type { SourceLocation } from "../foundation-contracts.ts";
+import type { SourceLocation } from "../contracts/foundation.ts";
 import type {
   SourceConnection,
   SourceConstructorCall,
@@ -11,7 +11,7 @@ import type {
   SourcePropertyValue,
   SourceStatement,
   SourceValueKind,
-} from "../language-contracts.ts";
+} from "../contracts/language.ts";
 import {
   BUILTIN_LIBRARY_MANIFESTS,
   type ConstructorArgumentManifest,

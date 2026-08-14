@@ -1,6 +1,6 @@
 import { nonceFor, seedFor } from "../language/identity.ts";
 import { measureTextWidth } from "../text/metrics.ts";
-import type { Bounds, Point } from "../foundation-contracts.ts";
+import type { Bounds, Point } from "../contracts/foundation.ts";
 import type {
   ArrowElement,
   BaseElement,
@@ -19,7 +19,7 @@ import type {
   ShapeElementOptions,
   TextElement,
   TextElementOptions,
-} from "../render-contracts.ts";
+} from "../contracts/render.ts";
 
 export const FONT = {
   handDrawn: 1,

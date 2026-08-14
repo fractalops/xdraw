@@ -6,8 +6,8 @@ import type {
   SourceSpan,
   StyleFillStyle,
   StyleStrokeStyle,
-} from "./foundation-contracts.ts";
-import type { LinearElementOptions, TextElementOptions } from "./render-contracts.ts";
+} from "./foundation.ts";
+import type { LinearElementOptions, TextElementOptions } from "./render.ts";
 import type {
   CodeStatement,
   ConnectionStatement,
@@ -24,8 +24,8 @@ import type {
   StatementAttributes,
   TextStyleStatement,
   TreeStatement,
-} from "./semantic-contracts.ts";
-import type { FontFamily } from "./text/metrics.ts";
+} from "./semantic.ts";
+import type { FontFamily } from "../text/metrics.ts";
 
 export type LayoutCapability =
   | "nestedNodes"
