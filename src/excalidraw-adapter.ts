@@ -3,11 +3,11 @@ import { arrow, diamond, ellipse, frame, freedraw, image, text } from "./element
 import { box } from "./geometry.ts";
 import { wrapTextToWidth } from "./text-metrics.ts";
 import { renderCodeBlock } from "./code-block.ts";
-import { planRichNode, renderRichNode, richNodePlanFor } from "./rich-nodes.ts";
+import { planRichNode, renderRichNode, richNodePlanFor } from "./nodes/rich-nodes.ts";
 import {
   isArchitectureBoundaryKind,
   renderArchitectureBoundary,
-} from "./architecture.ts";
+} from "./nodes/architecture.ts";
 import type {
   AssetUseStatement,
   BodyStatement,

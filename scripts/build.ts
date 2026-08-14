@@ -17,7 +17,7 @@ let movedPrevious = false;
 try {
   await execute(tsc, ["-p", join(root, "tsconfig.build.json"), "--outDir", staging], { cwd: root });
   await rewriteDeclarationImports(staging);
-  const mathRenderer = join(staging, "math", "renderer.js");
+  const mathRenderer = join(staging, "nodes", "math", "renderer.js");
   await writeFile(
     mathRenderer,
     (await readFile(mathRenderer, "utf8")).replaceAll(

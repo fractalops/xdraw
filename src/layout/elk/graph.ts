@@ -11,7 +11,7 @@ import type {
   SemanticStatement,
 } from "../../semantic-contracts.ts";
 import type { ElkExtendedEdge, ElkNode } from "elkjs/lib/elk-api.js";
-import type { FormulaPreparation } from "../../math/formula.ts";
+import type { FormulaPreparation } from "../../nodes/math/formula.ts";
 
 const NODE_WIDTH = 240;
 const MAXIMUM_LAYOUT_COORDINATE = 10_000_000;

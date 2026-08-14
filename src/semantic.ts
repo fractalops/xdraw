@@ -12,7 +12,7 @@ import {
   MAX_FREEDRAW_COORDINATE,
   MAX_FREEDRAW_POINTS,
 } from "./freedraw-policy.ts";
-import { validateTableNode } from "./table.ts";
+import { validateTableNode } from "./nodes/table.ts";
 import type {
   ConnectionStatement,
   DecisionBranchStatement,

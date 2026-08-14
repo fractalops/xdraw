@@ -10,16 +10,16 @@ import {
   planFormulaNode,
   renderFormulaNode,
 } from "./math/formula.ts";
-import type { Bounds } from "./foundation-contracts.ts";
+import type { Bounds } from "../foundation-contracts.ts";
 import type {
   Measurer,
   NodeMeasurementTarget,
   NodeVisual,
   ResolvedNodeStyle,
-} from "./layout-contracts.ts";
-import type { DrawingElement } from "./render-contracts.ts";
-import type { NodeStatement } from "./semantic-contracts.ts";
-import type { RichNodePlan } from "./rich-node-contracts.ts";
+} from "../layout-contracts.ts";
+import type { DrawingElement } from "../render-contracts.ts";
+import type { NodeStatement } from "../semantic-contracts.ts";
+import type { RichNodePlan } from "../rich-node-contracts.ts";
 import type { FormulaPreparation } from "./math/formula.ts";
 
 interface RichNodeFamily {

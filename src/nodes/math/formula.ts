@@ -3,8 +3,8 @@ import {
   digestAssetBytes,
   encodeAssetBase64,
   inspectSvgDimensions,
-} from "../assets.ts";
-import { image, rectangle } from "../elements.ts";
+} from "../../assets.ts";
+import { image, rectangle } from "../../elements.ts";
 import {
   FORMULA_RENDER_TIMEOUT_MS,
   FormulaRenderInfrastructureError,
@@ -12,13 +12,13 @@ import {
   FormulaSyntaxError,
   renderFormulaSvg,
 } from "./renderer.ts";
-import { createDiagnosticCollector } from "../diagnostics.ts";
-import { DiagnosticError } from "../semantic.ts";
-import type { Bounds, EmbeddedAssetFiles } from "../foundation-contracts.ts";
-import type { NodeMeasurementTarget, ResolvedNodeStyle } from "../layout-contracts.ts";
-import type { FormulaNodePlan } from "../rich-node-contracts.ts";
-import type { DrawingElement } from "../render-contracts.ts";
-import type { NodeStatement, SemanticDocument, SemanticStatement } from "../semantic-contracts.ts";
+import { createDiagnosticCollector } from "../../diagnostics.ts";
+import { DiagnosticError } from "../../semantic.ts";
+import type { Bounds, EmbeddedAssetFiles } from "../../foundation-contracts.ts";
+import type { NodeMeasurementTarget, ResolvedNodeStyle } from "../../layout-contracts.ts";
+import type { FormulaNodePlan } from "../../rich-node-contracts.ts";
+import type { DrawingElement } from "../../render-contracts.ts";
+import type { NodeStatement, SemanticDocument, SemanticStatement } from "../../semantic-contracts.ts";
 
 export const FORMULA_LIMITS = Object.freeze({
   count: 100,

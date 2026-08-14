@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   isArchitectureBoundaryKind,
   renderArchitectureNode,
-} from "../src/architecture.ts";
+} from "../src/nodes/architecture.ts";
 import { compile } from "../src/pipeline.ts";
 import { parseSource } from "../src/source-language.ts";
 

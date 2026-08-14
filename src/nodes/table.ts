@@ -1,11 +1,11 @@
-import { boundText } from "./components.ts";
-import { rectangle } from "./elements.ts";
-import { box } from "./geometry.ts";
-import { measureTextWidth, wrapTextToWidth } from "./text-metrics.ts";
-import type { Bounds } from "./foundation-contracts.ts";
-import type { DrawingElement, RectangleElement, TextElement } from "./render-contracts.ts";
-import type { NodeStatement, SemanticStatement, TableRowStatement } from "./semantic-contracts.ts";
-import type { TableNodePlan } from "./rich-node-contracts.ts";
+import { boundText } from "../components.ts";
+import { rectangle } from "../elements.ts";
+import { box } from "../geometry.ts";
+import { measureTextWidth, wrapTextToWidth } from "../text-metrics.ts";
+import type { Bounds } from "../foundation-contracts.ts";
+import type { DrawingElement, RectangleElement, TextElement } from "../render-contracts.ts";
+import type { NodeStatement, SemanticStatement, TableRowStatement } from "../semantic-contracts.ts";
+import type { TableNodePlan } from "../rich-node-contracts.ts";
 
 const BODY_FONT_SIZE = 16;
 const HEADER_FONT_SIZE = 16;

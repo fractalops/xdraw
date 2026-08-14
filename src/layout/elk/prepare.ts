@@ -3,7 +3,7 @@ import { runElkLayout } from "./worker-transport.ts";
 import type { Bounds } from "../../foundation-contracts.ts";
 import type { SemanticDocument } from "../../semantic-contracts.ts";
 import type { ElkLayout } from "./graph.ts";
-import type { FormulaPreparation } from "../../math/formula.ts";
+import type { FormulaPreparation } from "../../nodes/math/formula.ts";
 
 export type LayeredPreparation =
   | { status: "not-requested"; bounds: null }

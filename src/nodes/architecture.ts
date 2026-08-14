@@ -4,22 +4,22 @@ import type {
   PropertyStatement,
   SemanticDocument,
   SemanticStatement,
-} from "./semantic-contracts.ts";
-import type { Bounds, DiagnosticCollector, Point } from "./foundation-contracts.ts";
-import type { NodeMeasurementTarget, ResolvedNodeStyle } from "./layout-contracts.ts";
+} from "../semantic-contracts.ts";
+import type { Bounds, DiagnosticCollector, Point } from "../foundation-contracts.ts";
+import type { NodeMeasurementTarget, ResolvedNodeStyle } from "../layout-contracts.ts";
 import type {
   BaseElementOptions,
   DrawingElement,
   FillStyle,
   StrokeStyle,
-} from "./render-contracts.ts";
-import type { FontFamily } from "./text-metrics.ts";
-import type { ArchitectureNodePlan } from "./rich-node-contracts.ts";
+} from "../render-contracts.ts";
+import type { FontFamily } from "../text-metrics.ts";
+import type { ArchitectureNodePlan } from "../rich-node-contracts.ts";
 
-import { fitTextSize, measureCard, tone } from "./components.ts";
-import type { ToneName } from "./components.ts";
-import { arrow, ellipse, frame, rectangle, text } from "./elements.ts";
-import { wrapTextToWidth } from "./text-metrics.ts";
+import { fitTextSize, measureCard, tone } from "../components.ts";
+import type { ToneName } from "../components.ts";
+import { arrow, ellipse, frame, rectangle, text } from "../elements.ts";
+import { wrapTextToWidth } from "../text-metrics.ts";
 
 const ARCHITECTURE_KINDS = new Set([
   "architecture-person",

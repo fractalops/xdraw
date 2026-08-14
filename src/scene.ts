@@ -1,5 +1,5 @@
 import { splitEndpoint } from "./routing/endpoints.ts";
-import { attachRichNodePlan, planMeasuredRichNode } from "./rich-nodes.ts";
+import { attachRichNodePlan, planMeasuredRichNode } from "./nodes/rich-nodes.ts";
 import type {
   AdapterRoute,
   LayoutAdapter,

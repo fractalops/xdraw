@@ -21,7 +21,7 @@ import { createDiagnosticCollector } from "./diagnostics.ts";
 import { measureTextWidth } from "./text-metrics.ts";
 import { layoutGap } from "./routing/clearances.ts";
 import { SECTION_TYPES } from "./layout/sections.ts";
-import { validateArchitectureUsage } from "./architecture.ts";
+import { validateArchitectureUsage } from "./nodes/architecture.ts";
 import type {
   AssetUseStatement,
   FreedrawStatement,
@@ -37,7 +37,7 @@ import type {
   TextElement,
 } from "./render-contracts.ts";
 import type { FontFamily } from "./text-metrics.ts";
-import type { FormulaPreparation } from "./math/formula.ts";
+import type { FormulaPreparation } from "./nodes/math/formula.ts";
 
 interface RenderOptions {
   syntaxHighlighting?: boolean;

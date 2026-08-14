@@ -11,7 +11,7 @@ import {
   planRichNode,
   registerRichNodePlanner,
   richNodeMinimumWidth,
-} from "./rich-nodes.ts";
+} from "./nodes/rich-nodes.ts";
 import type {
   ArrangedStatement,
   Measurer,
@@ -31,7 +31,7 @@ import type {
 } from "./semantic-contracts.ts";
 import type { DiagnosticCollector } from "./foundation-contracts.ts";
 import type { RichNodePlan } from "./rich-node-contracts.ts";
-import type { FormulaPreparation } from "./math/formula.ts";
+import type { FormulaPreparation } from "./nodes/math/formula.ts";
 
 interface ArrangedRow {
   items: ArrangedStatement[];

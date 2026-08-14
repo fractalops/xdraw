@@ -7,12 +7,12 @@ import {
   renderRichNode,
   richNodeFamilyName,
   richNodePlanFor,
-} from "../src/rich-nodes.ts";
+} from "../src/nodes/rich-nodes.ts";
 import { createSceneGraph } from "../src/scene.ts";
 import { buildSemanticIR } from "../src/semantic.ts";
 import { parseSource } from "../src/source-language.ts";
 import { createStyleResolver } from "../src/styles.ts";
-import { planTable, renderTable } from "../src/table.ts";
+import { planTable, renderTable } from "../src/nodes/table.ts";
 import type { ArchitectureNodePlan, TableNodePlan } from "../src/rich-node-contracts.ts";
 import type { NodeStatement } from "../src/semantic-contracts.ts";
 
