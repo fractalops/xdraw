@@ -104,6 +104,7 @@ Examples:
   xdraw build architecture.xdraw -o output/architecture.excalidraw
   xdraw build < architecture.xdraw > architecture.excalidraw
   cat architecture.xdraw | xdraw build -o architecture.excalidraw
+  xdraw build -e 'use "xdraw/math" as math; diagram "Euler" { identity: math.formula """e^{i\\pi} + 1 = 0""" }' -o formula.png
   xdraw check architecture.xdraw
   xdraw apply architecture.scene.xdraw
   cat architecture.scene.xdraw | xdraw apply

@@ -14,6 +14,21 @@ test("CLI exposes help and version without Node-specific invocation", async () =
   assert.equal(await run(["--version"]), `xdraw ${packageJson.version}`);
 });
 
+test("the formula example in help carries usable TeX and compiles", async () => {
+  // Help text is a template literal, so a single backslash in \pi is swallowed
+  // before it ever reaches the reader. Compile what help actually prints.
+  const help = await run(["--help"]);
+  const example = help.split("\n").find((line) => line.includes("math.formula"));
+  assert.ok(example, "help must document a formula example");
+  assert.match(example, /"""e\^\{i\\pi\} \+ 1 = 0"""/, "TeX escapes must survive into help output");
+
+  const source = /-e '([^']*)'/u.exec(example)?.[1];
+  assert.ok(source, "the example must pass source with -e");
+  const drawing = JSON.parse(await run(["build", "-e", source, "-o", "-"]));
+  const image = drawing.elements.find((element) => element.customData?.xdraw?.source);
+  assert.equal(image.customData.xdraw.source, "e^{i\\pi} + 1 = 0");
+});
+
 test("CLI checks source and chooses a neighboring output by default", async () => {
   const directory = await mkdtemp(join(tmpdir(), "xdraw-cli-"));
   const input = join(directory, "hello.xdraw");

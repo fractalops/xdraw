@@ -95,6 +95,20 @@ scene:
 xdraw build examples/formulas.xdraw -o output/formulas.png
 ```
 
+TeX is backslash-heavy, so piping a formula needs the heredoc delimiter quoted.
+Unquoted, the shell collapses the `\\` that separates matrix rows and the
+formula silently loses its line breaks:
+
+```bash
+xdraw build - -o quadratic.png <<'XDRAW'
+use "xdraw/math" as math
+
+diagram "Quadratic formula" {
+  root: math.formula """x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"""
+}
+XDRAW
+```
+
 Tables remain grouped native Excalidraw shapes, with measured columns and
 wrapped cells:
 
@@ -155,7 +169,6 @@ xdraw pull <address-or-id> [-o <output>]
 - `list` discovers hosted scene addresses.
 - `apply` sends a replace or patch document to Excalidraw+.
 - `pull` retrieves a hosted scene as `.excalidraw`, PNG, or SVG.
-- `library` lists built-in libraries or describes one library's contract.
 
 `build`, `check`, and `apply` accept a file, standard input, or inline source
 with `-e`. Remote commands use `EXCALIDRAW_API_KEY`. Run `xdraw --help` for all
