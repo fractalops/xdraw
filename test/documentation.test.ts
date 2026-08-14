@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { resolveAssets } from "../src/assets.ts";
+import { resolveAssets } from "../src/io/assets.ts";
 import { compileAsync } from "../src/pipeline.ts";
-import { RootedFileSystem } from "../src/filesystem.ts";
-import { parseSceneDocument } from "../src/scene-document.ts";
+import { RootedFileSystem } from "../src/io/filesystem.ts";
+import { parseSceneDocument } from "../src/io/scene-document.ts";
 import { parseSource } from "../src/source-language.ts";
 
 for (const file of [

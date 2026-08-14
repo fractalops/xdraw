@@ -1,7 +1,7 @@
 import { readFile, realpath } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import type { FileSystem } from "./foundation-contracts.ts";
+import type { FileSystem } from "../foundation-contracts.ts";
 
 type FileValue = string | Uint8Array;
 

@@ -1,4 +1,4 @@
-import { expandDocument } from "./expander.ts";
+import { expandDocument } from "../expander.ts";
 import { SaxesParser } from "saxes";
 
 import type {
@@ -6,7 +6,7 @@ import type {
   AssetUseStatement,
   DiagramDocument,
   SemanticStatement,
-} from "./semantic-contracts.ts";
+} from "../semantic-contracts.ts";
 import type {
   AssetLimits,
   AssetMimeType,
@@ -14,7 +14,7 @@ import type {
   FileSystem,
   Point,
   ResolvedAsset,
-} from "./foundation-contracts.ts";
+} from "../foundation-contracts.ts";
 
 const MIME_BY_EXTENSION: Readonly<Record<string, AssetMimeType>> = {
   ".gif": "image/gif",

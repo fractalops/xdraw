@@ -1,5 +1,5 @@
 import { Drawing } from "./document.ts";
-import { mergeEmbeddedAssetFiles } from "./assets.ts";
+import { mergeEmbeddedAssetFiles } from "./io/assets.ts";
 import { BUILTIN_LAYOUT } from "./layout/builtin.ts";
 import { LAYERED_LAYOUT } from "./layout/layered.ts";
 import { heading } from "./components.ts";
@@ -17,7 +17,7 @@ import { splitEndpoint } from "./routing/router.ts";
 import { createSceneGraph, layoutWithAdapter } from "./scene.ts";
 import { createMeasurer } from "./measurement.ts";
 import { createStyleResolver } from "./styles.ts";
-import { createDiagnosticCollector } from "./diagnostics.ts";
+import { createDiagnosticCollector } from "./io/diagnostics.ts";
 import { measureTextWidth } from "./text/metrics.ts";
 import { layoutGap } from "./routing/clearances.ts";
 import { SECTION_TYPES } from "./layout/sections.ts";

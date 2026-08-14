@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { digestAssetBytes } from "../src/assets.ts";
+import { digestAssetBytes } from "../src/io/assets.ts";
 import { ExcalidrawApiClient } from "../src/excalidraw-api.ts";
 
 function reply(status, payload) {

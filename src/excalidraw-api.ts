@@ -1,6 +1,6 @@
 import { generateNKeysBetween } from "fractional-indexing";
 
-import { digestEmbeddedAssetFile, mergeEmbeddedAssetFiles } from "./assets.ts";
+import { digestEmbeddedAssetFile, mergeEmbeddedAssetFiles } from "./io/assets.ts";
 import { tone } from "./components.ts";
 import type { ToneName } from "./components.ts";
 import { nonceFor } from "./identity.ts";

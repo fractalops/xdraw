@@ -3,7 +3,7 @@ import {
   digestAssetBytes,
   encodeAssetBase64,
   inspectSvgDimensions,
-} from "../../assets.ts";
+} from "../../io/assets.ts";
 import { image, rectangle } from "../../elements.ts";
 import {
   FORMULA_RENDER_TIMEOUT_MS,
@@ -12,7 +12,7 @@ import {
   FormulaSyntaxError,
   renderFormulaSvg,
 } from "./renderer.ts";
-import { createDiagnosticCollector } from "../../diagnostics.ts";
+import { createDiagnosticCollector } from "../../io/diagnostics.ts";
 import { DiagnosticError } from "../../semantic.ts";
 import type { Bounds, EmbeddedAssetFiles } from "../../foundation-contracts.ts";
 import type { NodeMeasurementTarget, ResolvedNodeStyle } from "../../layout-contracts.ts";

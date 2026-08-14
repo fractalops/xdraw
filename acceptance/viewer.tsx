@@ -7,7 +7,7 @@ import "./viewer.css";
 
 import { compileAsync } from "../src/pipeline.ts";
 import { synchronizeEndpointLabels } from "../src/routing/labels.ts";
-import { resolveAssets } from "../src/assets.ts";
+import { resolveAssets } from "../src/io/assets.ts";
 import { parseSource } from "../src/source-language.ts";
 
 const browserFilesystem = {

@@ -3,7 +3,7 @@ export {
   EXCALIDRAW_API_URL,
   ExcalidrawApiClient,
 } from "./excalidraw-api.ts";
-export { resolveAssets } from "./assets.ts";
+export { resolveAssets } from "./io/assets.ts";
 export { FONT, arrow, diamond, ellipse, frame, freedraw, image, rectangle, text } from "./elements.ts";
 export { alignBounds, anchor, box, column, distributeBounds, inset, row } from "./geometry.ts";
 export { boundText, card, connect, fitTextSize, heading, lane, tone, wrapText } from "./components.ts";
@@ -26,7 +26,7 @@ export { createMeasurer } from "./measurement.ts";
 export { createStyleResolver } from "./styles.ts";
 export { LAYERED_LAYOUT, LAYERED_LAYOUT_CAPABILITIES } from "./layout/layered.ts";
 export { parseSource as parse, parseSource, parseSyntax } from "./source-language.ts";
-export { formatSceneResource, parseSceneDocument } from "./scene-document.ts";
+export { formatSceneResource, parseSceneDocument } from "./io/scene-document.ts";
 export type {
   SceneAdditionDocument,
   SceneDocument,
@@ -35,7 +35,7 @@ export type {
   SceneReplaceOperation,
   SceneResource,
   SceneUpdate,
-} from "./scene-document.ts";
+} from "./io/scene-document.ts";
 export { measureRouteQuality } from "./routing/quality.ts";
 export type { RouteQuality } from "./routing/quality.ts";
 export type { FontFamily } from "./text/metrics.ts";

@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 import { run } from "../src/cli.ts";
-import { parseSceneDocument } from "../src/scene-document.ts";
+import { parseSceneDocument } from "../src/io/scene-document.ts";
 
 const examples = resolve("examples");
 

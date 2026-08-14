@@ -2,15 +2,15 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
-import { resolveAssets } from "./assets.ts";
+import { resolveAssets } from "./io/assets.ts";
 import { compileAsync } from "./pipeline.ts";
 import { ExcalidrawApiClient } from "./excalidraw-api.ts";
-import { RootedFileSystem } from "./filesystem.ts";
-import { renderScenePng, renderSceneSvg } from "./local-renderer.ts";
+import { RootedFileSystem } from "./io/filesystem.ts";
+import { renderScenePng, renderSceneSvg } from "./io/local-renderer.ts";
 import { parseSource } from "./source-language.ts";
-import { formatSceneResource, parseSceneDocument, parseSceneResource } from "./scene-document.ts";
-import { writeDrawing } from "./writer.ts";
-import { formatDiagnostic } from "./diagnostics.ts";
+import { formatSceneResource, parseSceneDocument, parseSceneResource } from "./io/scene-document.ts";
+import { writeDrawing } from "./io/writer.ts";
+import { formatDiagnostic } from "./io/diagnostics.ts";
 import {
   summarizeLibraryManifest,
   type ConstructorArgumentManifest,
@@ -20,7 +20,7 @@ import {
 import { getLibraryManifest, listLibraryManifests } from "./language-registry.ts";
 import type {
   SceneDocument,
-} from "./scene-document.ts";
+} from "./io/scene-document.ts";
 
 type Command = "build" | "check" | "apply" | "list" | "pull" | "library-list" | "library-show";
 type Action = Command | "help" | "version";

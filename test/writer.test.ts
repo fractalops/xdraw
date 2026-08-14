@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { Drawing } from "../src/document.ts";
 import { FONT, arrow, freedraw, image, rectangle, text } from "../src/elements.ts";
-import { writeDrawing } from "../src/writer.ts";
+import { writeDrawing } from "../src/io/writer.ts";
 
 test("writeDrawing writes validated pretty JSON with a trailing newline", async () => {
   const directory = await mkdtemp(join(tmpdir(), "xdraw-writer-"));

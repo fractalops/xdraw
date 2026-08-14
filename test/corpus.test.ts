@@ -5,8 +5,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { compileAsync } from "../src/pipeline.ts";
-import { resolveAssets } from "../src/assets.ts";
-import { RootedFileSystem } from "../src/filesystem.ts";
+import { resolveAssets } from "../src/io/assets.ts";
+import { RootedFileSystem } from "../src/io/filesystem.ts";
 import { parseSource } from "../src/source-language.ts";
 import { measureTextWidth } from "../src/text/metrics.ts";
 

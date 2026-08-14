@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { renderScenePng, renderSceneSvg } from "../src/local-renderer.ts";
+import { renderScenePng, renderSceneSvg } from "../src/io/local-renderer.ts";
 
 const scene = {
   type: "excalidraw",

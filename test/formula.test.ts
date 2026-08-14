@@ -5,7 +5,7 @@ import test from "node:test";
 import { compile, compileAsync } from "../src/pipeline.ts";
 import { expandDocument } from "../src/expander.ts";
 import { FORMULA_LIMITS } from "../src/nodes/math/formula.ts";
-import { renderScenePng } from "../src/local-renderer.ts";
+import { renderScenePng } from "../src/io/local-renderer.ts";
 import { renderFormulaSvg } from "../src/nodes/math/renderer.ts";
 import { buildSemanticIR, DiagnosticError } from "../src/semantic.ts";
 import { parseSource } from "../src/source-language.ts";

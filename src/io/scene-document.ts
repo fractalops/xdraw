@@ -1,8 +1,8 @@
-import { parseSource } from "./source-language.ts";
-import { SyntaxError, tokenize } from "./tokenizer.ts";
-import type { DiagramDocument } from "./semantic-contracts.ts";
-import type { Token, TokenList } from "./foundation-contracts.ts";
-import type { ToneName } from "./components.ts";
+import { parseSource } from "../source-language.ts";
+import { SyntaxError, tokenize } from "../tokenizer.ts";
+import type { DiagramDocument } from "../semantic-contracts.ts";
+import type { Token, TokenList } from "../foundation-contracts.ts";
+import type { ToneName } from "../components.ts";
 
 const UPDATE_PROPERTY_NAMES = [
   "tone", "title", "stroke", "background", "text", "stroke-width", "opacity",

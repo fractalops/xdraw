@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { MemoryFileSystem, RootedFileSystem } from "../src/filesystem.ts";
+import { MemoryFileSystem, RootedFileSystem } from "../src/io/filesystem.ts";
 
 test("rooted filesystem reads only relative paths inside its root", async () => {
   const root = await mkdtemp(join(tmpdir(), "xdraw-fs-"));

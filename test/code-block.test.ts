@@ -4,7 +4,7 @@ import test from "node:test";
 import { compile, compileAsync } from "../src/pipeline.ts";
 import { codeBlockRequiredWidth } from "../src/text/code-block.ts";
 import { FONT } from "../src/elements.ts";
-import { renderSceneSvg } from "../src/local-renderer.ts";
+import { renderSceneSvg } from "../src/io/local-renderer.ts";
 import { buildSemanticIR } from "../src/semantic.ts";
 import { parseSource } from "../src/source-language.ts";
 

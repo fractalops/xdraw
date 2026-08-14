@@ -6,7 +6,7 @@ import fc from "fast-check";
 import { compile } from "../src/pipeline.ts";
 import { alignBounds, box, column, distributeBounds, inset, row } from "../src/geometry.ts";
 import { measureRouteQuality } from "../src/routing/quality.ts";
-import { formatSceneResource, parseSceneResource } from "../src/scene-document.ts";
+import { formatSceneResource, parseSceneResource } from "../src/io/scene-document.ts";
 import { parseSource } from "../src/source-language.ts";
 import { tokenize } from "../src/tokenizer.ts";
 
