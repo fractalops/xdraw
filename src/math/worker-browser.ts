@@ -2,7 +2,7 @@ import {
   FormulaCoreSyntaxError,
   formulaRenderErrorMessage,
   renderFormulaSvgCore,
-} from "./math-renderer-core.ts";
+} from "./core.ts";
 
 interface FormulaRequest {
   readonly id: number;

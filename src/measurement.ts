@@ -31,7 +31,7 @@ import type {
 } from "./semantic-contracts.ts";
 import type { DiagnosticCollector } from "./foundation-contracts.ts";
 import type { RichNodePlan } from "./rich-node-contracts.ts";
-import type { FormulaPreparation } from "./formula.ts";
+import type { FormulaPreparation } from "./math/formula.ts";
 
 interface ArrangedRow {
   items: ArrangedStatement[];

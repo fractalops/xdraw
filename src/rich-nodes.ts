@@ -9,7 +9,7 @@ import {
   formulaNodeMinimumWidth,
   planFormulaNode,
   renderFormulaNode,
-} from "./formula.ts";
+} from "./math/formula.ts";
 import type { Bounds } from "./foundation-contracts.ts";
 import type {
   Measurer,
@@ -20,7 +20,7 @@ import type {
 import type { DrawingElement } from "./render-contracts.ts";
 import type { NodeStatement } from "./semantic-contracts.ts";
 import type { RichNodePlan } from "./rich-node-contracts.ts";
-import type { FormulaPreparation } from "./formula.ts";
+import type { FormulaPreparation } from "./math/formula.ts";
 
 interface RichNodeFamily {
   readonly name: string;

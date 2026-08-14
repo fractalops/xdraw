@@ -17,12 +17,12 @@ let movedPrevious = false;
 try {
   await execute(tsc, ["-p", join(root, "tsconfig.build.json"), "--outDir", staging], { cwd: root });
   await rewriteDeclarationImports(staging);
-  const mathRenderer = join(staging, "math-renderer.js");
+  const mathRenderer = join(staging, "math", "renderer.js");
   await writeFile(
     mathRenderer,
     (await readFile(mathRenderer, "utf8")).replaceAll(
-      /\.\/math-render-worker-(browser|node)\.ts/gu,
-      "./math-render-worker-$1.js",
+      /\.\/worker-(browser|node)\.ts/gu,
+      "./worker-$1.js",
     ),
   );
   await execute(process.execPath, ["--check", join(staging, "xdraw.js")], { cwd: root });

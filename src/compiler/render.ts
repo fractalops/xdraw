@@ -37,7 +37,7 @@ import type {
   TextElement,
 } from "../render-contracts.ts";
 import type { FontFamily } from "../text-metrics.ts";
-import type { FormulaPreparation } from "../formula.ts";
+import type { FormulaPreparation } from "../math/formula.ts";
 
 interface RenderOptions {
   syntaxHighlighting?: boolean;

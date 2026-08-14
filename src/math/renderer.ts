@@ -1,4 +1,4 @@
-import type { RenderedFormulaSvg } from "./math-renderer-core.ts";
+import type { RenderedFormulaSvg } from "./core.ts";
 
 export const FORMULA_RENDER_TIMEOUT_MS = 10_000;
 
@@ -34,7 +34,7 @@ function abortReason(signal: AbortSignal): Error {
 
 async function createWorker(): Promise<FormulaWorker> {
   if (typeof Worker === "function") {
-    const instance = new Worker(new URL("./math-render-worker-browser.ts", import.meta.url), { type: "module" });
+    const instance = new Worker(new URL("./worker-browser.ts", import.meta.url), { type: "module" });
     return {
       postMessage: (message) => instance.postMessage(message),
       terminate: () => instance.terminate(),
@@ -53,7 +53,7 @@ async function createWorker(): Promise<FormulaWorker> {
     };
   }
   const { Worker: NodeWorker } = await import("node:worker_threads");
-  const instance = new NodeWorker(new URL("./math-render-worker-node.ts", import.meta.url), { execArgv: [] });
+  const instance = new NodeWorker(new URL("./worker-node.ts", import.meta.url), { execArgv: [] });
   instance.unref();
   return {
     postMessage: (message) => instance.postMessage(message),

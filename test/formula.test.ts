@@ -4,9 +4,9 @@ import test from "node:test";
 
 import { compile, compileAsync } from "../src/compiler.ts";
 import { expandDocument } from "../src/expander.ts";
-import { FORMULA_LIMITS } from "../src/formula.ts";
+import { FORMULA_LIMITS } from "../src/math/formula.ts";
 import { renderScenePng } from "../src/local-renderer.ts";
-import { renderFormulaSvg } from "../src/math-renderer.ts";
+import { renderFormulaSvg } from "../src/math/renderer.ts";
 import { buildSemanticIR, DiagnosticError } from "../src/semantic.ts";
 import { parseSource } from "../src/source-language.ts";
 import type { DrawingJson, ImageElement, LinearElement } from "../src/render-contracts.ts";

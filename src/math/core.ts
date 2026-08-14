@@ -5,7 +5,7 @@ import "@mathjax/src/mjs/input/tex/ams/AmsConfiguration.js";
 import { mathjax } from "@mathjax/src/mjs/mathjax.js";
 import { SVG } from "@mathjax/src/mjs/output/svg.js";
 import "@mathjax/src/mjs/util/asyncLoad/esm.js";
-import "./math-font-data.ts";
+import "./fonts.ts";
 
 const FORMULA_HEIGHT = 72;
 
