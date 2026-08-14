@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { resolveAssets } from "../src/assets.ts";
-import { compile } from "../src/compiler.ts";
+import { compile } from "../src/pipeline.ts";
 import { MemoryFileSystem } from "../src/filesystem.ts";
 import { parseSource, parseSyntax } from "../src/source-language.ts";
 

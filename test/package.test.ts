@@ -60,7 +60,7 @@ test("packed package installs a working xdraw executable", async () => {
     .some((prefix) => file.path === prefix || file.path.startsWith(prefix))));
   assert.ok(packed.files.every((file) => !/(?:^|\/)(?:\.env|\.DS_Store)|\.(?:key|log|pem|tmp)$/i.test(file.path)));
   assert.ok(packed.files.some((file) => file.path === "LICENSE"));
-  assert.ok(packed.files.some((file) => file.path === "lib/compiler.js"));
+  assert.ok(packed.files.some((file) => file.path === "lib/pipeline.js"));
   assert.ok(packed.files.some((file) => file.path === "lib/index.d.ts"));
   assert.ok(packed.files.some((file) => file.path === "lib/excalidraw-api.js"));
   assert.ok(packed.files.some((file) => file.path === "lib/excalidraw-api.d.ts"));

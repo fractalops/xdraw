@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile } from "../src/compiler.ts";
+import { compile } from "../src/pipeline.ts";
 import { createMeasurer } from "../src/measurement.ts";
 import { buildSemanticIR } from "../src/semantic.ts";
 import { parseSource } from "../src/source-language.ts";

@@ -1,4 +1,4 @@
-import { renderCompilation } from "./compiler/render.ts";
+import { renderCompilation } from "./render.ts";
 import { prepareLayeredLayout } from "./layout/elk/prepare.ts";
 import { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "./semantic.ts";
 import { expandDocument } from "./expander.ts";

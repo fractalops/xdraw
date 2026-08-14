@@ -3,7 +3,7 @@ import test from "node:test";
 
 import fc from "fast-check";
 
-import { compile } from "../src/compiler.ts";
+import { compile } from "../src/pipeline.ts";
 import { alignBounds, box, column, distributeBounds, inset, row } from "../src/layout.ts";
 import { measureRouteQuality } from "../src/route-quality.ts";
 import { formatSceneResource, parseSceneResource } from "../src/scene-document.ts";

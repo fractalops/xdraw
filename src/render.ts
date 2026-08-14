@@ -1,27 +1,27 @@
-import { Drawing } from "../document.ts";
-import { mergeEmbeddedAssetFiles } from "../assets.ts";
-import { BUILTIN_LAYOUT } from "../builtin-layouts.ts";
-import { LAYERED_LAYOUT } from "../layered-layout.ts";
-import { heading } from "../components.ts";
-import { text } from "../elements.ts";
+import { Drawing } from "./document.ts";
+import { mergeEmbeddedAssetFiles } from "./assets.ts";
+import { BUILTIN_LAYOUT } from "./builtin-layouts.ts";
+import { LAYERED_LAYOUT } from "./layered-layout.ts";
+import { heading } from "./components.ts";
+import { text } from "./elements.ts";
 import {
   renderableFreedraw,
   renderFreedraw,
   renderFreeText,
   renderImage,
   renderSceneVisuals,
-} from "../excalidraw-adapter.ts";
-import { applyGeometryStatements } from "../geometry.ts";
-import { renderAnnotation, renderConnection } from "../routing-renderer.ts";
-import { splitEndpoint } from "../router.ts";
-import { createSceneGraph, layoutWithAdapter } from "../scene.ts";
-import { createMeasurer } from "../measurement.ts";
-import { createStyleResolver } from "../styles.ts";
-import { createDiagnosticCollector } from "../diagnostics.ts";
-import { measureTextWidth } from "../text-metrics.ts";
-import { layoutGap } from "../clearances.ts";
-import { SECTION_TYPES } from "../layout-items.ts";
-import { validateArchitectureUsage } from "../architecture.ts";
+} from "./excalidraw-adapter.ts";
+import { applyGeometryStatements } from "./geometry.ts";
+import { renderAnnotation, renderConnection } from "./routing-renderer.ts";
+import { splitEndpoint } from "./router.ts";
+import { createSceneGraph, layoutWithAdapter } from "./scene.ts";
+import { createMeasurer } from "./measurement.ts";
+import { createStyleResolver } from "./styles.ts";
+import { createDiagnosticCollector } from "./diagnostics.ts";
+import { measureTextWidth } from "./text-metrics.ts";
+import { layoutGap } from "./clearances.ts";
+import { SECTION_TYPES } from "./layout-items.ts";
+import { validateArchitectureUsage } from "./architecture.ts";
 import type {
   AssetUseStatement,
   FreedrawStatement,
@@ -29,15 +29,15 @@ import type {
   SemanticDocument,
   SemanticStatement,
   TextStatement,
-} from "../semantic-contracts.ts";
-import type { Bounds } from "../foundation-contracts.ts";
-import type { SceneGraph } from "../layout-contracts.ts";
+} from "./semantic-contracts.ts";
+import type { Bounds } from "./foundation-contracts.ts";
+import type { SceneGraph } from "./layout-contracts.ts";
 import type {
   DrawingElement,
   TextElement,
-} from "../render-contracts.ts";
-import type { FontFamily } from "../text-metrics.ts";
-import type { FormulaPreparation } from "../math/formula.ts";
+} from "./render-contracts.ts";
+import type { FontFamily } from "./text-metrics.ts";
+import type { FormulaPreparation } from "./math/formula.ts";
 
 interface RenderOptions {
   syntaxHighlighting?: boolean;

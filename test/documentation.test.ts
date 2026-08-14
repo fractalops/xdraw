@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { resolveAssets } from "../src/assets.ts";
-import { compileAsync } from "../src/compiler.ts";
+import { compileAsync } from "../src/pipeline.ts";
 import { RootedFileSystem } from "../src/filesystem.ts";
 import { parseSceneDocument } from "../src/scene-document.ts";
 import { parseSource } from "../src/source-language.ts";

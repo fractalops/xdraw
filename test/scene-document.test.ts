@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile } from "../src/compiler.ts";
+import { compile } from "../src/pipeline.ts";
 import { formatSceneResource, parseSceneDocument, parseSceneResource } from "../src/scene-document.ts";
 
 test("scene resource addresses round-trip with readable names", () => {

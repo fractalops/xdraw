@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import { compile, compileAsync } from "../src/compiler.ts";
+import { compile, compileAsync } from "../src/pipeline.ts";
 import { expandDocument } from "../src/expander.ts";
 import { FORMULA_LIMITS } from "../src/math/formula.ts";
 import { renderScenePng } from "../src/local-renderer.ts";

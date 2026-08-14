@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile } from "../src/compiler.ts";
+import { compile } from "../src/pipeline.ts";
 import { layoutBuiltInDocument } from "../src/builtin-layouts.ts";
 import { createMeasurer } from "../src/measurement.ts";
 import { createSceneGraph } from "../src/scene.ts";

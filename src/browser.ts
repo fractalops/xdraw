@@ -20,8 +20,8 @@ export type {
   ToneColors,
   ToneName,
 } from "./components.ts";
-export { compile, compileAsync } from "./compiler.ts";
-export type { CompileOptions } from "./compiler.ts";
+export { compile, compileAsync } from "./pipeline.ts";
+export type { CompileOptions } from "./pipeline.ts";
 export { createMeasurer } from "./measurement.ts";
 export { createStyleResolver } from "./styles.ts";
 export { LAYERED_LAYOUT, LAYERED_LAYOUT_CAPABILITIES } from "./layered-layout.ts";

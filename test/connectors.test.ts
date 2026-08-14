@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile } from "../src/compiler.ts";
+import { compile } from "../src/pipeline.ts";
 import { parseSource as parse } from "../src/source-language.ts";
 import { measureRouteQuality } from "../src/route-quality.ts";
 import { Drawing } from "../src/document.ts";

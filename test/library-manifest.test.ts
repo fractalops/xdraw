@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { resolveAssets } from "../src/assets.ts";
-import { compileAsync } from "../src/compiler.ts";
+import { compileAsync } from "../src/pipeline.ts";
 import { MemoryFileSystem } from "../src/filesystem.ts";
 import {
   CORE_LIBRARY_MANIFEST,
