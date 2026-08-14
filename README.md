@@ -181,14 +181,10 @@ open scene format.
 - Flat layered diagrams use
 [ELK](https://github.com/kieler/elkjs) for node placement while XDraw measures
 content, routes connectors, and emits editable elements.
-- Code highlighting is
-powered by [Shiki](https://github.com/shikijs/shiki).
-- Mathematical formulas are rendered by
-[MathJax](https://www.mathjax.org/).
-- freehand geometry by
-[Perfect Freehand](https://github.com/steveruizok/perfect-freehand),
-- and local
-preview rendering by [resvg-js](https://github.com/yisibl/resvg-js).
+- Code highlighting is powered by [Shiki](https://github.com/shikijs/shiki).
+- Mathematical formulas are rendered by [MathJax](https://www.mathjax.org/).
+- freehand geometry by [Perfect Freehand](https://github.com/steveruizok/perfect-freehand),
+- and local preview rendering by [resvg-js](https://github.com/yisibl/resvg-js).
 
 ## Development
 
