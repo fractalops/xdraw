@@ -1,5 +1,5 @@
 import { card, connect } from "./components.ts";
-import { anchor, box } from "./layout.ts";
+import { anchor, box } from "./geometry.ts";
 import { inferredSides, routeConnection, splitEndpoint } from "./router.ts";
 import type {
   Bounds,

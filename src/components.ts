@@ -1,5 +1,5 @@
 import { arrow, rectangle, text } from "./elements.ts";
-import { anchor, inset } from "./layout.ts";
+import { anchor, inset } from "./geometry.ts";
 import { endpointLabelBounds } from "./connector-labels.ts";
 import {
   DEFAULT_CONNECTOR_LABEL_SIZE,

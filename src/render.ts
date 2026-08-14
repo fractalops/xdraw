@@ -11,7 +11,7 @@ import {
   renderImage,
   renderSceneVisuals,
 } from "./excalidraw-adapter.ts";
-import { applyGeometryStatements } from "./geometry.ts";
+import { applyGeometryStatements } from "./geometry-pass.ts";
 import { renderAnnotation, renderConnection } from "./routing-renderer.ts";
 import { splitEndpoint } from "./router.ts";
 import { createSceneGraph, layoutWithAdapter } from "./scene.ts";

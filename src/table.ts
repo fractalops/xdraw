@@ -1,6 +1,6 @@
 import { boundText } from "./components.ts";
 import { rectangle } from "./elements.ts";
-import { box } from "./layout.ts";
+import { box } from "./geometry.ts";
 import { measureTextWidth, wrapTextToWidth } from "./text-metrics.ts";
 import type { Bounds } from "./foundation-contracts.ts";
 import type { DrawingElement, RectangleElement, TextElement } from "./render-contracts.ts";

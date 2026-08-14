@@ -1,194 +1,168 @@
-import { alignBounds, distributeBounds } from "./layout.ts";
-import type { AlignmentMode, Bounds, Point } from "./foundation-contracts.ts";
-import type { GeometryStatement, RenderableGeometryStatement, SemanticStatement } from "./semantic-contracts.ts";
-import type { SceneGraph } from "./layout-contracts.ts";
-import type { Drawing } from "./document.ts";
-import type { DrawingElement } from "./render-contracts.ts";
+import type {
+  AlignmentMode,
+  Axis,
+  Bounds,
+  Point,
+} from "./foundation-contracts.ts";
 
-function isGeometryStatement(statement: SemanticStatement): statement is GeometryStatement {
-  return ["alignment", "distribution", "offset", "match-size", "rotation", "snap"].includes(statement.type);
+export function box(x: number, y: number, width: number, height: number): Bounds {
+  return { x, y, width, height };
 }
 
-function isAlignmentMode(value: unknown): value is AlignmentMode {
-  return typeof value === "string"
-    && ["left", "center-x", "right", "top", "center-y", "bottom"].includes(value);
-}
-
-function isMatchSizeAxis(value: unknown): value is "width" | "height" | "both" {
-  return value === "width" || value === "height" || value === "both";
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-function renderableGeometryStatement(statement: GeometryStatement): RenderableGeometryStatement {
-  if (statement.type === "alignment" && isAlignmentMode(statement.mode)) {
-    return { ...statement, type: "alignment", mode: statement.mode };
+export function inset(bounds: Bounds, padding: number): Bounds {
+  requirePositiveBounds(bounds, "inset");
+  requireNonNegative(padding, "inset padding");
+  const width = bounds.width - padding * 2;
+  const height = bounds.height - padding * 2;
+  if (width <= 0 || height <= 0) {
+    throw new RangeError("inset must produce positive width and height");
   }
-  if (statement.type === "distribution" && (statement.axis === "x" || statement.axis === "y")) {
-    return { ...statement, type: "distribution", axis: statement.axis };
+  return box(
+    stableCoordinate(bounds.x + padding),
+    stableCoordinate(bounds.y + padding),
+    stableCoordinate(width),
+    stableCoordinate(height),
+  );
+}
+
+export function row(bounds: Bounds, count: number, gap = 24): Bounds[] {
+  requirePositiveBounds(bounds, "row");
+  if (!Number.isInteger(count) || count < 1) {
+    throw new TypeError("row count must be a positive integer");
   }
-  if (statement.type === "offset" && Array.isArray(statement.by) && statement.by.length === 2 && statement.by.every(Number.isFinite)) {
-    return { ...statement, type: "offset", by: statement.by };
+  requireNonNegative(gap, "row gap");
+  const width = (bounds.width - gap * (count - 1)) / count;
+  if (width <= 0) throw new RangeError("row must produce a positive child width");
+  return Array.from({ length: count }, (_, index) =>
+    box(
+      stableCoordinate(bounds.x + index * (width + gap)),
+      bounds.y,
+      stableCoordinate(width),
+      bounds.height,
+    ),
+  );
+}
+
+export function column(bounds: Bounds, count: number, gap = 24): Bounds[] {
+  requirePositiveBounds(bounds, "column");
+  if (!Number.isInteger(count) || count < 1) {
+    throw new TypeError("column count must be a positive integer");
   }
-  if (statement.type === "match-size" && isMatchSizeAxis(statement.axis)) {
-    return { ...statement, type: "match-size", axis: statement.axis };
+  requireNonNegative(gap, "column gap");
+  const height = (bounds.height - gap * (count - 1)) / count;
+  if (height <= 0) throw new RangeError("column must produce a positive child height");
+  return Array.from({ length: count }, (_, index) =>
+    box(
+      bounds.x,
+      stableCoordinate(bounds.y + index * (height + gap)),
+      bounds.width,
+      stableCoordinate(height),
+    ),
+  );
+}
+
+export const anchor: Record<"left" | "right" | "top" | "bottom" | "center", (bounds: Bounds) => Point> = {
+  left: (bounds) => [bounds.x, bounds.y + bounds.height / 2],
+  right: (bounds) => [bounds.x + bounds.width, bounds.y + bounds.height / 2],
+  top: (bounds) => [bounds.x + bounds.width / 2, bounds.y],
+  bottom: (bounds) => [bounds.x + bounds.width / 2, bounds.y + bounds.height],
+  center: (bounds) => [
+    bounds.x + bounds.width / 2,
+    bounds.y + bounds.height / 2,
+  ],
+};
+
+type AxisProperties =
+  | { start: "x"; size: "width" }
+  | { start: "y"; size: "height" };
+
+const AXIS_PROPERTIES: Record<Axis, AxisProperties> = {
+  x: { start: "x", size: "width" },
+  y: { start: "y", size: "height" },
+};
+
+const COORDINATE_DECIMAL_PLACES = 12;
+
+function stableCoordinate(value: number): number {
+  return Number(value.toFixed(COORDINATE_DECIMAL_PLACES));
+}
+
+function requirePositiveBounds(bounds: Bounds, operation: string): void {
+  if (![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite)) {
+    throw new TypeError(`${operation} bounds must contain finite numbers`);
   }
-  if (statement.type === "rotation" && isFiniteNumber(statement.degrees)) {
-    return { ...statement, type: "rotation", degrees: statement.degrees };
-  }
-  if (statement.type === "snap" && typeof statement.grid === "number" && statement.grid > 0) {
-    return { ...statement, type: "snap", grid: statement.grid };
-  }
-  throw new Error(`invalid validated geometry statement: ${statement.type}`);
-}
-
-function geometryStatements(
-  statements: readonly SemanticStatement[],
-  result: RenderableGeometryStatement[] = [],
-): RenderableGeometryStatement[] {
-  for (const statement of statements) {
-    if (isGeometryStatement(statement)) result.push(renderableGeometryStatement(statement));
-    if (statement.statements) geometryStatements(statement.statements, result);
-  }
-  return result;
-}
-
-function requiredBounds(scene: SceneGraph, id: string): Bounds {
-  const bounds = scene.bounds.get(id);
-  if (!bounds) throw new Error(`geometry operation references unplaced node: ${id}`);
-  return bounds;
-}
-
-function ownedElements(drawing: Drawing, id: string): DrawingElement[] {
-  const elements = drawing.elements.filter((element) => element.id.startsWith(`${id}:`));
-  if (!elements.length) throw new Error(`geometry operation found no rendered elements for node: ${id}`);
-  return elements;
-}
-
-function moveSemanticNode(drawing: Drawing, scene: SceneGraph, id: string, bounds: Bounds): void {
-  const previous = requiredBounds(scene, id);
-  const dx = bounds.x - previous.x;
-  const dy = bounds.y - previous.y;
-  updateSceneBounds(scene, id, bounds);
-  for (const element of ownedElements(drawing, id)) {
-    element.x += dx;
-    element.y += dy;
+  if (bounds.width <= 0 || bounds.height <= 0) {
+    throw new RangeError(`${operation} bounds must have positive width and height`);
   }
 }
 
-function updateSceneBounds(scene: SceneGraph, id: string, bounds: Bounds): void {
-  scene.bounds.set(id, bounds);
-  const record = scene.objects.get(id);
-  if (record) record.bounds = bounds;
-}
-
-function elementAabb(element: DrawingElement): Bounds {
-  const cosine = Math.abs(Math.cos(element.angle));
-  const sine = Math.abs(Math.sin(element.angle));
-  const width = element.width * cosine + element.height * sine;
-  const height = element.width * sine + element.height * cosine;
-  const centerX = element.x + element.width / 2;
-  const centerY = element.y + element.height / 2;
-  return { x: centerX - width / 2, y: centerY - height / 2, width, height };
-}
-
-function unionBounds(bounds: readonly Bounds[]): Bounds {
-  const left = Math.min(...bounds.map((item) => item.x));
-  const top = Math.min(...bounds.map((item) => item.y));
-  const right = Math.max(...bounds.map((item) => item.x + item.width));
-  const bottom = Math.max(...bounds.map((item) => item.y + item.height));
-  return { x: left, y: top, width: right - left, height: bottom - top };
-}
-
-function localScaleFor(element: DrawingElement, scaleX: number, scaleY: number): Point {
-  const cosine = Math.abs(Math.cos(element.angle));
-  const sine = Math.abs(Math.sin(element.angle));
-  const epsilon = 1e-9;
-  if (Math.abs(scaleX - scaleY) < epsilon || sine < epsilon) return [scaleX, scaleY];
-  if (cosine < epsilon) return [scaleY, scaleX];
-  throw new Error("match-size cannot anisotropically resize nodes rotated outside quarter turns");
-}
-
-function scaleElementPoints(element: DrawingElement, scaleX: number, scaleY: number): void {
-  if (element.type !== "arrow" && element.type !== "line" && element.type !== "freedraw") return;
-  element.points = element.points.map(([x, y]) => [x * scaleX, y * scaleY]);
-}
-
-function transformSemanticNode(drawing: Drawing, scene: SceneGraph, id: string, next: Bounds): void {
-  const previous = requiredBounds(scene, id);
-  const scaleX = previous.width ? next.width / previous.width : 1;
-  const scaleY = previous.height ? next.height / previous.height : 1;
-  const elements = ownedElements(drawing, id);
-  for (const element of elements) {
-    const centerX = element.x + element.width / 2;
-    const centerY = element.y + element.height / 2;
-    const nextCenterX = next.x + (centerX - previous.x) * scaleX;
-    const nextCenterY = next.y + (centerY - previous.y) * scaleY;
-    const [localScaleX, localScaleY] = localScaleFor(element, scaleX, scaleY);
-    element.width *= localScaleX;
-    element.height *= localScaleY;
-    scaleElementPoints(element, localScaleX, localScaleY);
-    element.x = nextCenterX - element.width / 2;
-    element.y = nextCenterY - element.height / 2;
+function requireNonNegative(value: number, label: string): void {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new RangeError(`${label} must be a non-negative finite number`);
   }
-  updateSceneBounds(scene, id, unionBounds(elements.map(elementAabb)));
 }
 
-function rotateSemanticNode(drawing: Drawing, scene: SceneGraph, id: string, radians: number): void {
-  const previous = requiredBounds(scene, id);
-  const centerX = previous.x + previous.width / 2;
-  const centerY = previous.y + previous.height / 2;
-  const cosine = Math.cos(radians);
-  const sine = Math.sin(radians);
-  const elements = ownedElements(drawing, id);
-  for (const element of elements) {
-    const elementCenterX = element.x + element.width / 2;
-    const elementCenterY = element.y + element.height / 2;
-    const dx = elementCenterX - centerX;
-    const dy = elementCenterY - centerY;
-    const rotatedCenterX = centerX + dx * cosine - dy * sine;
-    const rotatedCenterY = centerY + dx * sine + dy * cosine;
-    element.x = rotatedCenterX - element.width / 2;
-    element.y = rotatedCenterY - element.height / 2;
-    element.angle += radians;
-  }
-  updateSceneBounds(scene, id, unionBounds(elements.map(elementAabb)));
+function axisExtent(bounds: Bounds[], axis: Axis): { minimum: number; maximum: number; center: number } {
+  const { start, size } = AXIS_PROPERTIES[axis];
+  const minimum = Math.min(...bounds.map((item) => item[start]));
+  const maximum = Math.max(...bounds.map((item) => item[start] + item[size]));
+  return { minimum, maximum, center: (minimum + maximum) / 2 };
 }
 
-export function applyGeometryStatements(
-  drawing: Drawing,
-  scene: SceneGraph,
-  statements: readonly SemanticStatement[],
-): void {
-  for (const statement of geometryStatements(statements)) {
-    const bounds = statement.ids.map((id) => requiredBounds(scene, id));
-    if (statement.type === "alignment" || statement.type === "distribution") {
-      const resolved = statement.type === "alignment"
-        ? alignBounds(bounds, statement.mode)
-        : distributeBounds(bounds, statement.axis);
-      statement.ids.forEach((id, index) => moveSemanticNode(drawing, scene, id, resolved[index]));
-    } else if (statement.type === "offset") {
-      statement.ids.forEach((id, index) => moveSemanticNode(drawing, scene, id, {
-        ...bounds[index], x: bounds[index].x + statement.by[0], y: bounds[index].y + statement.by[1],
-      }));
-    } else if (statement.type === "match-size") {
-      const reference = bounds[0];
-      statement.ids.forEach((id, index) => transformSemanticNode(drawing, scene, id, {
-        ...bounds[index],
-        width: statement.axis === "height" ? bounds[index].width : reference.width,
-        height: statement.axis === "width" ? bounds[index].height : reference.height,
-      }));
-    } else if (statement.type === "rotation") {
-      const radians = statement.degrees * Math.PI / 180;
-      statement.ids.forEach((id) => rotateSemanticNode(drawing, scene, id, radians));
-    } else if (statement.type === "snap") {
-      statement.ids.forEach((id, index) => moveSemanticNode(drawing, scene, id, {
-        ...bounds[index],
-        x: Math.round(bounds[index].x / statement.grid) * statement.grid,
-        y: Math.round(bounds[index].y / statement.grid) * statement.grid,
-      }));
+export function alignBounds(bounds: Bounds[], mode: AlignmentMode): Bounds[] {
+  if (bounds.length < 2) throw new Error("alignment requires at least two elements");
+  const modes: Record<AlignmentMode, { axis: Axis; position: "start" | "center" | "end" }> = {
+    left: { axis: "x", position: "start" },
+    "center-x": { axis: "x", position: "center" },
+    right: { axis: "x", position: "end" },
+    top: { axis: "y", position: "start" },
+    "center-y": { axis: "y", position: "center" },
+    bottom: { axis: "y", position: "end" },
+  };
+  const alignment = modes[mode];
+  if (!alignment) throw new Error(`unsupported alignment mode: ${mode}`);
+  const { axis, position } = alignment;
+  const { start, size } = AXIS_PROPERTIES[axis];
+  const extent = axisExtent(bounds, axis);
+  return bounds.map((item) => {
+    const current = position === "start"
+      ? item[start]
+      : position === "end"
+        ? item[start] + item[size]
+        : item[start] + item[size] / 2;
+    const target = position === "start" ? extent.minimum : position === "end" ? extent.maximum : extent.center;
+    return { ...item, [start]: stableCoordinate(item[start] + target - current) };
+  });
+}
+
+export function distributeBounds(bounds: Bounds[], axis: Axis): Bounds[] {
+  if (!(axis in AXIS_PROPERTIES)) throw new Error(`unsupported distribution axis: ${axis}`);
+  if (bounds.length < 3) throw new Error("distribution requires at least three elements");
+  const { start, size } = AXIS_PROPERTIES[axis];
+  const ordered = bounds.map((item, index) => ({ item, index }))
+    .sort((left, right) => left.item[start] + left.item[size] / 2 - (right.item[start] + right.item[size] / 2));
+  const minimum = Math.min(...bounds.map((item) => item[start]));
+  const maximum = Math.max(...bounds.map((item) => item[start] + item[size]));
+  const totalSize = bounds.reduce((sum, item) => sum + item[size], 0);
+  const gap = (maximum - minimum - totalSize) / (bounds.length - 1);
+  const result = [...bounds];
+  if (gap >= 0) {
+    let position = minimum;
+    for (const { item, index } of ordered) {
+      result[index] = { ...item, [start]: stableCoordinate(position) };
+      position += item[size] + gap;
     }
+    return result;
   }
+  const firstCenter = ordered[0].item[start] + ordered[0].item[size] / 2;
+  const last = ordered[ordered.length - 1].item;
+  const lastCenter = last[start] + last[size] / 2;
+  const centerStep = (lastCenter - firstCenter) / (ordered.length - 1);
+  ordered.forEach(({ item, index }, position) => {
+    result[index] = {
+      ...item,
+      [start]: stableCoordinate(firstCenter + centerStep * position - item[size] / 2),
+    };
+  });
+  return result;
 }

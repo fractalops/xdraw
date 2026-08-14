@@ -1,4 +1,4 @@
-import { anchor } from "./layout.ts";
+import { anchor } from "./geometry.ts";
 import { ROUTING_CLEARANCE } from "./clearances.ts";
 import { splitEndpoint } from "./endpoints.ts";
 import type {

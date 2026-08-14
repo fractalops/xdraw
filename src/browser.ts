@@ -5,7 +5,7 @@ export {
 } from "./excalidraw-api.ts";
 export { resolveAssets } from "./assets.ts";
 export { FONT, arrow, diamond, ellipse, frame, freedraw, image, rectangle, text } from "./elements.ts";
-export { alignBounds, anchor, box, column, distributeBounds, inset, row } from "./layout.ts";
+export { alignBounds, anchor, box, column, distributeBounds, inset, row } from "./geometry.ts";
 export { boundText, card, connect, fitTextSize, heading, lane, tone, wrapText } from "./components.ts";
 export type {
   AnchorSide,
