@@ -134,6 +134,22 @@ test("overlapping mixed-size bounds do not change distribution modes on repetiti
   assert.deepEqual(distributeBounds(once, "y"), once);
 });
 
+test("distribution lands the final edge exactly when the gap does not terminate", () => {
+  // Ten items spanning -1669..698 give a gap of 106.44444... Accumulating that
+  // nine times drifts the last edge to 697.999999999999, which changes the gap
+  // on a second pass. Positions are derived from the index instead.
+  const bounds = [
+    box(0, 0, 1, 1), box(0, 0, 1, 1), box(0, 0, 1, 1), box(0, 0, 1, 1), box(0, 0, 1, 1),
+    box(0, 0, 1, 698), box(0, 0, 1, 3), box(0, 0, 1, 698), box(0, 0, 1, 4), box(0, -1669, 1, 1),
+  ];
+  const once = distributeBounds(bounds, "y");
+  assert.deepEqual(distributeBounds(once, "y"), once);
+  const lowest = Math.min(...once.map((item) => item.y));
+  const highest = Math.max(...once.map((item) => item.y + item.height));
+  assert.equal(lowest, -1669);
+  assert.equal(highest, 698);
+});
+
 test("card creates a frame with title and body", () => {
   const elements = card("summary", box(0, 0, 300, 150), {
     tone: "info",

@@ -149,11 +149,15 @@ export function distributeBounds(bounds: Bounds[], axis: Axis): Bounds[] {
   const gap = (maximum - minimum - totalSize) / (bounds.length - 1);
   const result = [...bounds];
   if (gap >= 0) {
-    let position = minimum;
-    for (const { item, index } of ordered) {
-      result[index] = { ...item, [start]: stableCoordinate(position) };
-      position += item[size] + gap;
-    }
+    // Derive each position from the running size total and the gap multiple
+    // rather than accumulating. Repeatedly adding a non-terminating gap drifts
+    // the final edge off `maximum`, which changes the gap on a second pass and
+    // makes distribution non-idempotent.
+    let consumed = 0;
+    ordered.forEach(({ item, index }, position) => {
+      result[index] = { ...item, [start]: stableCoordinate(minimum + consumed + position * gap) };
+      consumed += item[size];
+    });
     return result;
   }
   const firstCenter = first[start] + first[size] / 2;
