@@ -126,6 +126,45 @@ function renderDetached<T extends SemanticStatement>(
   });
 }
 
+
+/**
+ * Row layout tops-aligns its children, so siblings of differing height end up
+ * with their centres at different y. Any connector between them slopes, which
+ * reads as a mistake and has no other signal.
+ */
+function warnAboutCrookedConnectors(
+  state: SceneGraph,
+  diagnostics: ReturnType<typeof createDiagnosticCollector>,
+): void {
+  const ids = new Set(state.bounds.keys());
+  for (const connection of state.connections) {
+    const endpoints = connection.nodes.map((endpoint) => splitEndpoint(endpoint, ids).id);
+    for (let index = 0; index < endpoints.length - 1; index += 1) {
+      const from = state.bounds.get(endpoints[index]);
+      const to = state.bounds.get(endpoints[index + 1]);
+      if (!from || !to) continue;
+      // Only when the author asked for a side-to-side connector. Without
+      // explicit sides the router is free to curve, and a sloped connector
+      // between boxes of different size is an ordinary composition.
+      const leaving = splitEndpoint(connection.nodes[index], ids).side;
+      const entering = splitEndpoint(connection.nodes[index + 1], ids).side;
+      const horizontal = (leaving === "right" || leaving === "left")
+        && (entering === "right" || entering === "left");
+      if (!horizontal) continue;
+      const topAligned = Math.abs(from.y - to.y) <= 1;
+      const differentHeight = Math.abs(from.height - to.height) > 1;
+      if (!topAligned || !differentHeight) continue;
+      diagnostics.warn(
+        "XD2006",
+        `'${endpoints[index]}' and '${endpoints[index + 1]}' share a row but differ in height,`
+          + ` so their connector will not be level; match-size`
+          + ` (${endpoints[index]}, ${endpoints[index + 1]}) height levels them`,
+        connection,
+      );
+    }
+  }
+}
+
 export function renderCompilation(
   scene: SemanticDocument,
   options: RenderOptions = {},
@@ -238,6 +277,7 @@ export function renderCompilation(
       renderAnnotation(drawing, state, annotation, index, registerBounds);
     }
   });
+  warnAboutCrookedConnectors(state, diagnostics);
   state.connections.forEach((connection, index) => renderConnection(drawing, state, connection, index));
   state.annotations.forEach((annotation, index) => {
     if (!referencedAnnotations.has(annotation.id)) {
