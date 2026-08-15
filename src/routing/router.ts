@@ -21,10 +21,6 @@ export interface InferredSides {
 }
 
 export interface RouteOptions {
-  /** Where on the start edge to leave, as a fraction along it. Defaults to the middle. */
-  startFraction?: number;
-  /** Where on the end edge to arrive, as a fraction along it. Defaults to the middle. */
-  endFraction?: number;
   around?: string;
   avoidEndpointInteriors?: boolean;
 }
@@ -170,15 +166,6 @@ function existingBounds(scene: RoutingScene, ids: Iterable<string>): Bounds[] {
   return result;
 }
 
-/** anchor[side] fixed to the middle; this walks along the edge instead. */
-function edgePoint(bounds: Bounds, side: EndpointSide, fraction: number): Point {
-  if (side === "center") return anchor.center(bounds);
-  if (side === "top") return [bounds.x + bounds.width * fraction, bounds.y];
-  if (side === "bottom") return [bounds.x + bounds.width * fraction, bounds.y + bounds.height];
-  if (side === "left") return [bounds.x, bounds.y + bounds.height * fraction];
-  return [bounds.x + bounds.width, bounds.y + bounds.height * fraction];
-}
-
 export function routeConnection(
   scene: RoutingScene,
   fromId: string,
@@ -189,8 +176,8 @@ export function routeConnection(
   endSide: EndpointSide,
   options: RouteOptions = {},
 ): Route {
-  const start = edgePoint(fromBounds, startSide, options.startFraction ?? 0.5);
-  const end = edgePoint(toBounds, endSide, options.endFraction ?? 0.5);
+  const start = anchor[startSide](fromBounds);
+  const end = anchor[endSide](toBounds);
   const startExit = offsetPoint(start, startSide);
   const endExit = offsetPoint(end, endSide);
   const obstacleIds = [...scene.nodeIds].filter((id) => id !== fromId && id !== toId);

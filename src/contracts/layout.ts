@@ -266,12 +266,6 @@ export interface SceneGraph {
   containers: string[];
   routes: Route[];
   adapterRoutes: Map<string, Route>;
-  /**
-   * Where each connector meets a shared edge, as a fraction along it. Several
-   * connections leaving one anchor would otherwise stack on a single point.
-   * Keyed `${connection}:${segment}:start|end`.
-   */
-  connectorSlots?: Map<string, number>;
   connections: ConnectionStatement[];
   annotations: NoteStatement[];
   diagnostics?: DiagnosticCollector;
