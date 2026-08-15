@@ -13,7 +13,7 @@ import {
   MAX_HIGHLIGHT_SOURCE_CHARACTERS,
 } from "./policy.ts";
 
-const FONT_SIZE = 16;
+const FONT_SIZE = 20;
 const LINE_HEIGHT = 1.45;
 const HEADER_HEIGHT = 40;
 const PADDING = 20;

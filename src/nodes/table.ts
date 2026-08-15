@@ -7,8 +7,8 @@ import type { DrawingElement, RectangleElement, TextElement } from "../contracts
 import type { NodeStatement, SemanticStatement, TableRowStatement } from "../contracts/semantic.ts";
 import type { TableNodePlan } from "../contracts/rich-node.ts";
 
-const BODY_FONT_SIZE = 16;
-const HEADER_FONT_SIZE = 16;
+const BODY_FONT_SIZE = 20;
+const HEADER_FONT_SIZE = 20;
 const TITLE_FONT_SIZE = 20;
 const FONT_NORMAL = 2;
 const FONT_BOLD = 7;
