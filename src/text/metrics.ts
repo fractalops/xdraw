@@ -75,6 +75,8 @@ export function wrapTextToWidth(value: string, width: number, fontSize: number, 
   }).join("\n");
 }
 
+const FIT_TOLERANCE = 0.01;
+
 export function fitTextSize(
   value: string,
   width: number,
@@ -86,5 +88,8 @@ export function fitTextSize(
     measureTextWidth(token, 1, fontFamily) > measureTextWidth(current, 1, fontFamily) ? token : current
   ), "");
   const advance = Math.max(measureTextWidth(longest, 1, fontFamily), 1);
-  return Math.max(minimumSize, Math.min(preferredSize, width / advance));
+  // Solving for the size that fills the width exactly leaves the result a
+  // rounding step over it, and wrapping then splits the word it was shrunk to
+  // fit. Give up a hundredth of a pixel so the fit survives the arithmetic.
+  return Math.max(minimumSize, Math.min(preferredSize, (width - FIT_TOLERANCE) / advance));
 }

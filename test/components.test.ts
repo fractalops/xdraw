@@ -19,7 +19,7 @@ import {
   tone,
   wrapText,
 } from "../src/index.ts";
-import { measureTextWidth, wrapTextToWidth } from "../src/text/metrics.ts";
+import { fitTextSize, measureTextWidth, wrapTextToWidth } from "../src/text/metrics.ts";
 
 test("text defaults to the code font", () => {
   const element = text("label", { x: 10, y: 20 }, "Hello");
@@ -67,6 +67,21 @@ test("wide Unicode text wraps by grapheme width", () => {
   const wrapped = wrapTextToWidth("日本語の説明🙂日本語", width, 18);
   assert.ok(wrapped.includes("\n"));
   assert.ok(wrapped.split("\n").every((line) => measureTextWidth(line, 18) <= width));
+});
+
+test("a shrunk single word fits without breaking mid-word", () => {
+  // fitTextSize solves for the size that makes the longest word exactly fill
+  // the width, which floating point then rounds a hair over. wrapTextToWidth
+  // rejects it and splits the word, so a title renders as "SourceDocumen\nt".
+  const width = 168;
+  for (const [word, family] of [["SourceDocument", 2], ["SemanticDocument", 3], ["DiagramDocument", 2]]) {
+    const size = fitTextSize(word, width, 22, 12, family);
+    assert.ok(
+      measureTextWidth(word, size, family) <= width,
+      `${word} at ${size} measures ${measureTextWidth(word, size, family)}, over ${width}`,
+    );
+    assert.equal(wrapTextToWidth(word, width, size, family), word, `${word} must not be split`);
+  }
 });
 
 test("row creates equal deterministic boxes", () => {
