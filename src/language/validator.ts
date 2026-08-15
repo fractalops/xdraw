@@ -297,6 +297,11 @@ const PROPERTY_SYNONYMS: Readonly<Record<string, string>> = Object.freeze({
   "border-width": "stroke-width",
 });
 
+/**
+ * Damerau-Levenshtein: like Levenshtein, but a transposition costs one rather
+ * than two. Swapped letters are among the most common typos, and 'gird' should
+ * read as one keystroke away from 'grid', not two.
+ */
 function editDistance(left: string, right: string): number {
   const rows = Array.from({ length: left.length + 1 }, (_, index) => (
     [index, ...Array.from({ length: right.length }, () => 0)]
@@ -304,11 +309,19 @@ function editDistance(left: string, right: string): number {
   for (let column = 0; column <= right.length; column += 1) rows[0][column] = column;
   for (let row = 1; row <= left.length; row += 1) {
     for (let column = 1; column <= right.length; column += 1) {
+      const substitution = left[row - 1] === right[column - 1] ? 0 : 1;
       rows[row][column] = Math.min(
         rows[row - 1][column] + 1,
         rows[row][column - 1] + 1,
-        rows[row - 1][column - 1] + (left[row - 1] === right[column - 1] ? 0 : 1),
+        rows[row - 1][column - 1] + substitution,
       );
+      if (
+        row > 1 && column > 1
+        && left[row - 1] === right[column - 2]
+        && left[row - 2] === right[column - 1]
+      ) {
+        rows[row][column] = Math.min(rows[row][column], rows[row - 2][column - 2] + 1);
+      }
     }
   }
   return rows[left.length][right.length];
@@ -319,16 +332,24 @@ function editDistance(left: string, right: string): number {
  * then a near-miss typo. Silent when neither is confident, because a wrong
  * suggestion costs more than none.
  */
-function propertySuggestion(typed: string, accepted: readonly string[]): string {
-  const synonym = PROPERTY_SYNONYMS[typed.toLocaleLowerCase()];
-  if (synonym && accepted.includes(synonym.split(" ")[0])) return `; did you mean '${synonym}'?`;
-  const ranked = accepted
+/**
+ * Names the closest candidate when it is close enough to be a typo rather than
+ * a guess. Silent otherwise, because a wrong suggestion costs more than none.
+ */
+function nearestName(typed: string, candidates: Iterable<string>): string {
+  const ranked = [...candidates]
     .map((candidate) => ({ candidate, distance: editDistance(typed.toLocaleLowerCase(), candidate) }))
     .sort((left, right) => left.distance - right.distance);
   const best = ranked[0];
   if (!best) return "";
   const limit = typed.length <= 4 ? 1 : 2;
   return best.distance <= limit ? `; did you mean '${best.candidate}'?` : "";
+}
+
+function propertySuggestion(typed: string, accepted: readonly string[]): string {
+  const synonym = PROPERTY_SYNONYMS[typed.toLocaleLowerCase()];
+  if (synonym && accepted.includes(synonym.split(" ")[0])) return `; did you mean '${synonym}'?`;
+  return nearestName(typed, accepted);
 }
 
 function resolveConstructor(name: string, context: ValidationContext, node: SourceNode): ResolvedConstructor {
@@ -361,7 +382,9 @@ function resolveConstructor(name: string, context: ValidationContext, node: Sour
   const template = context.templates.get(name);
   if (template) return { name, manifest: null, template };
 
-  fail("unknown-constructor", `unknown constructor '${name}'${importHint(name)}`, node);
+  const known = [...context.core.constructors.map((item) => item.name), ...context.templates.keys()];
+  const hint = importHint(name) || nearestName(name, known);
+  fail("unknown-constructor", `unknown constructor '${name}'${hint}`, node);
 }
 
 function completeParameterName(value: SourcePropertyValue, node: SourceNode): string {
@@ -863,7 +886,13 @@ function validateStatements(
         fail("unsupported-tree-owner", "tree arrangement is not supported at diagram scope", statement);
       }
       const properties = ARRANGEMENT_PROPERTIES.get(statement.kind);
-      if (!properties) fail("unknown-arrangement", `unknown arrangement '${statement.kind}'`, statement);
+      if (!properties) {
+        fail(
+          "unknown-arrangement",
+          `unknown arrangement '${statement.kind}'${nearestName(statement.kind, ARRANGEMENT_PROPERTIES.keys())}`,
+          statement,
+        );
+      }
       validateStatementProperties(`arrangement '${statement.kind}'`, statement.properties, properties, context, template);
     } else if (statement.type === "property" && depth === 0) {
       fail("document-property", `document scope does not accept property '${statement.name}'`, statement);

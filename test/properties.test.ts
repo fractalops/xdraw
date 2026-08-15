@@ -8,6 +8,7 @@ import { alignBounds, anchor, box, column, distributeBounds, inset, row } from "
 import { measureRouteQuality } from "../src/routing/quality.ts";
 import { formatSceneResource, parseSceneDocument, parseSceneResource } from "../src/io/scene-document.ts";
 import { parseSource } from "../src/language/parser.ts";
+import { getLibraryManifest } from "../src/language/registry.ts";
 import { tokenize } from "../src/language/tokenizer.ts";
 import { routeConnection } from "../src/routing/router.ts";
 
@@ -485,5 +486,46 @@ test("property: a column keeps the width each child asked for", () => {
       const element = drawing.elements.find((item) => item.id === `stack.n${index}:frame`);
       assert.equal(Math.round(element.width), authored, `column child ${index} keeps its authored width`);
     });
+  }), { numRuns: RUNS });
+});
+
+test("property: a single-keystroke typo of a constructor is corrected", () => {
+  const names = getLibraryManifest("xdraw/core").constructors.map((item) => item.name);
+  const known = new Set(names);
+
+  // delete, substitute, or transpose one character
+  const mutated = fc.record({
+    name: fc.constantFrom(...names),
+    kind: fc.constantFrom("delete", "substitute", "transpose"),
+    position: fc.nat(),
+    replacement: fc.constantFrom(..."abcdefghijklmnopqrstuvwxyz"),
+  }).map(({ name, kind, position, replacement }) => {
+    const index = position % name.length;
+    if (kind === "delete") return { name, typo: name.slice(0, index) + name.slice(index + 1) };
+    if (kind === "substitute") {
+      return { name, typo: name.slice(0, index) + replacement + name.slice(index + 1) };
+    }
+    const swap = Math.min(index, name.length - 2);
+    if (swap < 0) return { name, typo: name };
+    return {
+      name,
+      typo: name.slice(0, swap) + name[swap + 1] + name[swap] + name.slice(swap + 2),
+    };
+  });
+
+  fc.assert(fc.property(mutated, ({ typo }) => {
+    // A mutation that lands on another real name is not a typo any more.
+    if (known.has(typo) || typo.length === 0) return;
+    let message = "";
+    try {
+      parseSource(`diagram "D" { a: ${typo} "A" }`);
+      return; // parsed for some other reason; nothing to assert
+    } catch (error) {
+      message = String(error.message);
+    }
+    if (!message.includes("unknown constructor")) return;
+    const suggested = /did you mean '([^']+)'/u.exec(message)?.[1];
+    assert.ok(suggested, `no suggestion for '${typo}': ${message}`);
+    assert.ok(known.has(suggested), `suggested '${suggested}' is not a real constructor`);
   }), { numRuns: RUNS });
 });

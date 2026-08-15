@@ -533,3 +533,35 @@ test("unknown properties suggest the XDraw name for familiar vocabulary", () => 
   assert.throws(attempt("xyzzy"), /does not accept property 'xyzzy'/);
   assert.doesNotThrow(() => parseSource('diagram "D" { a: rectangle "A" { background "#eee" } }'));
 });
+
+test("mistyped constructors and arrangements suggest the intended name", () => {
+  // The edit-distance helper already backs property suggestions; these two
+  // sites are the remaining places a near-miss goes unhelped.
+  assert.throws(
+    () => parseSource('diagram "D" { a: rectangel "A" }'),
+    /did you mean 'rectangle'/,
+  );
+  assert.throws(
+    () => parseSource('diagram "D" { a: elipse "A" }'),
+    /did you mean 'ellipse'/,
+  );
+  assert.throws(
+    () => parseSource('diagram "D" { arrange gird { columns 2 }\na: rectangle "A" }'),
+    /did you mean 'grid'/,
+  );
+  assert.throws(
+    () => parseSource('diagram "D" { f: frame "F" { arrange colum { gap 4 }\na: rectangle "A" } }'),
+    /did you mean 'column'/,
+  );
+
+  // Applying the suggestion must produce something that compiles.
+  assert.doesNotThrow(() => parseSource('diagram "D" { a: rectangle "A" }'));
+  assert.doesNotThrow(() => parseSource('diagram "D" { arrange grid { columns 2 }\na: rectangle "A" }'));
+
+  // Nothing close enough must attract a guess.
+  assert.throws(() => parseSource('diagram "D" { a: qqqqqqq "A" }'), /unknown constructor 'qqqqqqq'/);
+  assert.doesNotMatch(
+    (() => { try { parseSource('diagram "D" { a: qqqqqqq "A" }'); return ""; } catch (error) { return String(error.message); } })(),
+    /did you mean/,
+  );
+});
