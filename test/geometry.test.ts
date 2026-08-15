@@ -9,6 +9,42 @@ function elements(source) {
   return compile(parse(source)).toJSON().elements;
 }
 
+test("match-size grows every target to the largest, never clipping", () => {
+  // Matching to whichever target was listed first shrinks the others, so a
+  // node sized for its label loses the room it needed.
+  const result = elements(`diagram "Match" {
+    a: rectangle "A" { at (80, 80); size (140, 70) }
+    b: rectangle "Longer label that needs room" { at (400, 80); size (320, 140) }
+    match-size (a, b) both
+  }`);
+  const [first, second] = ["a:frame", "b:frame"].map((id) => result.find((element) => element.id === id));
+  assert.deepEqual([first.width, first.height], [320, 140], "the smaller target grows");
+  assert.deepEqual([second.width, second.height], [320, 140], "the larger target keeps its size");
+
+  // Order must not change the outcome.
+  const reversed = elements(`diagram "Match" {
+    a: rectangle "A" { at (80, 80); size (140, 70) }
+    b: rectangle "B" { at (400, 80); size (320, 140) }
+    match-size (b, a) both
+  }`);
+  const sizes = ["a:frame", "b:frame"].map((id) => {
+    const element = reversed.find((item) => item.id === id);
+    return [element.width, element.height];
+  });
+  assert.deepEqual(sizes, [[320, 140], [320, 140]]);
+});
+
+test("match-size on one axis leaves the other alone", () => {
+  const result = elements(`diagram "Axis" {
+    a: rectangle "A" { at (80, 80); size (140, 70) }
+    b: rectangle "B" { at (400, 80); size (320, 140) }
+    match-size (a, b) height
+  }`);
+  const [first, second] = ["a:frame", "b:frame"].map((id) => result.find((element) => element.id === id));
+  assert.deepEqual([first.width, first.height], [140, 140], "width untouched, height grown");
+  assert.deepEqual([second.width, second.height], [320, 140]);
+});
+
 test("geometry transforms compose in source order", () => {
   const result = elements(`diagram "Transforms" {
     a: rectangle "A" { at (80, 80); size (180, 90) }
@@ -221,3 +257,52 @@ for (const count of [10, 50, 200]) {
     assert.ok(Math.max(...frames.map((frame) => frame.y + frame.height)) < 30_000);
   });
 }
+
+test("XD2006 warns when a connected row will draw a crooked connector", () => {
+  // Row layout tops-aligns its children, so differing heights put their centres
+  // at different y and the connector between them slopes. Nothing else says so.
+  const uneven = compile(parse(`diagram "Uneven" {
+    strip: frame "Strip" {
+      arrange row { gap 80 }
+      a: rectangle "A" { size (160, 80) }
+      b: rectangle "B" { size (160, 140) }
+      a@right -> b@left
+    }
+  }`)).diagnostics;
+  const warning = uneven.find((item) => item.code === "XD2006");
+  assert.ok(warning, `expected XD2006, got [${uneven.map((d) => d.code).join(", ")}]`);
+  assert.match(warning.message, /match-size/, "the warning must name the fix");
+
+  // Equal heights are silent.
+  const even = compile(parse(`diagram "Even" {
+    strip: frame "Strip" {
+      arrange row { gap 80 }
+      a: rectangle "A" { size (160, 120) }
+      b: rectangle "B" { size (160, 120) }
+      a@right -> b@left
+    }
+  }`)).diagnostics;
+  assert.equal(even.filter((item) => item.code === "XD2006").length, 0);
+
+  // Without explicit sides the router may curve, so a sloped connector between
+  // differently sized boxes is an ordinary composition and must stay silent.
+  const routed = compile(parse(`diagram "Routed" {
+    strip: frame "Strip" {
+      arrange row { gap 80 }
+      a: rectangle "A" { size (160, 80) }
+      b: rectangle "B" { size (160, 140) }
+      a -> b
+    }
+  }`)).diagnostics;
+  assert.equal(routed.filter((item) => item.code === "XD2006").length, 0);
+
+  // Unconnected siblings of differing height are a normal composition.
+  const unconnected = compile(parse(`diagram "Loose" {
+    strip: frame "Strip" {
+      arrange row { gap 80 }
+      a: rectangle "A" { size (160, 80) }
+      b: rectangle "B" { size (160, 140) }
+    }
+  }`)).diagnostics;
+  assert.equal(unconnected.filter((item) => item.code === "XD2006").length, 0);
+});

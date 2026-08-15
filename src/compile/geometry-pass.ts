@@ -174,11 +174,15 @@ export function applyGeometryStatements(
         ...bounds[index], x: bounds[index].x + statement.by[0], y: bounds[index].y + statement.by[1],
       }));
     } else if (statement.type === "match-size") {
-      const reference = bounds[0];
+      // Grow to the largest target rather than to whichever was listed first:
+      // shrinking takes room away from a node that was sized for its content,
+      // and the text it no longer fits is simply clipped.
+      const widest = Math.max(...bounds.map((item) => item.width));
+      const tallest = Math.max(...bounds.map((item) => item.height));
       statement.ids.forEach((id, index) => transformSemanticNode(drawing, scene, id, {
         ...bounds[index],
-        width: statement.axis === "height" ? bounds[index].width : reference.width,
-        height: statement.axis === "width" ? bounds[index].height : reference.height,
+        width: statement.axis === "height" ? bounds[index].width : widest,
+        height: statement.axis === "width" ? bounds[index].height : tallest,
       }));
     } else if (statement.type === "rotation") {
       const radians = statement.degrees * Math.PI / 180;
