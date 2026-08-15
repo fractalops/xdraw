@@ -1,6 +1,5 @@
 import { anchor } from "../geometry.ts";
 import { ROUTING_CLEARANCE } from "./clearances.ts";
-import { splitEndpoint } from "./endpoints.ts";
 import type {
   Bounds,
   EndpointSide,
@@ -8,7 +7,6 @@ import type {
   Route,
 } from "../contracts/foundation.ts";
 
-export { splitEndpoint };
 
 export interface RoutingContext {
   fromContainerBounds?: Bounds;

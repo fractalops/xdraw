@@ -13,7 +13,7 @@ import {
 } from "../excalidraw/adapter.ts";
 import { applyGeometryStatements } from "./geometry-pass.ts";
 import { planConnectorSlots, renderAnnotation, renderConnection } from "../routing/renderer.ts";
-import { splitEndpoint } from "../routing/router.ts";
+import { splitEndpoint } from "../routing/endpoints.ts";
 import { createSceneGraph, layoutWithAdapter } from "./scene.ts";
 import { createMeasurer } from "./measurement.ts";
 import { createStyleResolver } from "./styles.ts";

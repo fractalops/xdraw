@@ -1,6 +1,7 @@
 import { card, connect } from "../excalidraw/components.ts";
 import { anchor, box } from "../geometry.ts";
-import { inferredSides, routeConnection, splitEndpoint } from "./router.ts";
+import { splitEndpoint } from "./endpoints.ts";
+import { inferredSides, routeConnection } from "./router.ts";
 import type {
   Bounds,
   EndpointSide,
