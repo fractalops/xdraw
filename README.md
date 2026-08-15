@@ -195,6 +195,7 @@ npm test
 npm run test:browser
 ```
 
-See [Releasing XDraw](docs/releasing.md) for the maintainer workflow.
+See [Architecture](docs/architecture.md) for how the compiler is arranged, and
+[Releasing XDraw](docs/releasing.md) for the maintainer workflow.
 
 XDraw is available under the [MIT License](LICENSE).
