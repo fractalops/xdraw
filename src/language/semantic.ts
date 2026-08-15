@@ -209,7 +209,9 @@ function collectStatements(
   }
 }
 
-type SemanticValidationDocument = DiagnosticNode & Pick<DiagramDocument, "statements">;
+type SemanticValidationDocument = DiagnosticNode
+  & Pick<DiagramDocument, "statements">
+  & { readonly title?: string };
 
 /**
  * Mutable state threaded through the validation rules. Some rules only report;
@@ -506,12 +508,11 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
   },
   {
     family: "text-length",
-    // Code is excluded: it has its own budget in code-policy.ts.
+    // Every string here reaches the measurer. Code is excluded because it has
+    // its own, larger budget in policy.ts.
     apply(statement, _context, state) {
       if (statement.type === "code") return;
-      for (const field of ["title", "value"] as const) {
-        if (!(field in statement)) continue;
-        const text: unknown = Reflect.get(statement, field);
+      const tooLong = (field: string, text: unknown): void => {
         if (typeof text === "string" && text.length > MAX_TEXT_CHARACTERS) {
           state.diagnostics.push(diagnostic(
             "XD1245",
@@ -519,6 +520,13 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
             statement,
           ));
         }
+      };
+      for (const field of ["title", "value", "label"] as const) {
+        if (field in statement) tooLong(field, Reflect.get(statement, field));
+      }
+      if ("cells" in statement) {
+        const cells: unknown = Reflect.get(statement, "cells");
+        if (Array.isArray(cells)) cells.forEach((cell) => tooLong("cell", cell));
       }
     },
   },
@@ -671,6 +679,14 @@ export function validateSemanticDocument(document: SemanticValidationDocument): 
   const state: ValidationState = {
     diagnostics, definitions, references, styles, theme: undefined, freedrawPointCount: 0,
   };
+
+  if (typeof document.title === "string" && document.title.length > MAX_TEXT_CHARACTERS) {
+    diagnostics.push(diagnostic(
+      "XD1245",
+      `diagram title exceeds the ${MAX_TEXT_CHARACTERS}-character text limit`,
+      document,
+    ));
+  }
 
   collectStatements(document.statements, (statement, context) => {
     for (const rule of VALIDATION_RULES) {

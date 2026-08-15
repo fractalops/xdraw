@@ -71,6 +71,18 @@ test("XD1245 caps display text that feeds measurement", () => {
   assert.ok(codes(wrap(`a: rectangle "A" { body "${long}" }`)).includes("XD1245"));
 });
 
+test("XD1245 covers every string that reaches measurement", () => {
+  // Enumerating fields is how the first version missed these: connection
+  // labels, table cells, and the document title all feed the same measurer.
+  const long = "x".repeat(10_001);
+  assert.ok(codes(wrap(`a: rectangle "A"\nb: rectangle "B"\na -> b "${long}"`)).includes("XD1245"),
+    "connection label");
+  assert.ok(codes(wrap(`subtitle "${long}"\na: rectangle "A"`)).includes("XD1245"), "subtitle");
+  assert.ok(codes(`diagram "${long}" { a: rectangle "A" }`).includes("XD1245"), "document title");
+  const table = `use "xdraw/table" as table\ndiagram "T" { t: table.table "T" {\n table.header "h"\n table.row "${long}" } }`;
+  assert.ok(codes(table).includes("XD1245"), "table cell");
+});
+
 test("XD1245 leaves text at the limit and long code blocks alone", () => {
   assert.deepEqual(codes(wrap(`a: rectangle "${"x".repeat(10_000)}"`)), []);
   // code has its own, much larger budget; this must not trip the text cap.
