@@ -489,6 +489,32 @@ test("errors name the import that provides an unresolved constructor", () => {
   );
 });
 
+test("every suggestion produces a document that actually compiles", () => {
+  // Matching the wording of a suggestion proves nothing. Apply it and reparse:
+  // that is what a reader does, and it is where the first version failed.
+  const applied = [
+    ['diagram "D" { a: rectangle "A" { fill "#eee" } }', 'diagram "D" { a: rectangle "A" { background "#eee" } }'],
+    ['diagram "D" { a: rectangle "A" { backgroud "#eee" } }', 'diagram "D" { a: rectangle "A" { background "#eee" } }'],
+    ['diagram "D" { f: math.formula """x^2""" }', 'use "xdraw/math" as math\ndiagram "D" { f: math.formula """x^2""" }'],
+    ['diagram "D" { n: note "hi" }', 'use "xdraw/annotations" as annotations\ndiagram "D" { n: annotations.note "hi" }'],
+  ];
+  for (const [broken, fixed] of applied) {
+    assert.throws(() => parseSource(broken), `expected ${broken} to fail`);
+    assert.doesNotThrow(() => parseSource(fixed), `applying the suggestion must compile: ${fixed}`);
+  }
+});
+
+test("suggestions stay silent when the replacement would not be usable", () => {
+  // 'size' is the right concept for width, but it takes a pair, so naming it
+  // alone sends the reader into a second error. 'radius' has no counterpart:
+  // roughness is sketchiness, not corner rounding.
+  const message = (source) => {
+    try { parseSource(source); return ""; } catch (error) { return String(error.message); }
+  };
+  assert.match(message('diagram "D" { a: rectangle "A" { width 100 } }'), /size \(width, height\)/);
+  assert.doesNotMatch(message('diagram "D" { a: rectangle "A" { radius 4 } }'), /did you mean/);
+});
+
 test("unknown properties suggest the XDraw name for familiar vocabulary", () => {
   // Vocabulary carried over from CSS and other tools is not a misspelling, so
   // edit distance cannot find it: 'fill' is closer to 'fit' than 'background'.
@@ -496,8 +522,8 @@ test("unknown properties suggest the XDraw name for familiar vocabulary", () => 
     parseSource(`diagram "D" { a: rectangle "A" { ${property} ${value} } }`);
   assert.throws(attempt("fill"), /did you mean 'background'/);
   assert.throws(attempt("color"), /did you mean 'stroke'/);
-  assert.throws(attempt("width", "100"), /did you mean 'size'/);
-  assert.throws(attempt("height", "50"), /did you mean 'size'/);
+  assert.throws(attempt("width", "100"), /did you mean 'size \(width, height\)'/);
+  assert.throws(attempt("height", "50"), /did you mean 'size \(width, height\)'/);
   assert.throws(attempt("font"), /did you mean 'font-family'/);
 
   // A genuine typo is close enough for edit distance to catch.

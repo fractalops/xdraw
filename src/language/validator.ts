@@ -262,7 +262,12 @@ function importHint(constructorName: string, alias?: string): string {
   const provider = providers[0];
   if (!provider || providers.length > 1) return "";
   const suggested = alias ?? provider.name.split("/").at(-1) ?? provider.name;
-  return `; add: use "${provider.name}" as ${suggested}`;
+  const importLine = `use "${provider.name}" as ${suggested}`;
+  // Without an alias the reader wrote a bare name, so importing is only half
+  // the fix: the call has to be qualified as well.
+  return alias === undefined
+    ? `; add: ${importLine}, then write ${suggested}.${constructorName}`
+    : `; add: ${importLine}`;
 }
 
 
@@ -279,18 +284,17 @@ const PROPERTY_SYNONYMS: Readonly<Record<string, string>> = Object.freeze({
   "font-size": "font-size",
   font: "font-family",
   fontfamily: "font-family",
-  width: "size",
-  height: "size",
-  w: "size",
-  h: "size",
-  x: "at",
-  y: "at",
-  position: "at",
+  width: "size (width, height)",
+  height: "size (width, height)",
+  w: "size (width, height)",
+  h: "size (width, height)",
+  x: "at (x, y)",
+  y: "at (x, y)",
+  position: "at (x, y)",
   text: "body",
   label: "body",
   border: "stroke",
   "border-width": "stroke-width",
-  radius: "roughness",
 });
 
 function editDistance(left: string, right: string): number {
@@ -317,7 +321,7 @@ function editDistance(left: string, right: string): number {
  */
 function propertySuggestion(typed: string, accepted: readonly string[]): string {
   const synonym = PROPERTY_SYNONYMS[typed.toLocaleLowerCase()];
-  if (synonym && accepted.includes(synonym)) return `; did you mean '${synonym}'?`;
+  if (synonym && accepted.includes(synonym.split(" ")[0])) return `; did you mean '${synonym}'?`;
   const ranked = accepted
     .map((candidate) => ({ candidate, distance: editDistance(typed.toLocaleLowerCase(), candidate) }))
     .sort((left, right) => left.distance - right.distance);
