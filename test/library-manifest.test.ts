@@ -4,15 +4,9 @@ import test from "node:test";
 import { resolveAssets } from "../src/io/assets.ts";
 import { compileAsync } from "../src/compile/pipeline.ts";
 import { MemoryFileSystem } from "../src/io/filesystem.ts";
-import {
-  CORE_LIBRARY_MANIFEST,
-  LibraryManifestError,
-  STANDARD_LIBRARY_MANIFESTS,
-  defineLibraryManifest,
-  manifestForIntrospection,
-  normalizeLibraryCatalog,
-  summarizeLibraryManifest,
-} from "../src/language/library-manifest.ts";
+import { LibraryManifestError } from "../src/language/manifests/contracts.ts";
+import { defineLibraryManifest, manifestForIntrospection, normalizeLibraryCatalog, summarizeLibraryManifest } from "../src/language/manifests/schema.ts";
+import { CORE_LIBRARY_MANIFEST, STANDARD_LIBRARY_MANIFESTS } from "../src/language/manifests/builtins.ts";
 import { parseSource } from "../src/language/parser.ts";
 
 function validManifest(): Record<string, unknown> {

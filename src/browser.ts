@@ -133,5 +133,5 @@ export type {
   LibraryValueManifest,
   ManifestDocumentation,
   ManifestValueKind,
-} from "./language/library-manifest.ts";
+} from "./language/manifests/contracts.ts";
 export { getLibraryManifest, listLibraryManifests } from "./language/registry.ts";

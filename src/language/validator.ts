@@ -12,13 +12,8 @@ import type {
   SourceStatement,
   SourceValueKind,
 } from "../contracts/language.ts";
-import {
-  BUILTIN_LIBRARY_MANIFESTS,
-  type ConstructorArgumentManifest,
-  type ConstructorManifest,
-  type LibraryManifest,
-  type ManifestValueKind,
-} from "./library-manifest.ts";
+import type { ConstructorArgumentManifest, ConstructorManifest, LibraryManifest, ManifestValueKind } from "./manifests/contracts.ts";
+import { BUILTIN_LIBRARY_MANIFESTS } from "./manifests/builtins.ts";
 
 export class LanguageValidationError extends Error {
   readonly code: string;

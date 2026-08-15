@@ -9,11 +9,9 @@ import type {
   SourceStatement,
   SourceValueKind,
 } from "../src/contracts/language.ts";
-import {
-  BUILTIN_LIBRARY_MANIFESTS,
-  defineLibraryManifest,
-  type LibraryManifest,
-} from "../src/language/library-manifest.ts";
+import type { LibraryManifest } from "../src/language/manifests/contracts.ts";
+import { defineLibraryManifest } from "../src/language/manifests/schema.ts";
+import { BUILTIN_LIBRARY_MANIFESTS } from "../src/language/manifests/builtins.ts";
 import { LanguageValidationError, validateLanguageDocument } from "../src/language/validator.ts";
 import { parseSyntax } from "../src/language/parser.ts";
 

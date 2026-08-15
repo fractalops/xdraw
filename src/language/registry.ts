@@ -1,11 +1,5 @@
-import {
-  BUILTIN_LIBRARY_MANIFESTS,
-  CORE_LIBRARY_MANIFEST,
-  STANDARD_LIBRARY_MANIFESTS,
-  type ConstructorManifest,
-  type LibraryManifest,
-  type ManifestValueKind,
-} from "./library-manifest.ts";
+import type { ConstructorManifest, LibraryManifest, ManifestValueKind } from "./manifests/contracts.ts";
+import { BUILTIN_LIBRARY_MANIFESTS, CORE_LIBRARY_MANIFEST, STANDARD_LIBRARY_MANIFESTS } from "./manifests/builtins.ts";
 
 export type PropertyKind = "pair" | "string" | "identifier" | "number" | "points" | "numbers" | "endpoint";
 
