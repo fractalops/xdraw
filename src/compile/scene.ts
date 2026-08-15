@@ -214,6 +214,7 @@ export function createSceneGraph(document: SemanticDocument, options: SceneGraph
     containers: [],
     routes: [],
     adapterRoutes: new Map(),
+    connectorSlots: new Map(),
     connections: [],
     annotations: [],
     diagnostics: options.diagnostics,

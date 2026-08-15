@@ -12,7 +12,7 @@ import {
   renderSceneVisuals,
 } from "../excalidraw/adapter.ts";
 import { applyGeometryStatements } from "./geometry-pass.ts";
-import { renderAnnotation, renderConnection } from "../routing/renderer.ts";
+import { planConnectorSlots, renderAnnotation, renderConnection } from "../routing/renderer.ts";
 import { splitEndpoint } from "../routing/router.ts";
 import { createSceneGraph, layoutWithAdapter } from "./scene.ts";
 import { createMeasurer } from "./measurement.ts";
@@ -277,6 +277,7 @@ export function renderCompilation(
       renderAnnotation(drawing, state, annotation, index, registerBounds);
     }
   });
+  planConnectorSlots(state, state.connections);
   warnAboutCrookedConnectors(state, diagnostics);
   state.connections.forEach((connection, index) => renderConnection(drawing, state, connection, index));
   state.annotations.forEach((annotation, index) => {

@@ -28,10 +28,6 @@ const ARROWHEADS = new Set<string>([
   "arrow", "bar", "dot", "circle", "circle_outline", "triangle", "triangle_outline",
   "diamond", "diamond_outline", "crowfoot_one", "crowfoot_many", "crowfoot_one_or_many",
 ]);
-const FIXED_POINTS: Readonly<Record<EndpointSide, Point>> = {
-  left: [0, 0.5], right: [1, 0.5], top: [0.5, 0], bottom: [0.5, 1], center: [0.5, 0.5],
-};
-
 function addWithFrame(
   drawing: Drawing,
   elements: readonly DrawingElement[],
@@ -126,8 +122,95 @@ function clampInside(bounds: Bounds, container: Bounds): Bounds {
   };
 }
 
-function binding(id: string, side: EndpointSide): ElementBinding {
-  return { elementId: id, focus: 0, gap: 8, fixedPoint: FIXED_POINTS[side] };
+
+
+interface ResolvedSides {
+  from: ReturnType<typeof splitEndpoint>;
+  to: ReturnType<typeof splitEndpoint>;
+  fromBounds: Bounds;
+  toBounds: Bounds;
+  startSide: EndpointSide;
+  endSide: EndpointSide;
+}
+
+/** Shared by the slot planner and the renderer so both agree on the edges used. */
+function resolveSides(
+  state: SceneGraph,
+  connection: ConnectionStatement,
+  nodeIndex: number,
+): ResolvedSides | null {
+  const from = splitEndpoint(connection.nodes[nodeIndex], state.bounds);
+  const to = splitEndpoint(connection.nodes[nodeIndex + 1], state.bounds);
+  const fromBounds = state.bounds.get(from.id);
+  const toBounds = state.bounds.get(to.id);
+  if (!fromBounds || !toBounds) return null;
+  const fromContainer = state.containerMembership?.get(from.id);
+  const toContainer = state.containerMembership?.get(to.id);
+  const sides = inferredSides(fromBounds, toBounds, fromContainer && toContainer && fromContainer !== toContainer ? {
+    fromContainerBounds: state.bounds.get(fromContainer),
+    toContainerBounds: state.bounds.get(toContainer),
+  } : {});
+  return {
+    from, to, fromBounds, toBounds,
+    startSide: from.side ?? sides.startSide,
+    endSide: to.side ?? sides.endSide,
+  };
+}
+
+/** Fraction along an edge for connector `slot` of `total` sharing it. */
+function slotFraction(slot: number, total: number): number {
+  return total <= 1 ? 0.5 : (slot + 1) / (total + 1);
+}
+
+function pointOnEdge(bounds: Bounds, side: EndpointSide, fraction: number): Point {
+  if (side === "center") return anchor.center(bounds);
+  if (side === "top") return [bounds.x + bounds.width * fraction, bounds.y];
+  if (side === "bottom") return [bounds.x + bounds.width * fraction, bounds.y + bounds.height];
+  if (side === "left") return [bounds.x, bounds.y + bounds.height * fraction];
+  return [bounds.x + bounds.width, bounds.y + bounds.height * fraction];
+}
+
+function fixedPointOnEdge(side: EndpointSide, fraction: number): Point {
+  if (side === "center") return [0.5, 0.5];
+  if (side === "top") return [fraction, 0];
+  if (side === "bottom") return [fraction, 1];
+  if (side === "left") return [0, fraction];
+  return [1, fraction];
+}
+
+/**
+ * Several connections leaving one anchor would all bind to the middle of that
+ * edge and overlap. Spread them evenly instead, so a fan reads as a fan.
+ * Excalidraw binds by fraction, so this costs nothing in the output format.
+ */
+export function planConnectorSlots(
+  state: SceneGraph,
+  connections: readonly ConnectionStatement[],
+): void {
+  const sharing = new Map<string, string[]>();
+  const record = (elementId: string, side: EndpointSide, key: string): void => {
+    const anchorKey = `${elementId}@${side}`;
+    const existing = sharing.get(anchorKey);
+    if (existing) existing.push(key);
+    else sharing.set(anchorKey, [key]);
+  };
+
+  connections.forEach((connection, index) => {
+    for (let nodeIndex = 0; nodeIndex < connection.nodes.length - 1; nodeIndex += 1) {
+      const resolved = resolveSides(state, connection, nodeIndex);
+      if (!resolved) continue;
+      record(resolved.from.id, resolved.startSide, `${index}:${nodeIndex}:start`);
+      record(resolved.to.id, resolved.endSide, `${index}:${nodeIndex}:end`);
+    }
+  });
+
+  for (const keys of sharing.values()) {
+    keys.forEach((key, slot) => state.connectorSlots?.set(key, slotFraction(slot, keys.length)));
+  }
+}
+
+function binding(id: string, side: EndpointSide, fraction = 0.5): ElementBinding {
+  return { elementId: id, focus: 0, gap: 8, fixedPoint: fixedPointOnEdge(side, fraction) };
 }
 
 export function renderConnection(
@@ -141,25 +224,21 @@ export function renderConnection(
     throw new Error("connection via is only valid for a single connector segment");
   }
   for (let nodeIndex = 0; nodeIndex < connection.nodes.length - 1; nodeIndex += 1) {
-    const from = splitEndpoint(connection.nodes[nodeIndex], state.bounds);
-    const to = splitEndpoint(connection.nodes[nodeIndex + 1], state.bounds);
-    const fromBounds = state.bounds.get(from.id);
-    const toBounds = state.bounds.get(to.id);
-    if (!fromBounds || !toBounds) throw new Error(`connection references unknown node: ${from.id} -> ${to.id}`);
-    const fromContainer = state.containerMembership?.get(from.id);
-    const toContainer = state.containerMembership?.get(to.id);
-    const sides = inferredSides(fromBounds, toBounds, fromContainer && toContainer && fromContainer !== toContainer ? {
-      fromContainerBounds: state.bounds.get(fromContainer),
-      toContainerBounds: state.bounds.get(toContainer),
-    } : {});
+    const resolved = resolveSides(state, connection, nodeIndex);
+    if (!resolved) {
+      const missing = splitEndpoint(connection.nodes[nodeIndex], state.bounds);
+      const other = splitEndpoint(connection.nodes[nodeIndex + 1], state.bounds);
+      throw new Error(`connection references unknown node: ${missing.id} -> ${other.id}`);
+    }
+    const { from, to, fromBounds, toBounds, startSide, endSide } = resolved;
     const semanticTone = Object.keys(connection.attributes).find(isConnectionTone);
-    const startSide = from.side ?? sides.startSide;
-    const endSide = to.side ?? sides.endSide;
+    const startFraction = state.connectorSlots?.get(`${index}:${nodeIndex}:start`) ?? 0.5;
+    const endFraction = state.connectorSlots?.get(`${index}:${nodeIndex}:end`) ?? 0.5;
     const waypoints = parseWaypoints(connection.attributes.via);
     const adapterRoute = state.adapterRoutes.get(`${index}:${nodeIndex}`);
     const style = connectionStyle(connection.attributes.style);
-    const start = anchor[startSide](fromBounds);
-    const end = anchor[endSide](toBounds);
+    const start = pointOnEdge(fromBounds, startSide, startFraction);
+    const end = pointOnEdge(toBounds, endSide, endFraction);
     if (waypoints) {
       if (!connection.generatedRoute) {
         state.diagnostics?.warn("XD2003", "connection via disables automatic obstacle routing", connection);
@@ -172,6 +251,8 @@ export function renderConnection(
     const resolvedAdapterRoute = adapterRoute ? routeWithWaypoints(start, adapterRoute.slice(1, -1), end) : null;
     const routed = needsRoutedPath
       ? resolvedAdapterRoute ?? routeConnection(state, from.id, to.id, fromBounds, toBounds, startSide, endSide, {
+        startFraction,
+        endFraction,
         around: routeAround(connection.attributes.route),
       })
       : null;
@@ -203,7 +284,6 @@ export function renderConnection(
         : null].filter(Boolean).join("\n") || undefined
       : undefined;
     const rendered = connect(`document:connection:${index}:${nodeIndex}`, fromBounds, toBounds, {
-      ...sides,
       startSide,
       endSide,
       points,
@@ -211,8 +291,8 @@ export function renderConnection(
       elbowed,
       roundness: style === "curved" ? { type: 2 } : false,
       endArrowhead: style === "line" ? null : headValue,
-      startBinding: style === "line" ? null : binding(bindingElementId(state, from.id), startSide),
-      endBinding: style === "line" ? null : binding(bindingElementId(state, to.id), endSide),
+      startBinding: style === "line" ? null : binding(bindingElementId(state, from.id), startSide, startFraction),
+      endBinding: style === "line" ? null : binding(bindingElementId(state, to.id), endSide, endFraction),
       label: relationshipLabel,
       startLabel: nodeIndex === 0 && typeof connection.attributes["start-label"] === "string"
         ? connection.attributes["start-label"] : undefined,
