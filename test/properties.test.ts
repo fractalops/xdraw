@@ -431,3 +431,59 @@ test("property: generated formulas compile deterministically with source metadat
     assert.equal(image?.customData?.xdraw?.source, value);
   }), { numRuns: EXPENSIVE_RUNS });
 });
+
+test("property: a row grows every child by the same amount", () => {
+  // `size` width is a starting width inside a row: it decides how many fit,
+  // then the row grows them all to fill. Authored widths do not survive.
+  const rowCase = fc.record({
+    widths: fc.array(fc.integer({ min: 60, max: 260 }), { minLength: 2, maxLength: 4 }),
+    gap: fc.integer({ min: 0, max: 40 }),
+  });
+  fc.assert(fc.property(rowCase, ({ widths, gap }) => {
+    const children = widths
+      .map((width, index) => `n${index}: rectangle "N${index}" { size (${width}, 80) }`)
+      .join("\n");
+    const drawing = compile(parseSource(`diagram "Row" {
+      arrange grid { columns 1; width 1400 }
+      strip: frame "Strip" {
+        arrange row { gap ${gap} }
+        ${children}
+      }
+    }`)).toJSON();
+    const rendered = widths.map((_, index) => (
+      drawing.elements.find((element) => element.id === `strip.n${index}:frame`)
+    ));
+    assert.ok(rendered.every(Boolean), "every child renders");
+    // Free space is shared equally, so differences between authored widths
+    // survive exactly while the widths themselves do not.
+    const grown = rendered.map((element, index) => Math.round(element.width) - widths[index]);
+    const distinctGrowth = new Set(grown);
+    assert.equal(
+      distinctGrowth.size, 1,
+      `each child must grow by the same amount, got ${[...distinctGrowth].join(", ")}`,
+    );
+    assert.ok(grown[0] >= 0, "a row grows children, never shrinks them");
+    // They also all sit on one line while they fit.
+    assert.equal(new Set(rendered.map((element) => Math.round(element.y))).size, 1);
+  }), { numRuns: RUNS });
+});
+
+test("property: a column keeps the width each child asked for", () => {
+  const columnCase = fc.array(fc.integer({ min: 60, max: 600 }), { minLength: 1, maxLength: 4 });
+  fc.assert(fc.property(columnCase, (widths) => {
+    const children = widths
+      .map((width, index) => `n${index}: rectangle "N${index}" { size (${width}, 80) }`)
+      .join("\n");
+    const drawing = compile(parseSource(`diagram "Column" {
+      arrange grid { columns 1; width 1400 }
+      stack: frame "Stack" {
+        arrange column { gap 10 }
+        ${children}
+      }
+    }`)).toJSON();
+    widths.forEach((authored, index) => {
+      const element = drawing.elements.find((item) => item.id === `stack.n${index}:frame`);
+      assert.equal(Math.round(element.width), authored, `column child ${index} keeps its authored width`);
+    });
+  }), { numRuns: RUNS });
+});

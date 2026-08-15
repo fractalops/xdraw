@@ -437,6 +437,13 @@ Layout may use one of:
 `spacing` and `gap` must not appear together. `width` must be positive and
 `columns` must be a positive integer.
 
+A `row` distributes the space left over after its children and gaps are placed,
+growing every child by the same amount. A declared `size` width is therefore a
+starting width inside a row: it determines how many children fit on one line,
+and differences between sibling widths are preserved, but the widths themselves
+are not. A `column`, and a scope with no arrangement, use a declared `size`
+width exactly, even where that overflows the enclosing scope.
+
 ### 11.1 Tree arrangement
 
 `arrange tree` is valid inside a declaration and derives a hierarchy from the
