@@ -14,12 +14,12 @@
   <a href="docs/spec.md">Specification</a>
 </p>
 
-XDraw compiles a small, readable language into editable `.excalidraw` files,
-PNG previews, and SVG previews.
+XDraw is a small DSL for describing diagrams and drawings. It compiles to
+editable Excalidraw scenes and can also render PNG and SVG previews.
 
 ## Quick Start
 
-XDraw requires Node.js 22.18 or newer.
+You need Node.js 22.18 or newer.
 
 ```bash
 git clone https://github.com/fractalops/xdraw.git
@@ -56,10 +56,10 @@ Build it:
 xdraw build compiler-flow.xdraw
 ```
 
-This creates `compiler-flow.excalidraw` beside the source. Open it in
-[Excalidraw](https://excalidraw.com) to continue editing.
+The command creates `compiler-flow.excalidraw` beside the source file. Open it
+in [Excalidraw](https://excalidraw.com) and keep editing there.
 
-Use `-o` to create a preview or choose another destination:
+Use `-o` to choose the output path or render a preview:
 
 ```bash
 xdraw build compiler-flow.xdraw -o output/compiler-flow.png
@@ -69,8 +69,7 @@ cat compiler-flow.xdraw | xdraw build -o output/compiler-flow.excalidraw
 
 ## Language
 
-The declaration form, core primitives, and composition rules shown below are
-generated from one runnable cheatsheet:
+This quick reference covers declarations, core primitives, and composition:
 
 ![XDraw quick reference](docs/images/readme-cheatsheet.png)
 
@@ -78,16 +77,14 @@ generated from one runnable cheatsheet:
 xdraw build examples/readme-cheatsheet.xdraw
 ```
 
-Continue with the [full cheatsheet](examples/xdraw-cheatsheet.xdraw), follow
-the self-explaining [`examples/`](examples/), or read the
-[language guide](docs/language-reference.md). The
-[language specification](docs/spec.md) is the authoritative syntax and
-semantics reference.
+For more examples, see the [full cheatsheet](examples/xdraw-cheatsheet.xdraw)
+and the [`examples/`](examples/) directory. The
+[language guide](docs/language-reference.md) explains how to use the language;
+the [specification](docs/spec.md) defines its syntax and semantics.
 
 ## Rich Content
 
-Formulas use TeX source and compile to portable SVG assets inside the editable
-scene:
+XDraw renders TeX formulas as SVG while keeping the scene editable:
 
 ![Mathematical formulas rendered by XDraw](docs/images/formulas.png)
 
@@ -95,9 +92,8 @@ scene:
 xdraw build examples/formulas.xdraw -o output/formulas.png
 ```
 
-TeX is backslash-heavy, so piping a formula needs the heredoc delimiter quoted.
-Unquoted, the shell collapses the `\\` that separates matrix rows and the
-formula silently loses its line breaks:
+When piping TeX through a shell heredoc, quote the delimiter so the shell
+leaves backslashes unchanged:
 
 ```bash
 xdraw build - -o quadratic.png <<'XDRAW'
@@ -109,8 +105,7 @@ diagram "Quadratic formula" {
 XDRAW
 ```
 
-Tables remain grouped native Excalidraw shapes, with measured columns and
-wrapped cells:
+Tables have measured columns, wrapped cells, and remain editable in Excalidraw:
 
 ![Editable table rendered by XDraw](docs/images/tables.png)
 
@@ -120,23 +115,22 @@ xdraw build examples/tables.xdraw -o output/tables.png
 
 ## Hosted Scenes
 
-The same CLI can work with scenes in Excalidraw+. Start by setting an API key,
-then list the scenes visible to it:
+XDraw can also read and update scenes in Excalidraw+. Set an API key, then list
+the scenes you can access:
 
 ```bash
 export EXCALIDRAW_API_KEY="your-api-key"
 xdraw list
 ```
 
-`list` prints a copyable address and the underlying scene ID:
+`list` prints a readable address and its scene ID:
 
 ```text
 ADDRESS                                                     SCENE ID
 excalidraw::default::Architecture::System overview          scene-123
 ```
 
-Use either value to retrieve the scene. As with `build`, the output extension
-chooses editable JSON or a preview:
+Use either value with `pull`:
 
 ```bash
 xdraw pull "excalidraw::default::Architecture::System overview"
@@ -144,15 +138,14 @@ xdraw pull scene-123 -o output/system-overview.png
 xdraw pull scene-123 -o output/system-overview.svg
 ```
 
-Use `apply` when XDraw source should create, replace, or selectively update a
-hosted scene:
+Use `apply` to create a hosted scene or update an existing one:
 
 ```bash
 xdraw apply architecture.scene.xdraw
 ```
 
-See the [Excalidraw+ guide](docs/excalidraw-plus-integration.md) for scene
-documents, patching, permissions, and API configuration.
+The [Excalidraw+ guide](docs/excalidraw-plus-integration.md) covers scene
+documents, targeted updates, permissions, and API configuration.
 
 ## CLI
 
@@ -171,20 +164,19 @@ xdraw pull <address-or-id> [-o <output>]
 - `pull` retrieves a hosted scene as `.excalidraw`, PNG, or SVG.
 
 `build`, `check`, and `apply` accept a file, standard input, or inline source
-with `-e`. Remote commands use `EXCALIDRAW_API_KEY`. Run `xdraw --help` for all
-options.
+with `-e`. Commands that contact Excalidraw+ use `EXCALIDRAW_API_KEY`. Run
+`xdraw --help` for the complete command reference.
 
 ## Acknowledgements
 
-- XDraw builds on [Excalidraw](https://github.com/excalidraw/excalidraw) and its
-open scene format.
-- Flat layered diagrams use
-[ELK](https://github.com/kieler/elkjs) for node placement while XDraw measures
-content, routes connectors, and emits editable elements.
-- Code highlighting is powered by [Shiki](https://github.com/shikijs/shiki).
-- Mathematical formulas are rendered by [MathJax](https://www.mathjax.org/).
-- freehand geometry by [Perfect Freehand](https://github.com/steveruizok/perfect-freehand),
-- and local preview rendering by [resvg-js](https://github.com/yisibl/resvg-js).
+- [Excalidraw](https://github.com/excalidraw/excalidraw) provides the open scene
+  format.
+- [ELK](https://github.com/kieler/elkjs) places nodes in flat layered diagrams.
+- [Shiki](https://github.com/shikijs/shiki) provides code highlighting.
+- [MathJax](https://www.mathjax.org/) renders mathematical formulas.
+- [Perfect Freehand](https://github.com/steveruizok/perfect-freehand) generates
+  freehand geometry.
+- [resvg-js](https://github.com/yisibl/resvg-js) renders local previews.
 
 ## Development
 
@@ -195,7 +187,7 @@ npm test
 npm run test:browser
 ```
 
-See [Architecture](docs/architecture.md) for how the compiler is arranged, and
+See [Architecture](docs/architecture.md) for the compiler structure and
 [Releasing XDraw](docs/releasing.md) for the maintainer workflow.
 
 XDraw is available under the [MIT License](LICENSE).
