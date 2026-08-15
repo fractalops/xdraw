@@ -513,7 +513,7 @@ test("property: a single-keystroke typo of a constructor is corrected", () => {
     };
   });
 
-  fc.assert(fc.property(mutated, ({ typo }) => {
+  fc.assert(fc.property(mutated, ({ name, typo }) => {
     // A mutation that lands on another real name is not a typo any more.
     if (known.has(typo) || typo.length === 0) return;
     let message = "";
@@ -526,6 +526,8 @@ test("property: a single-keystroke typo of a constructor is corrected", () => {
     if (!message.includes("unknown constructor")) return;
     const suggested = /did you mean '([^']+)'/u.exec(message)?.[1];
     assert.ok(suggested, `no suggestion for '${typo}': ${message}`);
-    assert.ok(known.has(suggested), `suggested '${suggested}' is not a real constructor`);
+    // Naming any real constructor is not enough: a suggestion that compiles
+    // into the wrong element is worse than none, so it must name the original.
+    assert.equal(suggested, name, `'${typo}' came from '${name}' but suggested '${suggested}'`);
   }), { numRuns: RUNS });
 });

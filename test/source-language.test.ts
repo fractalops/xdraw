@@ -565,3 +565,22 @@ test("mistyped constructors and arrangements suggest the intended name", () => {
     /did you mean/,
   );
 });
+
+test("words that mean something else in this domain get no constructor suggestion", () => {
+  // 'node' is one edit from 'code', and applying that suggestion compiles
+  // cleanly into a code block, so the reader is told to write something that
+  // silently produces the wrong element. Distance cannot separate these:
+  // 'node' to 'code' is one edit with a margin of three over the runner-up.
+  const message = (source) => {
+    try { parseSource(source); return ""; } catch (error) { return String(error.message); }
+  };
+  for (const word of ["node", "state"]) {
+    const reported = message(`diagram "D" { a: ${word} "A" }`);
+    assert.match(reported, new RegExp(`unknown constructor '${word}'`));
+    assert.doesNotMatch(reported, /did you mean/, `'${word}' must not attract a suggestion`);
+  }
+
+  // Genuine typos still get help.
+  assert.match(message('diagram "D" { a: rectangel "A" }'), /did you mean 'rectangle'/);
+  assert.match(message('diagram "D" { a: cod "A" }'), /did you mean 'code'/);
+});

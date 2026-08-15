@@ -327,11 +327,25 @@ function editDistance(left: string, right: string): number {
  * then a near-miss typo. Silent when neither is confident, because a wrong
  * suggestion costs more than none.
  */
+
+/**
+ * Words a diagram author reaches for that are one or two edits from a real
+ * constructor but mean something else. Edit distance cannot separate these:
+ * 'node' is one edit from 'code' with a margin of three over the runner-up,
+ * and taking that advice compiles cleanly into a code block. Silence is the
+ * only honest answer.
+ */
+const NOT_A_TYPO = new Set([
+  "node", "state", "box", "shape", "line", "arrow", "actor", "entity",
+  "class", "component", "container", "edge", "link", "label", "cluster",
+]);
+
 /**
  * Names the closest candidate when it is close enough to be a typo rather than
  * a guess. Silent otherwise, because a wrong suggestion costs more than none.
  */
 function nearestName(typed: string, candidates: Iterable<string>): string {
+  if (NOT_A_TYPO.has(typed.toLocaleLowerCase())) return "";
   const ranked = [...candidates]
     .map((candidate) => ({ candidate, distance: editDistance(typed.toLocaleLowerCase(), candidate) }))
     .sort((left, right) => left.distance - right.distance);
