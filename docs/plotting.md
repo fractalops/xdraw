@@ -20,6 +20,9 @@ diagram "Plot" {
 
 ## What it can draw
 
+A wider gallery, with the measured limits, is in
+[A gallery, and where it breaks](curve-gallery.md).
+
 ![Three parametric curves: a butterfly, a damped harmonograph, and a decaying wave](images/parametric-plots.png)
 
 Nothing above is a special case in the compiler. Each is the same constructor

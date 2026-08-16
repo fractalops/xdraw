@@ -213,6 +213,21 @@ test("a minus keeps its meaning inside an expression", () => {
   assert.equal(Math.round(descending.height), 100);
 });
 
+test("a plot may sit inside a container", () => {
+  // A plot lowers to a freedraw, which every container already accepts, but the
+  // child policy is checked against the declared semantic kind rather than what
+  // it lowers to — so `plot` had to be listed too. Without it, nesting a curve
+  // in a frame failed with "constructor 'frame' does not accept child kind".
+  for (const container of ["frame", "group", "section"]) {
+    const source = withImport(`diagram "" {
+      panel: ${container} "Panel" {
+        mark: math.plot { at (0, 0); x = 50 * cos(t); y = 50 * sin(t); domain (0, tau) }
+      }
+    }`);
+    assert.doesNotThrow(() => compile(parse(source)), `a plot must nest inside a ${container}`);
+  }
+});
+
 test("a plot rejects an expression outside the sublanguage", () => {
   const source = withImport(`diagram "" {
     mark: math.plot {

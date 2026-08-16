@@ -118,7 +118,7 @@ const contentChildren: ChildPolicyManifest = {
   mode: "roles",
   roles: [{
     name: "content",
-    accepts: ["arrangement", "code", "connection", "frame", "freedraw", "geometry", "group", "icon", "image", "lane", "node", "note", "section", "sequence", "text"],
+    accepts: ["arrangement", "code", "connection", "frame", "freedraw", "geometry", "group", "icon", "image", "lane", "node", "note", "plot", "section", "sequence", "text"],
     minimum: 0,
     maximum: null,
     synopsis: "Nested visual content.",

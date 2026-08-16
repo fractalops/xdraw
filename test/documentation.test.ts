@@ -11,6 +11,7 @@ import { parseSource } from "../src/language/parser.ts";
 for (const file of [
   "README.md",
   "docs/excalidraw-plus-integration.md",
+  "docs/curve-gallery.md",
   "docs/language-reference.md",
   "docs/plotting.md",
   "docs/spec.md",

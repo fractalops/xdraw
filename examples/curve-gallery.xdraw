@@ -1,0 +1,65 @@
+use "xdraw/math" as math
+
+diagram "Named curves" {
+  subtitle "Each is the same constructor; only the equations differ"
+
+  cardioid: math.plot {
+    at (200, 320)
+    x = 80 * (1 - cos(t)) * cos(t)
+    y = 80 * (1 - cos(t)) * sin(t)
+    domain (0, tau)
+    stroke "#be123c"
+    stroke-width 2
+  }
+  cardioid-label: text "cardioid" { at (150, 470); font-size 20 }
+
+  astroid: math.plot {
+    at (560, 320)
+    x = 120 * (cos(t)) ^ 3
+    y = 120 * (sin(t)) ^ 3
+    domain (0, tau)
+    stroke "#a16207"
+    stroke-width 2
+  }
+  astroid-label: text "astroid" { at (515, 470); font-size 20 }
+
+  nephroid: math.plot {
+    at (920, 320)
+    x = 32 * (3 * cos(t) - cos(3*t))
+    y = 32 * (3 * sin(t) - sin(3*t))
+    domain (0, tau)
+    stroke "#7c3aed"
+    stroke-width 2
+  }
+  nephroid-label: text "nephroid" { at (870, 470); font-size 20 }
+
+  deltoid: math.plot {
+    at (200, 700)
+    x = 45 * (2 * cos(t) + cos(2*t))
+    y = 45 * (2 * sin(t) - sin(2*t))
+    domain (0, tau)
+    stroke "#0891b2"
+    stroke-width 2
+  }
+  deltoid-label: text "deltoid" { at (155, 850); font-size 20 }
+
+  heart: math.plot {
+    at (560, 700)
+    x = 8 * 16 * (sin(t)) ^ 3
+    y = 0 - 8 * (13 * cos(t) - 5 * cos(2*t) - 2 * cos(3*t) - cos(4*t))
+    domain (0, tau)
+    stroke "#db2777"
+    stroke-width 2
+  }
+  heart-label: text "heart" { at (525, 850); font-size 20 }
+
+  superformula: math.plot {
+    at (920, 700)
+    x = 110 * ((abs(cos(3*t/4))) ^ 8 + (abs(sin(3*t/4))) ^ 8) ^ -0.125 * cos(t)
+    y = 110 * ((abs(cos(3*t/4))) ^ 8 + (abs(sin(3*t/4))) ^ 8) ^ -0.125 * sin(t)
+    domain (0, tau)
+    stroke "#16a34a"
+    stroke-width 2
+  }
+  superformula-label: text "superformula" { at (845, 850); font-size 20 }
+}

@@ -116,7 +116,8 @@ xdraw build examples/parametric-plots.xdraw -o output/parametric-plots.png
 
 A curve it cannot draw to that accuracy — one with a pole, or one that leaves
 the usable coordinate range — is refused with a diagnostic rather than
-approximated. See [Plotting curves](docs/plotting.md).
+approximated. See [Plotting curves](docs/plotting.md) for the guide and
+[the gallery](docs/curve-gallery.md) for what it manages and where it stops.
 
 Tables have measured columns, wrapped cells, and remain editable in Excalidraw:
 

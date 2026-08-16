@@ -1,0 +1,71 @@
+use "xdraw/math" as math
+use "xdraw/palette" as palette
+
+diagram "Building a signal" {
+  subtitle "Each stage names what it adds; the curve beneath it is what that stage produces"
+
+  carrier: rectangle "Carrier" {
+    at (80, 200)
+    size (240, 96)
+    body "sin(2.5t)"
+    style palette.info
+  }
+  envelope: rectangle "Envelope" {
+    at (400, 200)
+    size (240, 96)
+    body "exp(-t/9)"
+    style palette.warning
+  }
+  damped: rectangle "Damped" {
+    at (720, 200)
+    size (240, 96)
+    body "their product"
+    style palette.success
+  }
+  summed: rectangle "Summed" {
+    at (1040, 200)
+    size (240, 96)
+    body "plus a harmonic"
+    style palette.accent
+  }
+
+  carrier -> envelope
+  envelope -> damped
+  damped -> summed
+
+  carrier-curve: math.plot {
+    at (200, 440)
+    x = 13 * t
+    y = 55 * sin(2.5*t)
+    domain (0, 18)
+    stroke "#0369a1"
+    stroke-width 2
+  }
+
+  envelope-curve: math.plot {
+    at (520, 440)
+    x = 13 * t
+    y = 110 * exp(0 - t / 9) - 55
+    domain (0, 18)
+    stroke "#b45309"
+    stroke-width 2
+  }
+
+  damped-curve: math.plot {
+    at (840, 440)
+    x = 13 * t
+    y = 55 * sin(2.5*t) * exp(0 - t / 9)
+    domain (0, 18)
+    stroke "#15803d"
+    stroke-width 2
+  }
+
+  summed-curve: math.plot {
+    at (1160, 440)
+    x = 13 * t
+    y = 55 * sin(2.5*t) * exp(0 - t / 9) + 22 * sin(7.5*t) * exp(0 - t / 5)
+    domain (0, 18)
+    stroke "#7c3aed"
+    stroke-width 2
+  }
+}
