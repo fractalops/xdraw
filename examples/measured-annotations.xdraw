@@ -1,0 +1,48 @@
+use "xdraw/palette" as palette
+
+diagram "Annotations placed from measured geometry" {
+  subtitle "Nothing below is positioned by hand; every number comes from a box the compiler measured"
+
+  let drop = 40
+  let tick = 26
+
+  flow: frame "Laid out automatically" {
+    arrange row { gap 90 }
+    ingest: rectangle "Ingest" { body "reads source"; style palette.info }
+    parse: rectangle "Parse" { body "builds a tree"; style palette.accent }
+    emit: rectangle "Emit" { body "writes elements"; style palette.success }
+  }
+
+  tick1: freedraw {
+    at = (flow.ingest.center_x, flow.ingest.bottom + drop)
+    points ((0, 0), (0, 26))
+    simulate-pressure false
+    stroke "#334155"
+    stroke-width 2
+  }
+  tick2: freedraw {
+    at = (flow.parse.center_x, flow.parse.bottom + drop)
+    points ((0, 0), (0, 26))
+    simulate-pressure false
+    stroke "#334155"
+    stroke-width 2
+  }
+  tick3: freedraw {
+    at = (flow.emit.center_x, flow.emit.bottom + drop)
+    points ((0, 0), (0, 26))
+    simulate-pressure false
+    stroke "#334155"
+    stroke-width 2
+  }
+
+  # A label beside the last box, placed from that box's own right edge.
+  after: text "and here is where it ends" {
+    at = (flow.emit.right + 24, flow.emit.center_y)
+    font-size 19
+  }
+
+  caption: text "each tick sits on its box's centre, whatever the layout chose" {
+    at = (flow.ingest.left, flow.ingest.bottom + drop + tick + 20)
+    font-size 19
+  }
+}

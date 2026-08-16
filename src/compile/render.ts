@@ -12,6 +12,7 @@ import {
   renderSceneVisuals,
 } from "../excalidraw/adapter.ts";
 import { applyGeometryStatements } from "./geometry-pass.ts";
+import { resolveGeometryReferences } from "./geometry-references.ts";
 import { renderAnnotation, renderConnection } from "../routing/renderer.ts";
 import { splitEndpoint } from "../routing/endpoints.ts";
 import { createSceneGraph, layoutWithAdapter } from "./scene.ts";
@@ -244,6 +245,10 @@ export function renderCompilation(
   renderSceneVisuals(drawing, state.visuals);
   state.connections.push(...topLevelConnections.filter((item) => !syntheticConnections.includes(item)));
   state.annotations.push(...scene.statements.filter(isNote));
+  // Text and freehand are drawn where they are told and take no part in layout,
+  // so an `at` that names another element's geometry can be resolved here,
+  // against the boxes layout has just produced, without moving them.
+  resolveGeometryReferences(scene.statements, state.bounds);
   collectDetachedStatements(scene.statements, isFreedraw).forEach(({ statement, frameId, locked }) => {
     const element = renderFreedraw(drawing, renderableFreedraw(statement), styles.resolveFreedraw(statement));
     element.frameId = frameId;

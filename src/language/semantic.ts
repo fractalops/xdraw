@@ -628,7 +628,10 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
     apply(statement, _context, state) {
       if (statement.type === "freedraw") {
         const points = statement.points;
-        if (!isFinitePoint(statement.at)) {
+        // A pair still written as text names geometry that layout has not
+        // produced yet. It is resolved after layout, and reports there if it
+        // cannot be; here it is pending rather than malformed.
+        if (!isPendingPoint(statement.at) && !isFinitePoint(statement.at)) {
           state.diagnostics.push(diagnostic("XD1220", "freedraw at must be a finite coordinate pair", statement));
         }
         if (!hasValidFreedrawPoints(points)) {
@@ -739,6 +742,11 @@ export function validateSemanticDocument(document: SemanticValidationDocument): 
     ));
   }
   return diagnostics;
+}
+
+/** A coordinate pair whose parts are expressions awaiting layout. */
+function isPendingPoint(value: unknown): boolean {
+  return Array.isArray(value) && value.length === 2 && value.some((part) => typeof part === "string");
 }
 
 export function buildSemanticIR(ast: DiagramDocument): SemanticDocument {

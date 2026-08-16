@@ -125,6 +125,10 @@ diagram "Outcomes" {
 Tree nodes must be direct children, reachable from the root, acyclic, and
 limited to one parent each.
 
+A text or freehand element may be placed from another element's measured
+geometry — `at = (flow.emit.right + 24, flow.emit.center_y)`. See
+[Placing from measured geometry](geometry-references.md).
+
 ## Connect and Address Elements
 
 Use `->` for an arrow and `--` for a line. Add anchors when the attachment side

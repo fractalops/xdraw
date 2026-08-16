@@ -129,7 +129,11 @@ function tokenize(source: string, prefix = false): Token[] {
       continue;
     }
     if (/[a-z_]/iu.test(character)) {
-      const match = /^[a-z_][a-z0-9_]*/iu.exec(source.slice(index));
+      // A dot inside a name is part of the name — `flow.ingest.right` is one
+      // identifier naming an element's geometry, not property access. The
+      // vocabulary stays closed because a name still has to be bound by
+      // whoever evaluates it.
+      const match = /^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)*/iu.exec(source.slice(index));
       if (!match) throw new ExpressionError("malformed name", index);
       tokens.push({ kind: "name", value: match[0], offset: index, end: index + match[0].length });
       index += match[0].length;

@@ -133,6 +133,11 @@ before it can be placed, using the font metrics in
 columns, grids, and trees, and `layered.ts` for flat graphs via ELK. The ELK
 integration runs in a worker; see [`src/layout/elk/`](../src/layout/elk/).
 
+[`src/compile/geometry-references.ts`](../src/compile/geometry-references.ts)
+resolves an `at` that names another element's geometry, against the boxes layout
+has just produced. Only text and freehand may refer, because they take no part in
+layout — a node placed with `at` displaces the very box it would be measuring.
+
 [`src/compile/geometry-pass.ts`](../src/compile/geometry-pass.ts) then applies
 the precision-geometry statements — alignment, distribution, offset,
 `match-size`, rotation, and snapping. These run **after** automatic layout, so

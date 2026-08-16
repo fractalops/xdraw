@@ -32,9 +32,25 @@ const value = (source: string): number => evaluateExpression(parseExpression(sou
 // ------------------------------------------------------------------ grammar
 
 test("the vocabulary is closed", () => {
-  for (const source of ["t = 4", "t++", "foo.bar(t)", "[1,2]", "t ? 1 : 2", "new Date()"]) {
+  for (const source of ["t = 4", "t++", "[1,2]", "t ? 1 : 2", "new Date()"]) {
     assert.throws(() => parseExpression(source), ExpressionError, `${source} must be rejected`);
   }
+});
+
+test("a dotted name is one name, not property access", () => {
+  // `flow.ingest.right` names an element's geometry, so a dot is part of an
+  // identifier. That makes `foo.bar(t)` parse, where it used to be a syntax
+  // error — but it is still closed, because nothing binds the name and the
+  // vocabulary is consulted by exact match rather than by walking anything.
+  const bound = new Set(["t"]);
+  const issues = (source: string) => validateExpression(parseExpression(source), bound);
+  assert.match(issues("foo.bar(t)")[0].message, /unknown function 'foo\.bar'/);
+  assert.match(issues("a.b.c")[0].message, /unknown name 'a\.b\.c'/);
+  assert.match(issues("t.constructor")[0].message, /unknown name 't\.constructor'/);
+  assert.deepEqual([...freeNames(parseExpression("flow.ingest.right + 40"))], ["flow.ingest.right"]);
+  // And a bound dotted name evaluates like any other.
+  assert.equal(evaluateExpression(parseExpression("a.b + 1"), { "a.b": 41 }), 42);
+  assert.throws(() => evaluateExpression(parseExpression("a.b"), { t: 1 }), /unknown name 'a\.b'/);
 });
 
 test("errors carry the offset a reader needs", () => {

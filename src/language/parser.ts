@@ -392,13 +392,13 @@ function pointProperty(
 ): Point | undefined {
   const value = properties.get(name);
   if (value === undefined) return undefined;
-  // A pair whose parts mention a template parameter is still text at this
-  // point. It is carried through as written and resolved by the expander, once
-  // the parameter has a value.
+  // A pair whose parts are still text is unresolved rather than malformed: it
+  // names a template parameter the expander will supply, or an element's
+  // geometry that does not exist until layout has run. Either way it is carried
+  // through as written, and whoever can resolve it does.
   const parts = value as readonly unknown[];
   if (Array.isArray(value) && parts.length === 2
-      && parts.every((item) => typeof item === "number"
-        || (typeof item === "string" && item.includes("${")))) {
+      && parts.every((item) => typeof item === "number" || typeof item === "string")) {
     return value as unknown as Point;
   }
   if (!isPoint(value)) throw new Error(`${owner} property '${name}' must be a coordinate pair`);
