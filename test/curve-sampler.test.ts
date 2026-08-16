@@ -16,6 +16,7 @@ import test from "node:test";
 
 import fc from "fast-check";
 
+import { evaluateExpression, parseExpression } from "../src/language/expression.ts";
 import {
   type CurvePoint,
   MAXIMUM_POINT_BUDGET,
@@ -170,6 +171,40 @@ test("the sampler validates the expressions before it samples them", () => {
   assert.match(refused({ x: "a * t", y: "t", from: 0, to: 1, tolerance: 0.5 }), /unknown name 'a'/);
   assert.match(refused({ x: "wobble(t)", y: "t", from: 0, to: 1, tolerance: 0.5 }), /unknown function 'wobble'/);
   assert.match(refused({ x: "sin(t", y: "t", from: 0, to: 1, tolerance: 0.5 }), /expected '\)'/);
+});
+
+test("how an expression is spelled decides whether it can be sampled", () => {
+  // Both spell "distance from t to the nearest integer" and agree everywhere.
+  // The first mentions its argument twice, so interval arithmetic cannot see
+  // that the two occurrences move together and the enclosure never tightens
+  // enough to pass; the second mentions it once and samples in a few hundred
+  // points. This is the dependency problem at its most consequential — the
+  // limit is on the writing, not on the function.
+  const term = (spelling: (u: string) => string, n: number): string =>
+    `${(0.5 ** n).toFixed(8)} * ${spelling(`${2 ** n} * t`)}`;
+  const takagi = (spelling: (u: string) => string): string =>
+    Array.from({ length: 8 }, (_, n) => term(spelling, n)).join(" + ");
+  const viaRound = (u: string): string => `abs(${u} - round(${u}))`;
+  const viaTrig = (u: string): string => `abs(asin(sin(pi * ${u}))) / pi`;
+
+  const request = { x: "360 * t", from: 0, to: 1, tolerance: 0.5, maximumPoints: 100_000 };
+  const rounded = sampleCurve({ ...request, y: `260 * (${takagi(viaRound)})` });
+  const trig = sampleCurve({ ...request, y: `260 * (${takagi(viaTrig)})` });
+
+  assert.equal(rounded.status, "refused", "the twice-mentioned spelling cannot be bounded");
+  assert.match((rounded as { reason: string }).reason, /could not be sampled to a tolerance/);
+  assert.equal(trig.status, "sampled", "the once-mentioned spelling samples");
+  if (trig.status !== "sampled") return;
+  assert.ok(trig.points.length > 32, "a blancmange curve needs real detail");
+  // And the refusal is the sampler being honest, not the two disagreeing.
+  const value = (source: string, t: number): number =>
+    evaluateExpression(parseExpression(source), { t });
+  for (const t of [0, 0.1, 0.25, 1 / 3, 0.5, 0.75, 0.9]) {
+    assert.ok(
+      Math.abs(value(takagi(viaRound), t) - value(takagi(viaTrig), t)) < 1e-9,
+      `the two spellings must agree at t = ${t}`,
+    );
+  }
 });
 
 test("the enclosure stays tight enough to be affordable", () => {

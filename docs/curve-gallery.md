@@ -62,6 +62,55 @@ tolerance had to become a bound rather than an estimate. Nine terms needs 3917
 points and 409 ms, and the drawn line stays within 0.484px of the true curve.
 Source: [`examples/fractal-curve.xdraw`](../examples/fractal-curve.xdraw).
 
+## Fractals: what a closed vocabulary reaches, and what it cannot
+
+Wikipedia's [fractal article](https://en.wikipedia.org/wiki/Fractal) names
+sixteen or so fractals. **None of them can be drawn here**, and the reason is
+worth stating precisely, because it is not accuracy and not a budget.
+
+Every one is defined by *doing something repeatedly*: an iterated function
+system (Koch snowflake, Cantor set, Sierpinski carpet, Menger sponge, dragon
+curve, Peano curve), escape-time iteration on a complex number (Mandelbrot,
+Julia, Burning Ship, Lyapunov), or a random process (Lévy flight, Brownian
+tree). A plot is a function of one parameter, evaluated once per point. There
+is no way to say "repeat this transformation", and no complex arithmetic, so
+those constructions are out of reach by shape rather than by degree. No larger
+budget or finer tolerance brings them closer.
+
+What *is* reachable is the other family of fractals — the ones defined by a
+convergent series, which truncate to an ordinary function of `t`:
+
+![Blancmange, Riemann, and two lacunary loops](images/fractal-series.png)
+
+```
+blancmange     y = Σ 2⁻ⁿ · σ(2ⁿt)          σ = distance to the nearest integer
+Riemann        y = Σ sin(n²t) / n²
+lacunary loop  x + iy = Σ aⁿ · e^(i·bⁿt)   drawn as two real series
+```
+
+The lacunary loops are the pretty ones, and they are genuinely self-similar:
+each lobe carries a smaller copy of the whole figure. They are also the most
+expensive thing here — the ratio-4 loop takes 2,049 points at a 1px tolerance.
+
+### The finding worth keeping
+
+The blancmange curve needs *distance from t to the nearest integer*, and there
+are two ways to write it:
+
+```
+abs(u - round(u))            mentions u twice   — cannot be sampled
+abs(asin(sin(pi * u))) / pi  mentions u once    — 311 points
+```
+
+**They agree to the last digit at every value of t**, and the first one is
+refused at every truncation depth while the second draws in a few hundred
+points. This is the dependency problem at its sharpest: interval arithmetic
+cannot see that two occurrences of `u` move together, so `u - round(u)` is
+enclosed as though the two were independent, and the enclosure never tightens
+enough to pass. The limit is on how the function is *written*, not on what it
+computes. Both spellings and both outcomes are pinned in
+`test/curve-sampler.test.ts`.
+
 ## Curves in a diagram
 
 ![Four connected stages with the signal each one produces drawn beneath it](images/plot-flow.png)

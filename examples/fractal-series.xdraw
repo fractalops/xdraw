@@ -1,0 +1,47 @@
+use "xdraw/math" as math
+
+diagram "Fractals a closed vocabulary can reach" {
+  subtitle "Each is a finite series, so it is a function of t rather than a construction"
+
+  blancmange: math.plot {
+    at (140, 260)
+    x = 420 * t
+    y = 260 * (abs(asin(sin(pi * t))) / pi + 0.5 * abs(asin(sin(pi * 2 * t))) / pi + 0.25 * abs(asin(sin(pi * 4 * t))) / pi + 0.125 * abs(asin(sin(pi * 8 * t))) / pi + 0.0625 * abs(asin(sin(pi * 16 * t))) / pi + 0.03125 * abs(asin(sin(pi * 32 * t))) / pi + 0.015625 * abs(asin(sin(pi * 64 * t))) / pi + 0.0078125 * abs(asin(sin(pi * 128 * t))) / pi)
+    domain (0, 1)
+    stroke "#b45309"
+    stroke-width 2
+  }
+  blancmange-label: text "blancmange, 8 terms" { at (140, 500); font-size 18 }
+
+  riemann: math.plot {
+    at (760, 380)
+    x = 36 * t
+    y = 105 * (sin(t) + sin(4*t) / 4 + sin(9*t) / 9 + sin(16*t) / 16 + sin(25*t) / 25 + sin(36*t) / 36 + sin(49*t) / 49 + sin(64*t) / 64 + sin(81*t) / 81 + sin(100*t) / 100)
+    domain (0, 12)
+    stroke "#0f766e"
+    stroke-width 2
+  }
+  riemann-label: text "Riemann, 10 terms" { at (760, 600); font-size 18 }
+
+  lacunary: math.plot {
+    at (400, 940)
+    x = 150 * (cos(t) + 0.5 * cos(4*t) + 0.25 * cos(16*t) + 0.125 * cos(64*t) + 0.0625 * cos(256*t))
+    y = 150 * (sin(t) + 0.5 * sin(4*t) + 0.25 * sin(16*t) + 0.125 * sin(64*t) + 0.0625 * sin(256*t))
+    domain (0, tau)
+    tolerance 1
+    stroke "#7c3aed"
+    stroke-width 2
+  }
+  lacunary-label: text "lacunary loop, ratio 4" { at (230, 1290); font-size 18 }
+
+  rough: math.plot {
+    at (1240, 940)
+    x = 130 * (cos(t) + 0.6 * cos(3*t) + 0.36 * cos(9*t) + 0.216 * cos(27*t) + 0.1296 * cos(81*t))
+    y = 130 * (sin(t) + 0.6 * sin(3*t) + 0.36 * sin(9*t) + 0.216 * sin(27*t) + 0.1296 * sin(81*t))
+    domain (0, tau)
+    tolerance 1
+    stroke "#be123c"
+    stroke-width 2
+  }
+  rough-label: text "lacunary loop, ratio 3" { at (1070, 1290); font-size 18 }
+}
