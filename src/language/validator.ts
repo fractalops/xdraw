@@ -473,10 +473,15 @@ function matchesKind(
       && typeof value.reference === "string";
   }
   if (expected === "pair") {
+    // An element written after '=' is an expression rather than a literal, and
+    // it is a number by the time anything reads it: either the binding pass
+    // folded it, or a template supplies its parameter before the pass that
+    // needs it runs. A parameter reaching here is legitimate for the same
+    // reason a bare `${name}` is, handled above.
     return sourceKind === "tuple"
       && Array.isArray(value)
       && value.length === 2
-      && value.every((item) => typeof item === "number");
+      && value.every((item) => typeof item === "number" || typeof item === "string");
   }
   if (expected === "numbers") {
     return sourceKind === "tuple"

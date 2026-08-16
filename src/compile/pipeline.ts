@@ -2,6 +2,7 @@ import { renderCompilation } from "./render.ts";
 import { prepareLayeredLayout } from "../layout/elk/prepare.ts";
 import { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "../language/semantic.ts";
 import { expandDocument } from "../language/expander.ts";
+import { drawPlots } from "./plot-pass.ts";
 import { prepareDocumentSyntaxHighlighting } from "../text/syntax-highlighter.ts";
 import { documentHasFormulas, prepareDocumentFormulas } from "../nodes/math/formula.ts";
 import type { Drawing } from "../excalidraw/document.ts";
@@ -19,7 +20,10 @@ function normalizeCompileInput(document: CompileInput): SemanticDocument {
     if (diagnostics.length) throw new DiagnosticError(diagnostics);
     return document;
   }
-  return buildSemanticIR(expandDocument(document));
+  // Curves are drawn after templates expand and before validation, so a
+  // template may supply a value to an equation and the freehand limits still
+  // apply to the resulting stroke.
+  return buildSemanticIR(drawPlots(expandDocument(document)));
 }
 
 export function compile(document: CompileInput, options: CompileOptions = {}): Drawing {

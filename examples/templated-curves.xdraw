@@ -1,0 +1,27 @@
+use "xdraw/math" as math
+
+diagram "One template, six curves" {
+  subtitle "The same rose written once; each use supplies its own amplitude, petal count and colour"
+
+  let unit = 120
+  let gapX = 340
+  let gapY = 330
+
+  rose: template(x0, y0, amp, freq, hue) {
+    curve: math.plot {
+      at = (${x0}, ${y0})
+      x = ${amp} * cos(${freq} * t) * cos(t)
+      y = ${amp} * cos(${freq} * t) * sin(t)
+      domain (0, tau)
+      stroke "${hue}"
+      stroke-width 2
+    }
+  }
+
+  a: rose (260, 300, unit, 2, "#be123c")
+  b: rose (600, 300, unit, 3, "#c2410c")
+  c: rose (940, 300, unit, 4, "#a16207")
+  d: rose (260, 630, unit, 5, "#15803d")
+  e: rose (600, 630, unit, 6, "#0891b2")
+  f: rose (940, 630, unit, 7, "#7c3aed")
+}

@@ -224,10 +224,44 @@ test("a mistake after '=' says what the mistake was", () => {
   assert.throws(() => parse(document('x = "60 * cos(t)"')), /written after '=' without quotes/);
   assert.throws(() => parse(document("x = ")), /expected an expression after '='/);
   assert.throws(() => parse(document("x = = t")), /expected an expression after '='/);
-  assert.throws(() => parse(document("x = $amp * t")), /template parameters are not supported/);
   // A genuine syntax error inside a well-formed expression must still report
   // itself rather than being flattened into the generic message.
   assert.throws(() => parse(document("x = sin(t")), /expected '\)'/);
+});
+
+test("a template parameter reaches a plot's equations", () => {
+  // A plot is described rather than drawn when the document is read, so a
+  // parameter is still text when the expander substitutes it. Sampling in the
+  // parser made this impossible: the curve was frozen before the template ran.
+  const source = withImport(`diagram "" {
+    petal: template(amp, freq) {
+      curve: math.plot {
+        at (0, 0)
+        x = ${"$"}{amp} * cos(${"$"}{freq} * t) * cos(t)
+        y = ${"$"}{amp} * cos(${"$"}{freq} * t) * sin(t)
+        domain (0, tau)
+      }
+    }
+    small: petal (40, 3)
+    large: petal (90, 3)
+  }`);
+  const scene = compile(parse(source)).toJSON();
+  const strokes = scene.elements.filter((e) => e.type === "freedraw");
+  assert.equal(strokes.length, 2, "one stroke per use of the template");
+  // Both uses have the same petal count, so width scales with amp alone and the
+  // ratio proves each use was drawn from its own parameter rather than sharing.
+  const [small, large] = strokes as unknown as Array<{ width: number }>;
+  assert.ok(
+    Math.abs(large.width / small.width - 90 / 40) < 0.02,
+    `widths ${small.width} and ${large.width} do not scale with amp`,
+  );
+});
+
+test("a parameter no template supplies is reported, not passed to the sampler", () => {
+  const orphan = withImport(`diagram "" {
+    mark: math.plot { at (0, 0); x = ${"$"}{amp} * t; y = t; domain (0, 1) }
+  }`);
+  assert.throws(() => compile(parse(orphan)), /'\$\{amp\}' is not supplied by any template/);
 });
 
 test("a plot may sit inside a container", () => {

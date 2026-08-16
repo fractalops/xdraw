@@ -105,10 +105,18 @@ turn a pair of expressions into a polyline. **Its tolerance is a bound, not an
 estimate**, and that distinction is the reason the interval module exists —
 see the constraints below.
 
-`math.plot` lowers to a `freedraw` statement in `lowerSyntax`, so a plotted
-curve is an ordinary editable stroke and nothing after parsing knows the points
-were computed. Adding a constructor that produces geometry does not need a new
-element kind.
+`math.plot` lowers to a *description* — its equations, domain and tolerance —
+and [`src/compile/plot-pass.ts`](../src/compile/plot-pass.ts) draws it into a
+`freedraw` statement afterwards. The split matters: the pass runs after
+templates expand, so a template may supply a value to an equation, and before
+the document is validated, so the freehand limits apply to a plotted curve
+exactly as they do to a drawn one. Sampling in the parser froze a curve before
+the template could reach it.
+
+`let` bindings resolve in [`src/language/bindings.ts`](../src/language/bindings.ts)
+and are folded into the document by `lowerSyntax`. They are constants, so this
+happens while the document is read; an expression that still holds a name
+another binder supplies keeps its expression with the known parts substituted.
 
 ## Measuring and placing
 

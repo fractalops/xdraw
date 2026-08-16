@@ -33,7 +33,6 @@ import {
   resolveTone,
 } from "./registry.ts";
 import { validateLanguageDocument } from "./validator.ts";
-import { sampleCurve } from "./curve-sampler.ts";
 import { CONSTANTS, evaluateExpression, formatExpression, freeNames, parseExpression, substituteNames } from "./expression.ts";
 import { resolveBindings } from "./bindings.ts";
 
@@ -393,6 +392,15 @@ function pointProperty(
 ): Point | undefined {
   const value = properties.get(name);
   if (value === undefined) return undefined;
+  // A pair whose parts mention a template parameter is still text at this
+  // point. It is carried through as written and resolved by the expander, once
+  // the parameter has a value.
+  const parts = value as readonly unknown[];
+  if (Array.isArray(value) && parts.length === 2
+      && parts.every((item) => typeof item === "number"
+        || (typeof item === "string" && item.includes("${")))) {
+    return value as unknown as Point;
+  }
   if (!isPoint(value)) throw new Error(`${owner} property '${name}' must be a coordinate pair`);
   return value;
 }
@@ -782,38 +790,26 @@ function lowerScope(
     }
 
     if (constructor.type === "plot") {
-      // A plot is a freedraw whose points the compiler works out rather than
-      // the author typing them, so it lowers to the same statement and nothing
-      // downstream needs to know the difference.
+      // The curve is described here and drawn later. Sampling it now would
+      // freeze it before templates expand, so a parameter could never reach the
+      // equations. See src/compile/plot-pass.ts.
       const at = pointProperty(properties, "at", `plot '${id}'`)!;
       const [from, to] = intervalProperty(properties, "domain", `plot '${id}'`);
-      const request = {
-        x: codeValue(properties.get("x")),
-        y: codeValue(properties.get("y")),
-        from,
-        to,
-        tolerance: numberProperty(properties, "tolerance") ?? DEFAULT_PLOT_TOLERANCE,
-      };
       // These describe the curve, not how it looks, so they must not reach the
       // style pass — which rejects any attribute it does not recognise.
       delete attributes.x;
       delete attributes.y;
       delete attributes.domain;
       delete attributes.tolerance;
-      const result = sampleCurve(request);
-      if (result.status === "refused") {
-        throw new Error(`plot '${id}' could not be drawn: ${result.reason}`);
-      }
-      // Points are relative to `at`, as freedraw expects, and the first is the
-      // origin of the stroke rather than the first sample.
-      const [originX, originY] = result.points[0];
       return [copySpan({
-        type: "freedraw",
+        type: "plot",
         id,
-        at: [at[0] + originX, at[1] + originY],
-        points: result.points.map(([x, y]) => [x - originX, y - originY] as [number, number]),
-        pressures: [],
-        simulatePressure: false,
+        at,
+        x: codeValue(properties.get("x")),
+        y: codeValue(properties.get("y")),
+        from,
+        to,
+        tolerance: numberProperty(properties, "tolerance") ?? DEFAULT_PLOT_TOLERANCE,
         styleDefaults,
         attributes,
       }, statement)];
@@ -928,6 +924,8 @@ function foldBindings(document: SourceDocument): SourceDocument {
    * expression with the known parts substituted in.
    */
   const foldExpression = (source: string): number | string => {
+    // A template supplies this one; it is not an expression yet.
+    if (source.includes("${")) return source;
     const node = parseExpression(source);
     const unbound = [...freeNames(node)].filter((name) => !(name in environment));
     if (unbound.length === 0) return evaluateExpression(node, environment);
@@ -951,7 +949,26 @@ function foldBindings(document: SourceDocument): SourceDocument {
           : copySpan({ ...statement, value: folded }, statement);
       }
       if (statement.type === "declaration") {
-        return copySpan({ ...statement, statements: fold(statement.statements) }, statement);
+        // A template argument may name a binding — `rose (unit, 3)` — so an
+        // identifier that is bound resolves to its value here. An identifier
+        // that is not bound is a reference to something else, such as a style
+        // or a tone, and is left alone.
+        const args = statement.arguments.map((argument, index) => (
+          statement.argumentKinds[index] === "identifier"
+            && typeof argument === "string"
+            && argument in environment
+            ? environment[argument]
+            : argument
+        ));
+        const kinds = statement.argumentKinds.map((kind, index) => (
+          args[index] === statement.arguments[index] ? kind : "number" as const
+        ));
+        return copySpan({
+          ...statement,
+          arguments: args,
+          argumentKinds: kinds,
+          statements: fold(statement.statements),
+        }, statement);
       }
       return statement;
     });

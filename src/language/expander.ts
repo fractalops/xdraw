@@ -1,3 +1,4 @@
+import { evaluateExpression, parseExpression } from "./expression.ts";
 import type {
   TemplateStatement,
   TemplateUseStatement,
@@ -5,10 +6,33 @@ import type {
   SemanticStatement,
 } from "../contracts/semantic.ts";
 
+/**
+ * Replaces `${name}` and `{name}` alike. Both spellings appear in documents —
+ * a title uses the bare form, and anything that could be confused with source
+ * text uses the marked one — and matching only the braces left the dollar of
+ * the marked form stranded in the output.
+ */
 function substitute(value: string, bindings: ReadonlyMap<string, unknown>): string {
-  return value.replace(/\{([A-Za-z_][A-Za-z0-9_-]*)\}/g, (match, name: string) => (
+  return value.replace(/\$?\{([A-Za-z_][A-Za-z0-9_-]*)\}/gu, (match, name: string) => (
     bindings.has(name) ? String(bindings.get(name)) : match
   ));
+}
+
+/**
+ * Substitutes `${name}` rather than `{name}`. An expression is source text in
+ * its own grammar, where a bare brace means nothing, so a parameter has to be
+ * marked in a way the expression tokenizer can be taught to skip over.
+ */
+function substituteParameters(value: string, bindings: ReadonlyMap<string, unknown>): string {
+  return value.replace(/\$\{([A-Za-z_][A-Za-z0-9_-]*)\}/gu, (match, name: string) => (
+    bindings.has(name) ? String(bindings.get(name)) : match
+  ));
+}
+
+function evaluatePairPart(source: string): number {
+  const value = evaluateExpression(parseExpression(source), {});
+  if (!Number.isFinite(value)) throw new Error(`'${source}' is not a finite number`);
+  return value;
 }
 
 function substituteValue(value: unknown, bindings: ReadonlyMap<string, unknown>): unknown {
@@ -71,6 +95,17 @@ function rewriteStatement(
   if ("value" in statement && typeof statement.value === "string") {
     statement.value = substitute(statement.value, bindings);
   }
+  // A pair written after '=' arrives as text when it mentions a parameter, so
+  // it is resolved here, once the parameter has a value.
+  for (const key of ["at", "size"] as const) {
+    const carrier = statement as unknown as Record<string, readonly unknown[] | undefined>;
+    const value = carrier[key];
+    if (Array.isArray(value) && value.some((item) => typeof item === "string")) {
+      carrier[key] = value.map((item): unknown => (
+        typeof item === "string" ? evaluatePairPart(substituteParameters(item, bindings)) : item
+      ));
+    }
+  }
   if ("attributes" in statement) {
     statement.attributes = substituteValue(statement.attributes, bindings) as Record<string, unknown>;
     const style = statement.attributes.style;
@@ -78,6 +113,12 @@ function rewriteStatement(
   }
 
   switch (statement.type) {
+    case "plot":
+      // A curve is described rather than drawn at this point, so its equations
+      // are still text and a parameter can still reach them.
+      statement.x = substituteParameters(statement.x, bindings);
+      statement.y = substituteParameters(statement.y, bindings);
+      break;
     case "connection":
       statement.nodes = statement.nodes.map((value) => rewriteReference(value, ids, prefix));
       if (statement.label) statement.label = substitute(statement.label, bindings);

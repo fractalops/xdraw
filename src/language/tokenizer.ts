@@ -74,9 +74,6 @@ function expressionFailure(source: string, offset: number, error: unknown): stri
   if (first === '"') {
     return "an expression is written after '=' without quotes";
   }
-  if (first === "$") {
-    return "template parameters are not supported inside an expression";
-  }
   // Asking what may start an expression is more reliable than listing what may
   // not: a property block ends with '}', statements may be separated by ';',
   // and a stray '=' or ')' is just as much a missing expression.
@@ -103,6 +100,17 @@ interface ComputedPair {
  * test. Anything else — no parenthesis, no comma, more than one comma —
  * returns null and the caller reads one expression as usual.
  */
+/**
+ * A copy of the source in which every `${name}` is a plain identifier of the
+ * same length, so the expression grammar can measure how far the expression
+ * runs without knowing about template parameters. Same length matters: the
+ * offset the probe reports is used to slice the real source.
+ */
+const PARAMETER = /\$\{([A-Za-z_][A-Za-z0-9_-]*)\}/gu;
+function probeParameters(source: string): string {
+  return source.replace(PARAMETER, (match, name: string) => `_${name.replace(/-/gu, "_")}__`.slice(0, match.length).padEnd(match.length, "_"));
+}
+
 function computedPair(source: string, from: number): ComputedPair | null {
   let index = from;
   while (index < source.length && /\s/.test(source[index])) index += 1;
@@ -230,7 +238,7 @@ export function tokenize(source: string): TokenList {
       }
       let parsed;
       try {
-        parsed = parseExpressionPrefix(source.slice(offset));
+        parsed = parseExpressionPrefix(probeParameters(source.slice(offset)));
       } catch (error) {
         throw new SyntaxError(expressionFailure(source, offset, error), source, offset);
       }

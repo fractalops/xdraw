@@ -151,6 +151,42 @@ Plots are placed with `at` rather than by layout, because a curve's position is
 part of what the expressions mean. Everything else in the document arranges
 normally around them.
 
+## Curves from a template
+
+A plot is described when the document is read and drawn afterwards, so a
+template may supply values to its equations:
+
+```xdraw
+use "xdraw/math" as math
+
+diagram "One template, six curves" {
+  let unit = 120
+
+  rose: template(x0, y0, amp, freq, hue) {
+    curve: math.plot {
+      at = (${x0}, ${y0})
+      x = ${amp} * cos(${freq} * t) * cos(t)
+      y = ${amp} * cos(${freq} * t) * sin(t)
+      domain (0, tau)
+      stroke "${hue}"
+    }
+  }
+
+  a: rose (260, 300, unit, 2, "#be123c")
+  b: rose (600, 300, unit, 3, "#c2410c")
+  c: rose (940, 300, unit, 4, "#a16207")
+}
+```
+
+![Six roses from one template, each with its own petal count and colour](images/templated-curves.png)
+
+A named value may be passed as an argument, as `unit` is above. A parameter that
+no template supplies is reported rather than reaching the sampler:
+
+```
+plot 'mark' could not be drawn: '${amp}' is not supplied by any template
+```
+
 ## Limits worth knowing
 
 - **A `domain` end is a number or a constant, not an expression.** `(0, tau)`
@@ -165,9 +201,6 @@ normally around them.
   jump there, and the stroke will cross the gap with a straight segment.
 - **Expressions are bounded in size** — at most 512 terms and 64 levels of
   nesting — so a generated document cannot exhaust the compiler.
-- **A template parameter cannot appear inside an expression.** A plot in a
-  template body works, but its equations have to be literal, because a curve is
-  sampled while the document is read and templates are expanded after that.
 
 ## Where it lives
 

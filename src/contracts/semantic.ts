@@ -207,6 +207,23 @@ export interface FreedrawStatement extends StatementMetadata {
   attributes: StatementAttributes;
 }
 
+/**
+ * A curve that has not been drawn yet. It carries the description rather than
+ * the points, because sampling it needs values a template supplies later, and
+ * a plot lowered eagerly could never see them.
+ */
+export interface PlotStatement extends StatementMetadata {
+  type: "plot";
+  id: string;
+  at: Point;
+  x: string;
+  y: string;
+  from: number;
+  to: number;
+  tolerance: number;
+  attributes: StatementAttributes;
+}
+
 export interface RenderableFreedrawStatement extends Omit<FreedrawStatement, "simulatePressure"> {
   simulatePressure: boolean;
 }
@@ -300,6 +317,7 @@ export type SemanticStatement =
   | NoteStatement
   | CodeStatement
   | FreedrawStatement
+  | PlotStatement
   | BodyStatement
   | NodeStatement
   | TextStatement
