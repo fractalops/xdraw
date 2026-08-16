@@ -483,6 +483,11 @@ function matchesKind(
       && value.length === 2
       && value.every((item) => typeof item === "number" || typeof item === "string");
   }
+  if (expected === "strings") {
+    return sourceKind === "tuple"
+      && Array.isArray(value)
+      && value.every((item) => typeof item === "string");
+  }
   if (expected === "numbers") {
     return sourceKind === "tuple"
       && Array.isArray(value)

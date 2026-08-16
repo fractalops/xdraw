@@ -16,6 +16,7 @@ for (const file of [
   "docs/language-reference.md",
   "docs/named-values.md",
   "docs/plotting.md",
+  "docs/repetition.md",
   "docs/spec.md",
 ]) {
   test(`${file} contains parseable XDraw examples`, async () => {

@@ -282,6 +282,26 @@ expression is bound, the expression becomes its value; where a name remains that
 another binder supplies — `t` in a plotted curve — the bound parts are
 substituted and the expression is preserved.
 
+### 7.4 Repetition
+
+A declaration may carry `each` or `count`, but not both, and produces one
+element per instance:
+
+```text
+repetition = "each", "(", string, { ",", string }, ")"
+           | "count", number
+```
+
+`each` identifies each instance by its item, appended to the declaration's own
+id; `count` identifies by position from zero. An item must be usable as an
+identifier and must not repeat, since two instances cannot share a name. A count
+must be a whole number of at least one. A declaration may produce at most 512
+instances.
+
+Within an instance, `${each}` is the item, and `<id>.index` and `<id>.count` are
+the instance's position and the total. A repeated declaration inside a container
+expands before its container does.
+
 ## 8. Imports and Standard Libraries
 
 Imports bind a library to an alias. Aliases must be unique. Imported

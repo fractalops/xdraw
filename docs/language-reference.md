@@ -76,6 +76,16 @@ diagram "Sized once" {
 }
 ```
 
+A declaration may repeat. `each` names its instances by item and `count` names
+them by position, and both make the instance's own index available to
+expressions. See [One declaration, many elements](repetition.md).
+
+```xdraw
+diagram "Repeated" {
+  tick: rectangle "·" { count 6; at = (100 + 62 * tick.index, 200); size (52, 90) }
+}
+```
+
 ## Arrange Elements
 
 At diagram scope, use `compact`, `grid`, or `layered`:

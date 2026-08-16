@@ -22,9 +22,14 @@ const optionalLabel = [{
 const noArguments = [] as const;
 const exampleAsset = "data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%221%22%20height=%221%22/%3E";
 
+const repetitionProperties = [
+  { name: "each", kind: "strings", required: false, synopsis: "Repeat once per item, identified by the item." },
+  { name: "count", kind: "number", required: false, synopsis: "Repeat this many times, identified by position." },
+] as const;
 const positionProperties = [
   { name: "at", kind: "pair", required: false, synopsis: "Absolute position." },
   { name: "size", kind: "pair", required: false, synopsis: "Explicit size." },
+  ...repetitionProperties,
 ] as const;
 const visualProperties = [
   ...positionProperties,

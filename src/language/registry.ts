@@ -34,6 +34,7 @@ function parserKind(kind: ManifestValueKind): PropertyKind {
   if (kind === "raw-string") return "string";
   if (kind === "interval") return "pair";
   if (kind === "expression") return "string";
+  if (kind === "strings") return "points";
   return kind;
 }
 

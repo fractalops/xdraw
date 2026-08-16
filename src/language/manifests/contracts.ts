@@ -10,6 +10,7 @@ export type ManifestValueKind =
   | "pair"
   | "points"
   | "numbers"
+  | "strings"
   | "interval"
   | "expression"
   | "endpoint";

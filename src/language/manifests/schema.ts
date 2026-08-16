@@ -31,6 +31,7 @@ const VALUE_KINDS = new Set<ManifestValueKind>([
   "pair",
   "points",
   "numbers",
+  "strings",
   "interval",
   "expression",
   "endpoint",
@@ -208,6 +209,7 @@ function matchesKind(value: JsonValue, kind: ManifestValueKind): boolean {
     return Array.isArray(value) && value.length === 2 && value.every((item) => typeof item === "number");
   }
   if (kind === "numbers") return Array.isArray(value) && value.every((item) => typeof item === "number");
+  if (kind === "strings") return Array.isArray(value) && value.every((item) => typeof item === "string");
   if (kind === "interval") {
     return Array.isArray(value) && value.length === 2
       && value.every((item) => typeof item === "number" || typeof item === "string");

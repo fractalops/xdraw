@@ -69,6 +69,11 @@ property" messages, including their suggestions.
 
 ## Expanding and lowering
 
+[`src/language/repetition.ts`](../src/language/repetition.ts) turns a repeated
+declaration into its instances, before templates expand — so a repeat may use a
+template, and everything after sees ordinary declarations. Children expand
+before their parent, because an inner repeat's position mentions its own index.
+
 [`src/language/expander.ts`](../src/language/expander.ts) inlines templates and
 gives the expanded declarations hygienic identifiers, so two uses of one
 template cannot collide.
