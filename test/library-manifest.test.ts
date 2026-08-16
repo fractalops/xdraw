@@ -105,7 +105,7 @@ test("publishes the intended constructor vocabulary", () => {
   );
   assert.deepEqual(
     libraries.get("xdraw/math")?.constructors.map(({ name, identity }) => ({ name, identity })),
-    [{ name: "formula", identity: "named" }],
+    [{ name: "formula", identity: "named" }, { name: "plot", identity: "named" }],
   );
   assert.deepEqual(
     libraries.get("xdraw/palette")?.values.map(({ name }) => name),
@@ -236,7 +236,7 @@ test("rejects lowering values outside the compiler contract", () => {
     [
       "semanticKind",
       "widget",
-      "must be one of asset, code, frame, freedraw, group, icon, image, lane, node, note, participant, section, sequence, table-header, table-row, style, template, text, theme",
+      "must be one of asset, code, frame, freedraw, group, icon, image, lane, node, note, participant, plot, section, sequence, table-header, table-row, style, template, text, theme",
     ],
     [
       "elementKind",

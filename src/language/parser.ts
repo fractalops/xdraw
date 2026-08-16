@@ -32,6 +32,7 @@ import {
   resolveTone,
 } from "./registry.ts";
 import { validateLanguageDocument } from "./validator.ts";
+import { sampleCurve } from "./curve-sampler.ts";
 
 function located<T extends object>(value: T, start: Token, end: Token): T & SourceNode {
   Object.defineProperty(value, "span", {
@@ -441,6 +442,13 @@ function interpolationValue(value: SourcePropertyValue | undefined): SourcePrope
     : value;
 }
 
+/**
+ * Default greatest permitted departure from the true curve, in pixels. Half a
+ * pixel is below what the eye resolves at ordinary zoom, and the sampler
+ * guarantees it rather than approaching it.
+ */
+const DEFAULT_PLOT_TOLERANCE = 0.5;
+
 function codeValue(value: unknown): string {
   const lines = String(value).split("\n");
   while (lines.length && !lines[0].trim()) lines.shift();
@@ -725,6 +733,44 @@ function lowerScope(
         simulatePressure: normalizePropertyValue(
           properties.get("simulate-pressure") ?? (pressures === undefined),
         ),
+        styleDefaults,
+        attributes,
+      }, statement)];
+    }
+
+    if (constructor.type === "plot") {
+      // A plot is a freedraw whose points the compiler works out rather than
+      // the author typing them, so it lowers to the same statement and nothing
+      // downstream needs to know the difference.
+      const at = pointProperty(properties, "at", `plot '${id}'`)!;
+      const request = {
+        x: codeValue(properties.get("x")),
+        y: codeValue(properties.get("y")),
+        from: numberProperty(properties, "from")!,
+        to: numberProperty(properties, "to")!,
+        tolerance: numberProperty(properties, "tolerance") ?? DEFAULT_PLOT_TOLERANCE,
+      };
+      // These describe the curve, not how it looks, so they must not reach the
+      // style pass — which rejects any attribute it does not recognise.
+      delete attributes.x;
+      delete attributes.y;
+      delete attributes.from;
+      delete attributes.to;
+      delete attributes.tolerance;
+      const result = sampleCurve(request);
+      if (result.status === "refused") {
+        throw new Error(`plot '${id}' could not be drawn: ${result.reason}`);
+      }
+      // Points are relative to `at`, as freedraw expects, and the first is the
+      // origin of the stroke rather than the first sample.
+      const [originX, originY] = result.points[0];
+      return [copySpan({
+        type: "freedraw",
+        id,
+        at: [at[0] + originX, at[1] + originY],
+        points: result.points.map(([x, y]) => [x - originX, y - originY] as [number, number]),
+        pressures: [],
+        simulatePressure: false,
         styleDefaults,
         attributes,
       }, statement)];

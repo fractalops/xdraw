@@ -164,7 +164,7 @@ Available libraries are:
 | `xdraw/process` | `lane` |
 | `xdraw/sequence` | `sequence`, `participant` |
 | `xdraw/table` | `table`, `header`, `row` |
-| `xdraw/math` | `formula` |
+| `xdraw/math` | `formula`, `plot` |
 | `xdraw/annotations` | `note`, `callout` |
 | `xdraw/connectors` | `junction` |
 | `xdraw/assets` | `icon` |
@@ -218,6 +218,39 @@ and `ams`; commands that would load remote or executable content are rejected.
 Formula count, source length, output size, and image dimensions are bounded.
 Programmatic consumers must use `compileAsync()` for a document containing
 `math.formula`; the CLI selects it automatically.
+
+`math.plot` draws a parametric curve from a pair of expressions in `t`. It
+compiles to an ordinary freehand stroke, so the result is editable like any
+other:
+
+```xdraw
+use "xdraw/math" as math
+
+diagram "Plot" {
+  mark: math.plot {
+    at (200, 200)
+    x """120 * sin(2*t)"""
+    y """110 * sin(3*t)"""
+    from 0
+    to 6.283185307179586
+    stroke "#4d7c0f"
+  }
+}
+```
+
+Expressions use a closed vocabulary: the operators `+ - * / ^`, the constants
+`pi`, `tau`, and `e`, eighteen functions (`sin`, `cos`, `tan`, `asin`, `acos`,
+`atan`, `atan2`, `sqrt`, `abs`, `sign`, `floor`, `ceil`, `round`, `min`, `max`,
+`exp`, `log`, `hypot`), and the single variable `t`. There is no assignment, no
+control flow, and no property access. An unknown name or the wrong number of
+arguments is reported when the document is read.
+
+`tolerance` sets the greatest distance the drawn line may fall from the true
+curve, in pixels, and defaults to `0.5`. It is a guarantee rather than a
+target: the compiler bounds each span of the curve rather than sampling it, so
+a curve it cannot draw within the tolerance — one with a pole, or one that
+leaves the usable coordinate range — is refused with a diagnostic instead of
+being approximated.
 
 A sequence uses `seq.sequence` as its container and needs at least two
 participants:

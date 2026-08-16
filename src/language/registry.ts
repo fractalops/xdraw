@@ -4,7 +4,7 @@ import { BUILTIN_LIBRARY_MANIFESTS, CORE_LIBRARY_MANIFEST, STANDARD_LIBRARY_MANI
 export type PropertyKind = "pair" | "string" | "identifier" | "number" | "points" | "numbers" | "endpoint";
 
 export interface ConstructorDefinition {
-  type: "node" | "frame" | "group" | "section" | "text" | "code" | "freedraw" | "style" | "theme"
+  type: "node" | "frame" | "group" | "section" | "text" | "code" | "freedraw" | "plot" | "style" | "theme"
     | "asset" | "image" | "template" | "lane" | "sequence" | "participant" | "icon" | "note"
     | "table-header" | "table-row";
   kind?: string;

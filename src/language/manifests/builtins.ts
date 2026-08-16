@@ -376,6 +376,30 @@ export const STANDARD_LIBRARY_MANIFESTS = normalizeLibraryCatalog([
           { name: "locked", kind: "boolean", required: false, synopsis: "Whether the formula is locked." },
         ],
       }),
+      simpleConstructor("plot", "plot", "freedraw", "Parametric curve plotted from expressions.", `mark: math.plot {
+  at (0, 0)
+  x """120 * sin(2*t)"""
+  y """110 * sin(3*t)"""
+  from 0
+  to 6.2832
+}`, {
+        arguments: noArguments,
+        properties: [
+          { name: "at", kind: "pair", required: true, synopsis: "Curve origin." },
+          { name: "x", kind: "raw-string", required: true, synopsis: "Expression for the x coordinate, in t." },
+          { name: "y", kind: "raw-string", required: true, synopsis: "Expression for the y coordinate, in t." },
+          { name: "from", kind: "number", required: true, synopsis: "Start of the parameter range." },
+          { name: "to", kind: "number", required: true, synopsis: "End of the parameter range." },
+          { name: "tolerance", kind: "number", required: false, synopsis: "Greatest permitted departure from the curve, in pixels." },
+          { name: "link", kind: "string", required: false, synopsis: "Hyperlink." },
+          { name: "locked", kind: "boolean", required: false, synopsis: "Whether the curve is locked." },
+          { name: "opacity", kind: "number", required: false, synopsis: "Element opacity." },
+          { name: "roughness", kind: "number", required: false, synopsis: "Stroke roughness." },
+          { name: "stroke", kind: "string", required: false, synopsis: "Stroke color." },
+          { name: "stroke-width", kind: "number", required: false, synopsis: "Stroke width." },
+          { name: "style", kind: "identifier", required: false, synopsis: "Named style or palette tone." },
+        ],
+      }),
     ],
   },
   {

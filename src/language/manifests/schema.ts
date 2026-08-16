@@ -46,6 +46,7 @@ const SEMANTIC_KIND_SUPPORT = {
   node: true,
   note: true,
   participant: true,
+  plot: true,
   section: true,
   sequence: true,
   "table-header": true,
