@@ -250,7 +250,7 @@ curve, in pixels, and defaults to `0.5`. It is a guarantee rather than a
 target: the compiler bounds each span of the curve rather than sampling it, so
 a curve it cannot draw within the tolerance — one with a pole, or one that
 leaves the usable coordinate range — is refused with a diagnostic instead of
-being approximated.
+being approximated. [Plotting curves](plotting.md) covers this in full.
 
 A sequence uses `seq.sequence` as its container and needs at least two
 participants:

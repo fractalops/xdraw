@@ -1,0 +1,38 @@
+use "xdraw/math" as math
+
+diagram "One curve, three tolerances" {
+  subtitle "Tolerance is the greatest distance the drawn line may fall from the true curve"
+
+  coarse: math.plot {
+    at (180, 290)
+    x """95 * cos(3*t) * cos(t)"""
+    y """95 * cos(3*t) * sin(t)"""
+    from 0
+    to 6.283185307179586
+    tolerance 16
+    stroke "#dc2626"
+    stroke-width 2
+  }
+
+  middle: math.plot {
+    at (480, 290)
+    x """95 * cos(3*t) * cos(t)"""
+    y """95 * cos(3*t) * sin(t)"""
+    from 0
+    to 6.283185307179586
+    tolerance 3
+    stroke "#d97706"
+    stroke-width 2
+  }
+
+  fine: math.plot {
+    at (780, 290)
+    x """95 * cos(3*t) * cos(t)"""
+    y """95 * cos(3*t) * sin(t)"""
+    from 0
+    to 6.283185307179586
+    tolerance 0.5
+    stroke "#16a34a"
+    stroke-width 2
+  }
+}

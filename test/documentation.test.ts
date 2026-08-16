@@ -12,6 +12,7 @@ for (const file of [
   "README.md",
   "docs/excalidraw-plus-integration.md",
   "docs/language-reference.md",
+  "docs/plotting.md",
   "docs/spec.md",
 ]) {
   test(`${file} contains parseable XDraw examples`, async () => {

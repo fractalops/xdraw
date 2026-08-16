@@ -105,6 +105,19 @@ diagram "Quadratic formula" {
 XDRAW
 ```
 
+`math.plot` draws a parametric curve from a pair of expressions, and guarantees
+the drawn line stays within a stated distance of the true curve:
+
+![Three parametric curves: a butterfly, a damped harmonograph, and a decaying wave](docs/images/parametric-plots.png)
+
+```bash
+xdraw build examples/parametric-plots.xdraw -o output/parametric-plots.png
+```
+
+A curve it cannot draw to that accuracy — one with a pole, or one that leaves
+the usable coordinate range — is refused with a diagnostic rather than
+approximated. See [Plotting curves](docs/plotting.md).
+
 Tables have measured columns, wrapped cells, and remain editable in Excalidraw:
 
 ![Editable table rendered by XDraw](docs/images/tables.png)
