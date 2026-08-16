@@ -1,0 +1,33 @@
+use "xdraw/math" as math
+
+diagram "Parametric plots" {
+  butterfly: math.plot {
+    at (220, 320)
+    x """40 * sin(t) * (exp(cos(t)) - 2 * cos(4*t) - (sin(t / 12)) ^ 5)"""
+    y """40 * cos(t) * (exp(cos(t)) - 2 * cos(4*t) - (sin(t / 12)) ^ 5)"""
+    from 0
+    to 37.699111843077517
+    tolerance 1
+    stroke "#7c3aed"
+  }
+
+  harmonograph: math.plot {
+    at (560, 320)
+    x """115 * sin(3*t) * exp(0 - t / 60)"""
+    y """115 * sin(2*t + 1) * exp(0 - t / 60)"""
+    from 0
+    to 22
+    tolerance 1
+    stroke "#0891b2"
+  }
+
+  wave: math.plot {
+    at (300, 600)
+    x """12 * t"""
+    y """70 * sin(t) * exp(0 - t / 14)"""
+    from 0
+    to 40
+    stroke "#db2777"
+    stroke-width 3
+  }
+}

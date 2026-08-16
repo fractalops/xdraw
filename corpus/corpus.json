@@ -19,5 +19,6 @@
   { "id": "portable-assets", "file": "supported/portable-assets.xdraw", "tests": ["local asset", "offline file embedding", "image and icon"] },
   { "id": "syntax-highlighting", "file": "supported/syntax-highlighting.xdraw", "tests": ["highlighting pipeline", "code block", "syntax highlighting", "editable source metadata"] },
   { "id": "freehand-output", "file": "supported/freehand-output.xdraw", "tests": ["freehand emission", "native freehand", "pressure samples", "stroke styling"] },
-  { "id": "math-formulas", "file": "supported/math-formulas.xdraw", "tests": ["TeX input", "deterministic SVG", "embedded formula metadata", "formula connectors"] }
+  { "id": "math-formulas", "file": "supported/math-formulas.xdraw", "tests": ["TeX input", "deterministic SVG", "embedded formula metadata", "formula connectors"] },
+  { "id": "parametric-plots", "file": "supported/parametric-plots.xdraw", "tests": ["expression plotting", "bounded sampling tolerance", "absolute placement", "freehand emission"] }
 ]

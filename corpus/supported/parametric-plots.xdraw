@@ -1,0 +1,30 @@
+use "xdraw/math" as math
+
+diagram "Parametric plots" {
+  spiral: math.plot {
+    at (150, 240)
+    x """6 * t * cos(t)"""
+    y """6 * t * sin(t)"""
+    from 0
+    to 18
+    stroke "#2563eb"
+  }
+  lissajous: math.plot {
+    at (430, 240)
+    x """90 * sin(2*t)"""
+    y """80 * sin(3*t)"""
+    from 0
+    to 6.283185307179586
+    stroke "#4d7c0f"
+    stroke-width 3
+  }
+  rose: math.plot {
+    at (710, 240)
+    x """80 * cos(4*t) * cos(t)"""
+    y """80 * cos(4*t) * sin(t)"""
+    from 0
+    to 6.283185307179586
+    tolerance 1
+    stroke "#b45309"
+  }
+}

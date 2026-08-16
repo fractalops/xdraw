@@ -22,6 +22,7 @@
     "portable-assets": "85891ed07f1bc53b2a51278235ac9a8df402686026d63c5f7cdc671153d42932",
     "syntax-highlighting": "6bd7e32077bc5cd12640db789ca9c2f5889a94145d621e8ba347f4dc4b793cf5",
     "freehand-output": "3d2f566488391a29bc72a7d0b8b106318ff54ca2847c59b973fb70896f93afa4",
-    "math-formulas": "52942f8a98d7d031c730889dc59f2355f64f4e4eb29fb7d3e8f04bfc08f93403"
+    "math-formulas": "52942f8a98d7d031c730889dc59f2355f64f4e4eb29fb7d3e8f04bfc08f93403",
+    "parametric-plots": "81d78cfeca6897e0132ae356c1b7abb7e3e6309036ab1f7ee3a4ec1ddc0ff46a"
   }
 }
