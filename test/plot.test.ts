@@ -213,6 +213,23 @@ test("a minus keeps its meaning inside an expression", () => {
   assert.equal(Math.round(descending.height), 100);
 });
 
+test("a mistake after '=' says what the mistake was", () => {
+  // The expression parser reports what its own grammar saw, which after '=' is
+  // usually "unexpected end of expression" — true, and no help in finding the
+  // problem. These are the three ways an author is likely to get it wrong.
+  const document = (property: string) => withImport(`diagram "" {
+    mark: math.plot { at (0, 0); ${property}; y = t; domain (0, 1) }
+  }`);
+  assert.throws(() => parse(document('x "60 * cos(t)"')), /expects expression, received string/);
+  assert.throws(() => parse(document('x = "60 * cos(t)"')), /written after '=' without quotes/);
+  assert.throws(() => parse(document("x = ")), /expected an expression after '='/);
+  assert.throws(() => parse(document("x = = t")), /expected an expression after '='/);
+  assert.throws(() => parse(document("x = $amp * t")), /template parameters are not supported/);
+  // A genuine syntax error inside a well-formed expression must still report
+  // itself rather than being flattened into the generic message.
+  assert.throws(() => parse(document("x = sin(t")), /expected '\)'/);
+});
+
 test("a plot may sit inside a container", () => {
   // A plot lowers to a freedraw, which every container already accepts, but the
   // child policy is checked against the declared semantic kind rather than what

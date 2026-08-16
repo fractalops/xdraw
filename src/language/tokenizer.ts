@@ -61,6 +61,31 @@ export class SyntaxError extends Error {
   }
 }
 
+/**
+ * Turns a failure to read an expression into a message that names the cause.
+ * The expression parser reports what its own grammar saw, which after a '=' is
+ * usually "unexpected end of expression" — true, and useless for finding the
+ * mistake. The common mistakes are quoting the expression, leaving it out, and
+ * reaching for a template parameter, so each says so.
+ */
+function expressionFailure(source: string, offset: number, error: unknown): string {
+  const rest = source.slice(offset).trimStart();
+  const first = rest[0];
+  if (first === '"') {
+    return "an expression is written after '=' without quotes";
+  }
+  if (first === "$") {
+    return "template parameters are not supported inside an expression";
+  }
+  // Asking what may start an expression is more reliable than listing what may
+  // not: a property block ends with '}', statements may be separated by ';',
+  // and a stray '=' or ')' is just as much a missing expression.
+  if (first === undefined || !/[0-9._a-z(+-]/iu.test(first)) {
+    return "expected an expression after '='";
+  }
+  return error instanceof Error ? error.message : "expected an expression after '='";
+}
+
 export function tokenize(source: string): TokenList {
   const tokens: Token[] = [];
   const comments: Token[] = [];
@@ -147,11 +172,7 @@ export function tokenize(source: string): TokenList {
       try {
         parsed = parseExpressionPrefix(source.slice(offset));
       } catch (error) {
-        throw new SyntaxError(
-          error instanceof Error ? error.message : "expected an expression after '='",
-          source,
-          offset,
-        );
+        throw new SyntaxError(expressionFailure(source, offset, error), source, offset);
       }
       const end = offset + parsed.end;
       tokens.push(token(source, starts, "expression", source.slice(offset, end).trim(), start, end));

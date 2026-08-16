@@ -165,6 +165,9 @@ normally around them.
   jump there, and the stroke will cross the gap with a straight segment.
 - **Expressions are bounded in size** — at most 512 terms and 64 levels of
   nesting — so a generated document cannot exhaust the compiler.
+- **A template parameter cannot appear inside an expression.** A plot in a
+  template body works, but its equations have to be literal, because a curve is
+  sampled while the document is read and templates are expanded after that.
 
 ## Where it lives
 
