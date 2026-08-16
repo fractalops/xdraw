@@ -81,6 +81,35 @@ That validator is a frozen array of rule families applied to each statement.
 **Array order is part of the contract** — it determines the order diagnostics
 appear in, which `test/semantic-diagnostics.test.ts` pins.
 
+## Expressions and plotted curves
+
+[`src/language/expression.ts`](../src/language/expression.ts) is a bounded
+expression sublanguage — eighteen functions, three constants, five operators,
+and one free variable bound by the caller. It follows Vega's restriction list:
+no assignment, no control flow, no property access. It is reachable from one
+constructor and is not the language growing general expressions.
+
+Two size limits bound it, and they catch different shapes. `MAXIMUM_NESTING`
+bounds parser recursion, which is what a deep chain of parentheses exhausts.
+`MAXIMUM_NODES` bounds the tree, which is what a long left-associative chain
+exhausts — `t+1+1+1…` is consumed by a loop rather than by recursion, so the
+parser never nests while the tree grows one level per term, and the stack then
+overflows in the evaluator rather than in the parser.
+
+[`src/language/interval.ts`](../src/language/interval.ts) evaluates the same
+expressions over an interval rather than at a point, producing a range that
+contains every value the expression takes across it.
+
+[`src/language/curve-sampler.ts`](../src/language/curve-sampler.ts) uses that to
+turn a pair of expressions into a polyline. **Its tolerance is a bound, not an
+estimate**, and that distinction is the reason the interval module exists —
+see the constraints below.
+
+`math.plot` lowers to a `freedraw` statement in `lowerSyntax`, so a plotted
+curve is an ordinary editable stroke and nothing after parsing knows the points
+were computed. Adding a constructor that produces geometry does not need a new
+element kind.
+
 ## Measuring and placing
 
 [`src/compile/scene.ts`](../src/compile/scene.ts) builds the `SceneGraph` that
@@ -169,6 +198,25 @@ These look incidental and are not.
   so a caller can bypass the parser entirely.
 - **Code has its own size budget**, larger than the one for display text. See
   [`src/text/policy.ts`](../src/text/policy.ts).
+- **Property names are global.** [`src/language/registry.ts`](../src/language/registry.ts)
+  builds one name-to-kind map across every constructor in every library, and
+  throws at load if two constructors give the same property name different
+  kinds. Reusing a name means accepting its existing kind.
+- **A curve sampled to a tolerance is bounded, not estimated.** Subdividing
+  until a few interior samples look close enough says nothing about the points
+  between them; measured against curves of high frequency that approach
+  exceeded its stated tolerance by up to twenty seven times and reported
+  success. Enclosing each span with interval arithmetic makes flatness provable,
+  because distance to a segment is convex and a box is convex, so the maximum is
+  attained at a corner. The same enclosure is what finds poles and what checks
+  the magnitude limit, so all three are one mechanism rather than three. The
+  bounds use double precision without directed rounding, so the guarantee holds
+  to within floating-point error in the bounds themselves.
+- **Interval rules must over-estimate, never under-estimate.** A range that is
+  too wide costs subdivision; a range that is too narrow silently produces a
+  wrong curve. Where a tight rule would be intricate — `atan2` across its branch
+  cut, a fractional power of a negative base — the rules widen to the whole line
+  and let the caller subdivide.
 
 ## Reference card
 
