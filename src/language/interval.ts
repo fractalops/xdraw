@@ -137,7 +137,12 @@ export function signum(a: Interval): Interval {
  * angle jump between -pi and pi.
  */
 export function arcTangent2(y: Interval, x: Interval): Interval {
-  const crossesCut = x.lo <= 0 && straddlesZero(y);
+  // The cut lies where x is strictly negative, so a box whose x reaches zero
+  // without passing it does not cross. Testing `x.lo <= 0` instead widens such
+  // a box to the whole circle when its true range is half of that — and x
+  // touching zero exactly is ordinary, not a corner case: abs(t) and t^2 both
+  // produce it whenever the span straddles the origin.
+  const crossesCut = x.lo < 0 && straddlesZero(y);
   if (crossesCut) return interval(-Math.PI, Math.PI);
   return hull([
     Math.atan2(y.lo, x.lo), Math.atan2(y.lo, x.hi),

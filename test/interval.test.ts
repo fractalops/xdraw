@@ -64,6 +64,26 @@ test("atan2 widens across its branch cut and is tight away from it", () => {
   assert.deepEqual(cut, interval(-Math.PI, Math.PI), "spanning the negative x axis must widen");
   const clear = over("atan2(t, 1)", 0, 1);
   assert.deepEqual(clear, interval(0, Math.atan2(1, 1)), "the right half plane is exact");
+  // x reaching zero is not a crossing: the cut is where x is strictly negative.
+  // Widening here would double the range of any curve whose x touches zero,
+  // which abs(t) and t^2 both do whenever the span straddles the origin.
+  assert.deepEqual(
+    over("atan2(t, abs(t))", -1, 1),
+    interval(-Math.PI / 2, Math.PI / 2),
+    "a box touching the y axis from the right must not widen to the whole circle",
+  );
+  assert.deepEqual(over("atan2(t, t ^ 2)", -1, 1), interval(-Math.PI / 2, Math.PI / 2));
+});
+
+test("a repeated variable is treated as two independent ones", () => {
+  // The dependency problem, and the main reason enclosures are wider than the
+  // true range. `t * t` cannot be told that both factors move together, so it
+  // admits (-1)·(1); `t ^ 2` knows it is a square and does not. Both are sound
+  // — one is simply tighter — so an expression that squares by multiplying
+  // costs extra subdivision rather than correctness.
+  assert.deepEqual(over("t * t", -1, 1), interval(-1, 1), "multiplication loses the correlation");
+  assert.deepEqual(over("t ^ 2", -1, 1), interval(0, 1), "an even power keeps it");
+  assert.deepEqual(over("t - t", -1, 1), interval(-2, 2), "and subtraction loses it too");
 });
 
 test("an indeterminate form widens rather than narrowing on a guess", () => {
@@ -92,6 +112,9 @@ const term = fc.oneof(
   ...["tan(t)", "exp(t)", "log(abs(t))", "sqrt(abs(t))", "atan(t)", "asin(t)", "acos(t)",
     "abs(t)", "sign(t)", "floor(t)", "ceil(t)", "round(t)", "t ^ 2", "t ^ 3", "min(t, 2)",
     "max(t, 0 - 2)", "hypot(t, 3)", "atan2(t, 2)", "t * t - t", "1 / t", "t / (t - 1)",
+    // atan2 with an x that reaches zero, straddles it, and stays negative —
+    // the three sides of its branch-cut test.
+    "atan2(t, abs(t))", "atan2(t, t)", "atan2(t, 0 - abs(t))", "atan2(abs(t), t)",
   ].map((source) => fc.constant(source)),
 );
 const expression = fc.oneof(
