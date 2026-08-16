@@ -416,8 +416,13 @@ export function substituteNames(
 export function formatExpression(node: ExpressionNode): string {
   switch (node.kind) {
     // A substituted value may be negative, and a bare `-5` beside an operator
-    // would reparse as a subtraction. Parentheses make it a term again.
-    case "number": return node.value < 0 ? `(${node.value})` : String(node.value);
+    // would reparse as a subtraction, so parentheses make it a term again.
+    // Negative zero needs the same treatment for a different reason: it prints
+    // as "0" and would come back positive, which is a different number to
+    // Object.is and to anything that divides by it.
+    case "number": return node.value < 0 || Object.is(node.value, -0)
+      ? `(-${Math.abs(node.value)})`
+      : String(node.value);
     case "name": return node.name;
     case "negate": return `(-${formatExpression(node.operand)})`;
     case "binary": return `(${formatExpression(node.left)} ${node.operator} ${formatExpression(node.right)})`;

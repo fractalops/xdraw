@@ -31,7 +31,7 @@ import type {
   SemanticStatement,
   TextStatement,
 } from "../contracts/semantic.ts";
-import type { Bounds } from "../contracts/foundation.ts";
+import type { Bounds, Point } from "../contracts/foundation.ts";
 import type { SceneGraph } from "../contracts/layout.ts";
 import type {
   DrawingElement,
@@ -248,7 +248,16 @@ export function renderCompilation(
   // Text and freehand are drawn where they are told and take no part in layout,
   // so an `at` that names another element's geometry can be resolved here,
   // against the boxes layout has just produced, without moving them.
-  resolveGeometryReferences(scene.statements, state.bounds);
+  // A stroke's points are relative to its own origin, so they are offered in
+  // absolute coordinates — the same space every other geometry name uses.
+  const strokes = new Map<string, readonly Point[]>();
+  collectDetachedStatements(scene.statements, isFreedraw).forEach(({ statement }) => {
+    strokes.set(statement.id, statement.points.map(([x, y]) => [
+      statement.at[0] + x,
+      statement.at[1] + y,
+    ] as Point));
+  });
+  resolveGeometryReferences(scene.statements, state.bounds, strokes);
   collectDetachedStatements(scene.statements, isFreedraw).forEach(({ statement, frameId, locked }) => {
     const element = renderFreedraw(drawing, renderableFreedraw(statement), styles.resolveFreedraw(statement));
     element.frameId = frameId;

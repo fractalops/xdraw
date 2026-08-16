@@ -10,8 +10,8 @@
  * layout it refers to. That is what keeps the dependency between names rather
  * than between placement and layout, which a symbol table could not see.
  */
-import { ExpressionError, evaluateExpression, freeNames, parseExpression } from "../language/expression.ts";
-import type { Bounds } from "../contracts/foundation.ts";
+import { type ExpressionNode, ExpressionError, evaluateExpression, freeNames, parseExpression } from "../language/expression.ts";
+import type { Bounds, Point } from "../contracts/foundation.ts";
 import type { SemanticStatement } from "../contracts/semantic.ts";
 
 /** The parts of a box an expression may name. Closed, like every vocabulary. */
@@ -58,11 +58,43 @@ export function splitReference(name: string): { element: string; part: BoxPart }
   return { element: name.slice(0, separator), part: part as BoxPart };
 }
 
+/**
+ * Walks a polyline by arc length and returns the point at `fraction` of its
+ * total length.
+ *
+ * By length rather than by index, because the points are not evenly spaced: the
+ * sampler puts them where a curve bends. Halfway along a spiral by index is
+ * nowhere in particular; halfway by length is halfway along the line you can
+ * see.
+ */
+export function pointAlong(points: readonly Point[], fraction: number): Point {
+  if (points.length === 0) return [0, 0];
+  if (points.length === 1) return points[0];
+  const segments: number[] = [];
+  let total = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    total += Math.hypot(points[index][0] - points[index - 1][0], points[index][1] - points[index - 1][1]);
+    segments.push(total);
+  }
+  if (total === 0) return points[0];
+  const target = Math.max(0, Math.min(1, fraction)) * total;
+  let index = segments.findIndex((distance) => distance >= target);
+  if (index < 0) index = segments.length - 1;
+  const before = index === 0 ? 0 : segments[index - 1];
+  const span = segments[index] - before;
+  const along = span === 0 ? 0 : (target - before) / span;
+  const [x0, y0] = points[index];
+  const [x1, y1] = points[index + 1];
+  return [x0 + (x1 - x0) * along, y0 + (y1 - y0) * along];
+}
+
 export interface GeometryEnvironment {
   /** Every name the expression may use, resolved on demand. */
   lookup(name: string): number | undefined;
   /** True when the name looks like a geometry reference at all. */
   describes(name: string): boolean;
+  /** A point at a fraction along a named stroke. */
+  along(id: string, fraction: number, axis: 0 | 1): number;
 }
 
 /**
@@ -70,7 +102,10 @@ export interface GeometryEnvironment {
  * rather than materialised: eight parts times every element in a document is a
  * lot of strings to build for the handful an expression actually uses.
  */
-export function geometryEnvironment(bounds: ReadonlyMap<string, Bounds>): GeometryEnvironment {
+export function geometryEnvironment(
+  bounds: ReadonlyMap<string, Bounds>,
+  strokes: ReadonlyMap<string, readonly Point[]> = new Map(),
+): GeometryEnvironment {
   return {
     describes: (name) => splitReference(name) !== null,
     lookup: (name) => {
@@ -78,6 +113,17 @@ export function geometryEnvironment(bounds: ReadonlyMap<string, Bounds>): Geomet
       if (!reference) return undefined;
       const box = bounds.get(reference.element);
       return box ? partOf(box, reference.part) : undefined;
+    },
+    along: (id, fraction, axis) => {
+      const points = strokes.get(id);
+      if (!points) {
+        throw new GeometryReferenceError(
+          bounds.has(id)
+            ? `along expects a stroke, and '${id}' is not one`
+            : `along names '${id}', which is not a stroke in this document`,
+        );
+      }
+      return pointAlong(points, fraction)[axis];
     },
   };
 }
@@ -98,6 +144,10 @@ export function resolveGeometryExpression(
     const detail = error instanceof ExpressionError ? error.message : String(error);
     throw new GeometryReferenceError(`${owner}: '${source}' is not a valid expression: ${detail}`);
   }
+  // `along_x(curve, u)` and `along_y(curve, u)` name a stroke rather than a
+  // number, so they are handled before evaluation: the call is replaced by the
+  // coordinate it resolves to, and the stroke's name never becomes a variable.
+  node = resolveAlongCalls(node, environment, owner);
   const values: Record<string, number> = {};
   for (const name of freeNames(node)) {
     const value = environment.lookup(name);
@@ -117,6 +167,44 @@ export function resolveGeometryExpression(
   return result;
 }
 
+const ALONG = new Map([["along_x", 0], ["along_y", 1]] as const);
+
+/**
+ * Replaces every `along_x(curve, u)` with the number it resolves to.
+ *
+ * The first argument names a stroke rather than a value, so it cannot be an
+ * ordinary free name — it would be reported unknown. Rewriting the call to a
+ * number keeps the rest of evaluation entirely conventional.
+ */
+function resolveAlongCalls(
+  node: ExpressionNode,
+  environment: GeometryEnvironment,
+  owner: string,
+): ExpressionNode {
+  switch (node.kind) {
+    case "call": {
+      const axis = ALONG.get(node.name as "along_x" | "along_y");
+      if (axis === undefined) {
+        return { ...node, args: node.args.map((argument) => resolveAlongCalls(argument, environment, owner)) };
+      }
+      const [target, fraction] = node.args;
+      if (node.args.length !== 2 || target?.kind !== "name") {
+        throw new GeometryReferenceError(`${owner}: ${node.name} takes a stroke and a fraction from 0 to 1`);
+      }
+      const resolved = resolveAlongCalls(fraction, environment, owner);
+      const value = environment.along(target.name, evaluateExpression(resolved, {}), axis);
+      return { kind: "number", value };
+    }
+    case "negate": return { kind: "negate", operand: resolveAlongCalls(node.operand, environment, owner) };
+    case "binary": return {
+      ...node,
+      left: resolveAlongCalls(node.left, environment, owner),
+      right: resolveAlongCalls(node.right, environment, owner),
+    };
+    default: return node;
+  }
+}
+
 /**
  * Resolves every `at` that was written as a pair of expressions, in place.
  *
@@ -128,8 +216,9 @@ export function resolveGeometryExpression(
 export function resolveGeometryReferences(
   statements: readonly SemanticStatement[],
   bounds: ReadonlyMap<string, Bounds>,
+  strokes: ReadonlyMap<string, readonly Point[]> = new Map(),
 ): void {
-  const environment = geometryEnvironment(bounds);
+  const environment = geometryEnvironment(bounds, strokes);
   const visit = (items: readonly SemanticStatement[]): void => {
     for (const statement of items) {
       const carrier = statement as unknown as { type: string; id?: string; at?: unknown[] };

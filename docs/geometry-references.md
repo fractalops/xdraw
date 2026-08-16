@@ -75,6 +75,42 @@ text 'b': no element 'a' to take 'right' from
 That also disposes of mutual reference: two elements pointing at each other
 cannot both be detached and both be measurable.
 
+## A point along a curve
+
+`along_x(curve, u)` and `along_y(curve, u)` give a point on a drawn stroke:
+`u = 0` is its start, `u = 1` its end.
+
+```xdraw
+use "xdraw/math" as math
+
+diagram "Markers" {
+  spiral: math.plot {
+    at (620, 340)
+    x = 13 * t * cos(t)
+    y = 13 * t * sin(t)
+    domain (0, 20)
+    stroke "#0891b2"
+  }
+  half: text "halfway" {
+    at = (along_x(spiral, 0.5) + 14, along_y(spiral, 0.5))
+  }
+}
+```
+
+![A spiral with five labels along it, crowding where the turns are tight](images/curve-markers.png)
+
+The fraction is **arc length, not parameter**. Halfway along a spiral is halfway
+along the line you can see, not halfway through the range of `t` — which is why
+the markers above crowd near the centre, where the same length of line covers
+much less ground. A fraction outside 0…1 is clamped to the ends.
+
+Only strokes can be walked, since only they have points:
+
+```
+along expects a stroke, and 'box' is not one
+along_x takes a stroke and a fraction from 0 to 1
+```
+
 ## What is rejected
 
 ```
