@@ -1,3 +1,4 @@
+import { parseExpressionPrefix } from "./expression.ts";
 import type {
   SourceLocation,
   Token,
@@ -131,6 +132,30 @@ export function tokenize(source: string): TokenList {
       if (source[offset] !== '"') throw new SyntaxError("unterminated string", source, start);
       tokens.push(token(source, starts, "string", value, start, offset + 1));
       offset += 1;
+      continue;
+    }
+    if (char === "=") {
+      // '=' means an expression follows. Its extent is decided by the
+      // expression grammar rather than by a delimiter or a line ending: after a
+      // complete term only an operator can continue, so the next property name
+      // or closing brace ends it. The expression tokenizer reads it, not this
+      // one, which is why `5 - 3` stays a subtraction here instead of becoming
+      // two numbers the way this tokenizer would read it.
+      const start = offset;
+      offset += 1;
+      let parsed;
+      try {
+        parsed = parseExpressionPrefix(source.slice(offset));
+      } catch (error) {
+        throw new SyntaxError(
+          error instanceof Error ? error.message : "expected an expression after '='",
+          source,
+          offset,
+        );
+      }
+      const end = offset + parsed.end;
+      tokens.push(token(source, starts, "expression", source.slice(offset, end).trim(), start, end));
+      offset = end;
       continue;
     }
     if (SYMBOLS.has(char as TokenType)) {

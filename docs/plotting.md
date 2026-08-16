@@ -10,10 +10,9 @@ use "xdraw/math" as math
 diagram "Plot" {
   mark: math.plot {
     at (200, 200)
-    x """120 * sin(2*t)"""
-    y """110 * sin(3*t)"""
-    from 0
-    to 6.283185307179586
+    x = 120 * sin(2*t)
+    y = 110 * sin(3*t)
+    domain (0, tau)
     stroke "#4d7c0f"
   }
 }
@@ -55,13 +54,21 @@ assignment, no control flow, no property access, and one variable.
 `^` is right-associative and binds tighter than unary minus, so `-2^2` is `-4`
 and `2^3^2` is `512` — as they read on paper.
 
-Anything outside that vocabulary is rejected when the document is read, with the
+An expression is written after `=`, not in quotes, because it is an equation
+rather than a string. It ends where the grammar says it ends: after a complete
+term only an operator can continue it, so the next property name or closing
+brace finishes it. Nothing has to be delimited, and a line break means no more
+than a space does anywhere else in the language.
+
+Anything outside the vocabulary is rejected when the document is read, with the
 position of the problem:
 
 ```
-t = 4          rejected at 2: unexpected character '='
-sin(t          rejected at 5: expected ')'
-foo.bar(t)     rejected at 3: malformed number
+x = t = 4        expected a statement at 4:35
+x = sin(t        expected ')' at 4:32
+x = t ? 1 : 2    unexpected character "?" at 4:35
+x = wobble(t)    unknown function 'wobble'
+x = a * t        unknown name 'a'
 ```
 
 ## Tolerance is a guarantee, not a target
@@ -129,10 +136,9 @@ diagram "Composition" {
 
   curve: math.plot {
     at (330, 420)
-    x """90 * sin(2*t)"""
-    y """70 * sin(3*t)"""
-    from 0
-    to 6.283185307179586
+    x = 90 * sin(2*t)
+    y = 70 * sin(3*t)
+    domain (0, tau)
     stroke "#7c3aed"
   }
 }
@@ -144,8 +150,9 @@ normally around them.
 
 ## Limits worth knowing
 
-- **`from` and `to` are numbers, not expressions.** A full turn has to be
-  written as `6.283185307179586` rather than `tau`.
+- **A `domain` end is a number or a constant, not an expression.** `(0, tau)`
+  works; `(0, 6 * tau)` does not, so a range of twelve turns still has to be
+  written out as a number.
 - **A closed curve shows a faint seam** where its start and end meet, because
   the stroke has ends even when the curve does not.
 - **Fidelity is bounded on the emitted points, not on the rendered stroke.**

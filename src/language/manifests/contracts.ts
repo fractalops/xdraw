@@ -10,6 +10,8 @@ export type ManifestValueKind =
   | "pair"
   | "points"
   | "numbers"
+  | "interval"
+  | "expression"
   | "endpoint";
 
 export type LibraryValueKind = "tone";

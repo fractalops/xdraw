@@ -160,10 +160,13 @@ test("synchronous compilation degrades highlighted code deterministically", () =
 });
 
 test("highlight failures and source normalization safely fall back", async () => {
+  // `total = left * right` used to serve here, but `=` now introduces an
+  // expression and that sample tokenizes, so it no longer exercises the
+  // fallback. `??` is not in the language at all.
   const invalidXDraw = (await compileAsync(parseSource(`diagram "Fallback" {
-    example: code "total = left * right" { language xdraw; highlight true }
+    example: code "total ?? left" { language xdraw; highlight true }
   }`))).toJSON();
-  assert.equal(codeSource(invalidXDraw).text, "total = left * right");
+  assert.equal(codeSource(invalidXDraw).text, "total ?? left");
   assert.equal(codeFrame(invalidXDraw).customData.xdraw.highlightFallback, "highlight-error");
 
   const crlfDocument = [

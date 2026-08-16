@@ -229,10 +229,9 @@ use "xdraw/math" as math
 diagram "Plot" {
   mark: math.plot {
     at (200, 200)
-    x """120 * sin(2*t)"""
-    y """110 * sin(3*t)"""
-    from 0
-    to 6.283185307179586
+    x = 120 * sin(2*t)
+    y = 110 * sin(3*t)
+    domain (0, tau)
     stroke "#4d7c0f"
   }
 }

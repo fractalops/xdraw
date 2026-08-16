@@ -14,6 +14,7 @@ import type {
 } from "../contracts/language.ts";
 import type { ConstructorArgumentManifest, ConstructorManifest, LibraryManifest, ManifestValueKind } from "./manifests/contracts.ts";
 import { BUILTIN_LIBRARY_MANIFESTS } from "./manifests/builtins.ts";
+import { CONSTANTS } from "./expression.ts";
 
 export class LanguageValidationError extends Error {
   readonly code: string;
@@ -459,6 +460,7 @@ function matchesKind(
     return (sourceKind === "string" || sourceKind === "raw-string") && typeof value === "string";
   }
   if (expected === "raw-string") return sourceKind === "raw-string" && typeof value === "string";
+  if (expected === "expression") return sourceKind === "expression" && typeof value === "string";
   if (expected === "identifier") return sourceKind === "identifier" && typeof value === "string";
   if (expected === "number") return sourceKind === "number" && typeof value === "number";
   if (expected === "boolean") return sourceKind === "boolean" && typeof value === "boolean";
@@ -480,6 +482,16 @@ function matchesKind(
     return sourceKind === "tuple"
       && Array.isArray(value)
       && value.every((item) => typeof item === "number");
+  }
+  if (expected === "interval") {
+    // Either end may be written as a number or as one of the constants the
+    // expression sublanguage defines, so `(0, tau)` reads the way an interval
+    // does on paper.
+    return sourceKind === "tuple"
+      && Array.isArray(value)
+      && value.length === 2
+      && value.every((item) => typeof item === "number"
+        || (typeof item === "string" && CONSTANTS.has(item)));
   }
   return sourceKind === "tuple"
     && Array.isArray(value)

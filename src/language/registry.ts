@@ -32,6 +32,8 @@ const GRAMMAR_PROPERTY_KINDS = new Map<string, PropertyKind>([
 function parserKind(kind: ManifestValueKind): PropertyKind {
   if (kind === "boolean") return "identifier";
   if (kind === "raw-string") return "string";
+  if (kind === "interval") return "pair";
+  if (kind === "expression") return "string";
   return kind;
 }
 

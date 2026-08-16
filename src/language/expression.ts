@@ -104,9 +104,15 @@ interface Token {
   readonly kind: "number" | "name" | "punctuation";
   readonly value: string;
   readonly offset: number;
+  readonly end: number;
 }
 
-function tokenize(source: string): Token[] {
+/**
+ * Turns source into tokens. In `prefix` mode a character the grammar does not
+ * recognise ends tokenizing rather than failing, so an expression embedded in a
+ * larger document can be read up to wherever it stops.
+ */
+function tokenize(source: string, prefix = false): Token[] {
   const tokens: Token[] = [];
   let index = 0;
   while (index < source.length) {
@@ -118,22 +124,23 @@ function tokenize(source: string): Token[] {
     if (/[0-9.]/u.test(character)) {
       const match = /^[0-9]*\.?[0-9]+(e[+-]?[0-9]+)?/iu.exec(source.slice(index));
       if (!match) throw new ExpressionError("malformed number", index);
-      tokens.push({ kind: "number", value: match[0], offset: index });
+      tokens.push({ kind: "number", value: match[0], offset: index, end: index + match[0].length });
       index += match[0].length;
       continue;
     }
     if (/[a-z_]/iu.test(character)) {
       const match = /^[a-z_][a-z0-9_]*/iu.exec(source.slice(index));
       if (!match) throw new ExpressionError("malformed name", index);
-      tokens.push({ kind: "name", value: match[0], offset: index });
+      tokens.push({ kind: "name", value: match[0], offset: index, end: index + match[0].length });
       index += match[0].length;
       continue;
     }
     if (PUNCTUATION.has(character)) {
-      tokens.push({ kind: "punctuation", value: character, offset: index });
+      tokens.push({ kind: "punctuation", value: character, offset: index, end: index + 1 });
       index += 1;
       continue;
     }
+    if (prefix) break;
     throw new ExpressionError(`unexpected character '${character}'`, index);
   }
   return tokens;
@@ -161,8 +168,13 @@ export const MAXIMUM_NESTING = 64;
  */
 export const MAXIMUM_NODES = 512;
 
-export function parseExpression(source: string): ExpressionNode {
-  const tokens = tokenize(source);
+export interface ParsedPrefix {
+  readonly node: ExpressionNode;
+  /** Offset just past the last character the expression consumed. */
+  readonly end: number;
+}
+
+function parseFrom(source: string, tokens: Token[]): { node: ExpressionNode; consumed: number } {
   let position = 0;
   let depth = 0;
   let nodes = 0;
@@ -254,10 +266,33 @@ export function parseExpression(source: string): ExpressionNode {
     }
   }
 
-  const result = binary(0);
-  const remaining = peek();
+  const node = binary(0);
+  return { node, consumed: position };
+}
+
+export function parseExpression(source: string): ExpressionNode {
+  const tokens = tokenize(source);
+  const { node, consumed } = parseFrom(source, tokens);
+  const remaining = tokens[consumed];
   if (remaining) throw new ExpressionError(`unexpected '${remaining.value}'`, remaining.offset);
-  return result;
+  return node;
+}
+
+/**
+ * Parses as much of `source` as forms an expression and reports where it
+ * stopped, rather than requiring the whole string to be one.
+ *
+ * This is what lets an expression sit unquoted in a document. An expression
+ * ends where the grammar says it ends: after a complete term, only an operator
+ * can continue it, so the first token that is not one — a property name, a
+ * closing brace — terminates the expression without needing a delimiter or a
+ * significant newline to mark it.
+ */
+export function parseExpressionPrefix(source: string): ParsedPrefix {
+  const tokens = tokenize(source, true);
+  const { node, consumed } = parseFrom(source, tokens);
+  if (consumed === 0) throw new ExpressionError("expected an expression", 0);
+  return { node, end: tokens[consumed - 1].end };
 }
 
 export interface ExpressionIssue {

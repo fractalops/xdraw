@@ -34,10 +34,9 @@ function stroke(source: string): FreedrawElement {
 const lissajous = (extra = "") => `diagram "" {
   mark: math.plot {
     at (100, 80)
-    x """120 * sin(2*t)"""
-    y """110 * sin(3*t)"""
-    from 0
-    to ${TAU}
+    x = 120 * sin(2*t)
+    y = 110 * sin(3*t)
+    domain (0, tau)
     ${extra}
   }
 }`;
@@ -91,10 +90,9 @@ test("a curve that cannot be drawn fails when the document is read", () => {
   const withPole = withImport(`diagram "" {
     mark: math.plot {
       at (0, 0)
-      x """1 / t"""
-      y """t"""
-      from 0
-      to 3
+      x = 1 / t
+      y = t
+      domain (0, 3)
     }
   }`);
   assert.throws(() => stroke(withPole), /plot 'mark' could not be drawn/, "a pole must be reported");
@@ -102,10 +100,9 @@ test("a curve that cannot be drawn fails when the document is read", () => {
   const tooLarge = withImport(`diagram "" {
     mark: math.plot {
       at (0, 0)
-      x """t * 2000000"""
-      y """t"""
-      from 0
-      to 1
+      x = t * 2000000
+      y = t
+      domain (0, 1)
     }
   }`);
   assert.throws(() => stroke(tooLarge), /could not be drawn.*beyond the limit of/s);
@@ -115,10 +112,9 @@ test("a plot is positioned at its `at` property", () => {
   const mark = stroke(withImport(`diagram "" {
     mark: math.plot {
       at (300, 200)
-      x """50 * cos(t)"""
-      y """50 * sin(t)"""
-      from 0
-      to ${TAU}
+      x = 50 * cos(t)
+      y = 50 * sin(t)
+      domain (0, tau)
     }
   }`));
   // The curve starts at (50, 0) relative to `at`, and spans 100 by 100 centred
@@ -130,13 +126,12 @@ test("a plot is positioned at its `at` property", () => {
 });
 
 test("the language rejects a plot that is missing what it needs", () => {
-  for (const missing of ["x", "y", "from", "to", "at"]) {
+  for (const missing of ["x", "y", "domain", "at"]) {
     const properties = new Map([
       ["at", "at (0, 0)"],
-      ["x", 'x """t"""'],
-      ["y", 'y """t"""'],
-      ["from", "from 0"],
-      ["to", "to 1"],
+      ["x", 'x = t'],
+      ["y", 'y = t'],
+      ["domain", "domain (0, 1)"],
     ]);
     properties.delete(missing);
     const source = withImport(`diagram "" {
@@ -148,14 +143,83 @@ test("the language rejects a plot that is missing what it needs", () => {
   }
 });
 
+test("a domain end may be a constant as well as a number", () => {
+  // The point of the interval kind: a full turn reads as `tau` rather than as
+  // 6.283185307179586. The constants are the expression sublanguage's, so the
+  // two cannot drift apart.
+  const byConstant = stroke(withImport(`diagram "" {
+    mark: math.plot { at (0, 0); x = 50 * cos(t); y = 50 * sin(t); domain (0, tau) }
+  }`));
+  const byNumber = stroke(withImport(`diagram "" {
+    mark: math.plot { at (0, 0); x = 50 * cos(t); y = 50 * sin(t); domain (0, ${TAU}) }
+  }`));
+  assert.deepEqual(byConstant.points, byNumber.points, "tau and its value must agree exactly");
+
+  const half = stroke(withImport(`diagram "" {
+    mark: math.plot { at (0, 0); x = 50 * cos(t); y = 50 * sin(t); domain (0, pi) }
+  }`));
+  assert.ok(half.points.length < byConstant.points.length, "half a turn needs fewer points than a whole one");
+});
+
+test("a domain rejects what is not a number or a known constant", () => {
+  const domain = (text: string) => withImport(`diagram "" {
+    mark: math.plot { at (0, 0); x = t; y = t; domain ${text} }
+  }`);
+  assert.throws(() => stroke(domain("(0, wobble)")), /domain|interval/i, "an unknown name must be rejected");
+  assert.throws(() => stroke(domain('(0, "1")')), /domain|interval/i, "a string must be rejected");
+  assert.throws(() => stroke(domain("(0, 1, 2)")), /domain|interval/i, "three ends must be rejected");
+  assert.throws(() => stroke(domain("5")), /domain|interval/i, "a bare number must be rejected");
+});
+
+test("an expression is written as an equation, not as a string", () => {
+  const quoted = withImport(`diagram "" {
+    mark: math.plot { at (0, 0); x "60 * cos(t)"; y = 60 * sin(t); domain (0, tau) }
+  }`);
+  assert.throws(() => stroke(quoted), /expects expression, received string/, "a quoted expression must be rejected");
+});
+
+test("an expression ends where the grammar ends it, without a delimiter", () => {
+  // This is what makes an unquoted expression possible: after a complete term
+  // only an operator can continue it, so the next property name finishes it.
+  // Nothing is delimited, and no newline is significant.
+  const oneLine = stroke(withImport(`diagram "" {
+    mark: math.plot { at (0, 0); x = 60 * cos(t); y = 60 * sin(t); domain (0, tau); stroke "#111111" }
+  }`));
+  const manyLines = stroke(withImport(`diagram "" {
+    mark: math.plot {
+      at (0, 0)
+      x = 60 * cos(t)
+      y = 60 * sin(t)
+      domain (0, tau)
+      stroke "#111111"
+    }
+  }`));
+  assert.deepEqual(oneLine.points, manyLines.points, "line breaks must not change meaning");
+  assert.equal(oneLine.strokeColor, "#111111", "the property after an expression must still be read");
+});
+
+test("a minus keeps its meaning inside an expression", () => {
+  // The document tokenizer folds a leading minus into the number that follows,
+  // so `90-30` reads as two numbers there. Expressions are read by their own
+  // tokenizer, which is why this stays a subtraction rather than silently
+  // becoming the first operand alone.
+  const flat = stroke(withImport(`diagram "" {
+    mark: math.plot { at (0, 0); x = 50 * t; y = 90 - 30; domain (0, 2) }
+  }`));
+  assert.equal(Math.round(flat.height), 0, "y = 90 - 30 is constant, so the curve is flat");
+  const descending = stroke(withImport(`diagram "" {
+    mark: math.plot { at (0, 0); x = t; y = 0 - t; domain (0, 100) }
+  }`));
+  assert.equal(Math.round(descending.height), 100);
+});
+
 test("a plot rejects an expression outside the sublanguage", () => {
   const source = withImport(`diagram "" {
     mark: math.plot {
       at (0, 0)
-      x """wobble(t)"""
-      y """t"""
-      from 0
-      to 1
+      x = wobble(t)
+      y = t
+      domain (0, 1)
     }
   }`);
   assert.throws(() => stroke(source), /unknown function 'wobble'/);
@@ -163,10 +227,9 @@ test("a plot rejects an expression outside the sublanguage", () => {
   const freeName = withImport(`diagram "" {
     mark: math.plot {
       at (0, 0)
-      x """a * t"""
-      y """t"""
-      from 0
-      to 1
+      x = a * t
+      y = t
+      domain (0, 1)
     }
   }`);
   assert.throws(() => stroke(freeName), /unknown name 'a'/);

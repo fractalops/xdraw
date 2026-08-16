@@ -119,7 +119,7 @@ diagram "Strings" {
 
 ### 4.7 Punctuation
 
-The language uses `{ } ( ) : , ; @ $`, the connection operators `->` and
+The language uses `{ } ( ) : , ; @ $ =`, the connection operators `->` and
 `--`, and the scene namespace separator `::`.
 
 ## 5. Document Forms
@@ -172,8 +172,10 @@ Scene operations are specified in section 17.
 ## 6. Values
 
 ```text
-value       = string | number | identifier | pair
+value       = string | number | identifier | pair | interval | expression
 pair        = "(", number, ",", number, ")"
+interval    = "(", interval-end, ",", interval-end, ")"
+interval-end = number | "pi" | "tau" | "e"
 point-list  = "(", pair, { ",", pair }, ")"
 number-list = "(", number, { ",", number }, ")"
 selection   = "(", identifier, { ",", identifier }, ")"
@@ -235,7 +237,14 @@ followed by the value required by that property:
 
 ```text
 property = identifier, property-value
+         | identifier, "=", expression
 ```
+
+The second form introduces an expression, and is required wherever a property
+declares the expression value kind. An expression is not delimited: it ends
+where the grammar ends it, because after a complete term only an operator can
+continue one, so the next property name or closing brace terminates it. Line
+breaks remain insignificant. Section 15.5 defines the expression grammar.
 
 Unknown properties are invalid. A property is also invalid when it does not
 apply to its enclosing constructor.
@@ -595,6 +604,35 @@ Supported formats are PNG, GIF, JPEG, and SVG. SVG must not contain scripts,
 event handlers, remote references, embedded active content, or CSS imports.
 Default limits are 10 MiB per file, 25 MiB per document, and 8,192 pixels per
 dimension.
+
+### 15.5 Expressions and plotted curves
+
+An expression is a closed sublanguage with one free variable, `t`:
+
+```text
+expression = term, { operator, term }
+term       = number | constant | "t" | call | "-", term | "(", expression, ")"
+call       = function-name, "(", expression, { ",", expression }, ")"
+operator   = "+" | "-" | "*" | "/" | "^"
+constant   = "pi" | "tau" | "e"
+```
+
+`^` is right-associative and binds more tightly than unary minus; the other
+operators are left-associative. Function names are `sin`, `cos`, `tan`, `asin`,
+`acos`, `atan`, `atan2`, `sqrt`, `abs`, `sign`, `floor`, `ceil`, `round`,
+`min`, `max`, `exp`, `log`, and `hypot`, each with a fixed arity. There is no
+assignment, control flow, or property access. An unknown name, an unknown
+function, or a wrong argument count is invalid.
+
+An expression may contain at most 512 terms and nest at most 64 levels deep.
+
+`xdraw/math.plot` requires `at`, `x`, `y`, and `domain`, where `x` and `y` are
+expressions and `domain` is an interval. Optional `tolerance` is the greatest
+distance the emitted polyline may lie from the curve, in pixels, and defaults
+to 0.5. A conforming compiler bounds each span of the curve rather than
+sampling it, and invalidates a curve it cannot draw within that tolerance —
+including one whose value is unbounded on the domain, or whose coordinates
+exceed the freehand magnitude limit.
 
 ## 16. Sequences and Annotations
 

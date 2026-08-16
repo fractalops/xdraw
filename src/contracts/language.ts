@@ -22,7 +22,7 @@ export type SourceValueKind =
   | "boolean"
   | "parameter"
   | "tuple"
-  | "endpoint";
+  | "endpoint" | "expression";
 
 export interface SourceNode {
   span?: SourceSpan;

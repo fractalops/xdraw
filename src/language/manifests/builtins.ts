@@ -378,18 +378,16 @@ export const STANDARD_LIBRARY_MANIFESTS = normalizeLibraryCatalog([
       }),
       simpleConstructor("plot", "plot", "freedraw", "Parametric curve plotted from expressions.", `mark: math.plot {
   at (0, 0)
-  x """120 * sin(2*t)"""
-  y """110 * sin(3*t)"""
-  from 0
-  to 6.2832
+  x = 120 * sin(2*t)
+  y = 110 * sin(3*t)
+  domain (0, tau)
 }`, {
         arguments: noArguments,
         properties: [
           { name: "at", kind: "pair", required: true, synopsis: "Curve origin." },
-          { name: "x", kind: "raw-string", required: true, synopsis: "Expression for the x coordinate, in t." },
-          { name: "y", kind: "raw-string", required: true, synopsis: "Expression for the y coordinate, in t." },
-          { name: "from", kind: "number", required: true, synopsis: "Start of the parameter range." },
-          { name: "to", kind: "number", required: true, synopsis: "End of the parameter range." },
+          { name: "x", kind: "expression", required: true, synopsis: "Expression for the x coordinate, in t." },
+          { name: "y", kind: "expression", required: true, synopsis: "Expression for the y coordinate, in t." },
+          { name: "domain", kind: "interval", required: true, synopsis: "Parameter range, as (start, end)." },
           { name: "tolerance", kind: "number", required: false, synopsis: "Greatest permitted departure from the curve, in pixels." },
           { name: "link", kind: "string", required: false, synopsis: "Hyperlink." },
           { name: "locked", kind: "boolean", required: false, synopsis: "Whether the curve is locked." },

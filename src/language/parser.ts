@@ -33,6 +33,7 @@ import {
 } from "./registry.ts";
 import { validateLanguageDocument } from "./validator.ts";
 import { sampleCurve } from "./curve-sampler.ts";
+import { CONSTANTS } from "./expression.ts";
 
 function located<T extends object>(value: T, start: Token, end: Token): T & SourceNode {
   Object.defineProperty(value, "span", {
@@ -111,6 +112,9 @@ export function parseSyntax(source: string): SourceDocument {
   }
 
   function value(label: string): ParsedValue {
+    if (peek("expression")) {
+      return { value: String(take("expression").value), kind: "expression" };
+    }
     if (peek("string")) {
       const token = take("string");
       return {
@@ -449,6 +453,32 @@ function interpolationValue(value: SourcePropertyValue | undefined): SourcePrope
  */
 const DEFAULT_PLOT_TOLERANCE = 0.5;
 
+/**
+ * Reads a `(start, end)` interval. Either end may be a number or one of the
+ * constants the expression sublanguage defines, so a full turn reads as `tau`
+ * rather than as 6.283185307179586. The constants come from that sublanguage
+ * rather than a second list, so the two cannot drift apart.
+ */
+function intervalProperty(
+  properties: ReadonlyMap<string, SourcePropertyValue>,
+  name: string,
+  owner: string,
+): [number, number] {
+  const value = properties.get(name);
+  if (!Array.isArray(value) || value.length !== 2) {
+    throw new Error(`${owner} ${name} must be a pair such as (0, tau)`);
+  }
+  const ends = value.map((item) => {
+    if (typeof item === "number") return item;
+    const constant = typeof item === "string" ? CONSTANTS.get(item) : undefined;
+    if (constant === undefined) {
+      throw new Error(`${owner} ${name} accepts numbers and the constants ${CONSTANTS.names.join(", ")}`);
+    }
+    return constant;
+  });
+  return [ends[0], ends[1]];
+}
+
 function codeValue(value: unknown): string {
   const lines = String(value).split("\n");
   while (lines.length && !lines[0].trim()) lines.shift();
@@ -743,19 +773,19 @@ function lowerScope(
       // the author typing them, so it lowers to the same statement and nothing
       // downstream needs to know the difference.
       const at = pointProperty(properties, "at", `plot '${id}'`)!;
+      const [from, to] = intervalProperty(properties, "domain", `plot '${id}'`);
       const request = {
         x: codeValue(properties.get("x")),
         y: codeValue(properties.get("y")),
-        from: numberProperty(properties, "from")!,
-        to: numberProperty(properties, "to")!,
+        from,
+        to,
         tolerance: numberProperty(properties, "tolerance") ?? DEFAULT_PLOT_TOLERANCE,
       };
       // These describe the curve, not how it looks, so they must not reach the
       // style pass — which rejects any attribute it does not recognise.
       delete attributes.x;
       delete attributes.y;
-      delete attributes.from;
-      delete attributes.to;
+      delete attributes.domain;
       delete attributes.tolerance;
       const result = sampleCurve(request);
       if (result.status === "refused") {

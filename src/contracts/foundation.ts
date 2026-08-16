@@ -53,7 +53,7 @@ export interface SourceLocation {
 
 export type TokenType =
   | "{" | "}" | "(" | ")" | ":" | "," | ";" | "@" | "$"
-  | "arrow" | "line" | "namespace" | "comment" | "string" | "number"
+  | "arrow" | "line" | "namespace" | "comment" | "string" | "number" | "expression"
   | "identifier" | "eof";
 
 export interface Token {
