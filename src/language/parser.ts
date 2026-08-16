@@ -15,6 +15,7 @@ import type {
 } from "../contracts/foundation.ts";
 import type {
   SourceArrangement,
+  SourceBindingStatement,
   SourceConnection,
   SourceDeclaration,
   SourceDocument,
@@ -33,7 +34,8 @@ import {
 } from "./registry.ts";
 import { validateLanguageDocument } from "./validator.ts";
 import { sampleCurve } from "./curve-sampler.ts";
-import { CONSTANTS } from "./expression.ts";
+import { CONSTANTS, evaluateExpression, formatExpression, freeNames, parseExpression, substituteNames } from "./expression.ts";
+import { resolveBindings } from "./bindings.ts";
 
 function located<T extends object>(value: T, start: Token, end: Token): T & SourceNode {
   Object.defineProperty(value, "span", {
@@ -249,6 +251,13 @@ export function parseSyntax(source: string): SourceDocument {
     const start = take("identifier", undefined, "expected a statement");
     if (start.value === "subtitle") {
       return located({ type: "subtitle", value: quoted() }, start, tokens[index - 1]);
+    }
+    if (start.value === "let") {
+      // `let card = 260`. The tokenizer has already read everything after '='
+      // as one expression, so the name and the expression are two tokens.
+      const name = identifier(undefined, "expected a name after 'let'");
+      const expression = String(take("expression", undefined, `expected '=' and an expression for '${name}'`).value);
+      return located({ type: "binding", name, expression }, start, tokens[index - 1]);
     }
     if (start.value === "arrange") return arrangement(start);
     if (start.value === "align" && peek("identifier") && peek("(", undefined, 1)) {
@@ -592,6 +601,10 @@ function lowerScope(
   const scopes = [declarations, ...parentScopes];
 
   return statements.flatMap<SemanticStatement>((statement) => {
+    // Bindings draw nothing, and foldBindings has already removed them. Saying
+    // so here keeps the rest of this function narrowed to statements that
+    // produce something.
+    if (statement.type === "binding") return [];
     if (statement.type === "subtitle") return [copySpan({ type: "subtitle", value: statement.value }, statement)];
     if (statement.type === "arrangement") {
       const options = new Map(statement.properties.map((property) => [property.name, property.value]));
@@ -888,7 +901,69 @@ function lowerScope(
   });
 }
 
-export function lowerSyntax(sourceDocument: SourceDocument): DiagramDocument {
+
+/**
+ * Resolves `let` bindings and folds them into the document.
+ *
+ * Bindings are constants, so this happens while the document is read: every
+ * expression whose names are all bound becomes a number, and the binding
+ * statements themselves disappear because they draw nothing. An expression with
+ * a name this pass cannot supply — `t` in a plotted curve — is left alone for
+ * whoever binds it later.
+ *
+ * A document with no bindings takes the early return and is untouched.
+ */
+function foldBindings(document: SourceDocument): SourceDocument {
+  const declared = document.diagram.statements.filter(
+    (statement): statement is SourceBindingStatement => statement.type === "binding",
+  );
+  if (declared.length === 0) return document;
+
+  const values = resolveBindings(declared.map(({ name, expression }) => ({ name, source: expression })));
+  const environment = Object.fromEntries(values);
+
+  /**
+   * Folds one expression. A fully bound one becomes its value; one that still
+   * has a name this pass cannot supply — `t` in a plotted curve — keeps its
+   * expression with the known parts substituted in.
+   */
+  const foldExpression = (source: string): number | string => {
+    const node = parseExpression(source);
+    const unbound = [...freeNames(node)].filter((name) => !(name in environment));
+    if (unbound.length === 0) return evaluateExpression(node, environment);
+    return formatExpression(substituteNames(node, values));
+  };
+
+  const fold = (statements: readonly SourceStatement[]): SourceStatement[] => statements
+    .filter((statement) => statement.type !== "binding")
+    .map((statement) => {
+      // A tuple written after '=' holds expressions rather than literals. Only
+      // an expression can put a string in a tuple — every kind that accepts one
+      // requires numbers — so a string element is one by construction.
+      if (statement.type === "property" && statement.valueKind === "tuple" && Array.isArray(statement.value)) {
+        const folded = statement.value.map((item) => (typeof item === "string" ? foldExpression(item) : item));
+        return copySpan({ ...statement, value: folded as SourcePropertyValue }, statement);
+      }
+      if (statement.type === "property" && statement.valueKind === "expression") {
+        const folded = foldExpression(String(statement.value));
+        return typeof folded === "number"
+          ? copySpan({ ...statement, value: folded, valueKind: "number" as const }, statement)
+          : copySpan({ ...statement, value: folded }, statement);
+      }
+      if (statement.type === "declaration") {
+        return copySpan({ ...statement, statements: fold(statement.statements) }, statement);
+      }
+      return statement;
+    });
+
+  return {
+    ...document,
+    diagram: copySpan({ ...document.diagram, statements: fold(document.diagram.statements) }, document.diagram),
+  };
+}
+
+export function lowerSyntax(input: SourceDocument): DiagramDocument {
+  const sourceDocument = foldBindings(input);
   validateLanguageDocument(sourceDocument);
   const imports = new Map(sourceDocument.imports.map((import_) => [import_.alias, import_.source]));
   const templates = new Map<string, SourceDeclaration>(sourceDocument.diagram.statements

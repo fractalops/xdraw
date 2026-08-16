@@ -368,6 +368,60 @@ export function evaluateExpression(node: ExpressionNode, environment: Readonly<R
   throw new ExpressionError(`unsupported expression node '${(node as { kind: string }).kind}'`, 0);
 }
 
+
+/**
+ * Replaces every free name the environment supplies with its value, leaving the
+ * rest of the tree alone. Used to fold document-level bindings into expressions
+ * that still have a variable to be bound later, such as `t` in a plotted curve.
+ */
+export function substituteNames(
+  node: ExpressionNode,
+  values: ReadonlyMap<string, number>,
+): ExpressionNode {
+  switch (node.kind) {
+    case "number": return node;
+    case "name": {
+      const value = values.get(node.name);
+      return value === undefined ? node : { kind: "number", value };
+    }
+    case "negate": return { kind: "negate", operand: substituteNames(node.operand, values) };
+    case "binary": return {
+      kind: "binary",
+      operator: node.operator,
+      left: substituteNames(node.left, values),
+      right: substituteNames(node.right, values),
+    };
+    case "call": return {
+      kind: "call",
+      name: node.name,
+      args: node.args.map((argument) => substituteNames(argument, values)),
+      offset: node.offset,
+    };
+  }
+  return node;
+}
+
+/**
+ * Prints an expression so that it parses back to the same tree.
+ *
+ * Every compound is parenthesised rather than consulting precedence. The output
+ * is machine-written and read by the parser rather than by a person, so being
+ * obviously correct is worth more than being tidy — and parentheses cost no
+ * nodes, since a parenthesised group returns its inner node.
+ */
+export function formatExpression(node: ExpressionNode): string {
+  switch (node.kind) {
+    // A substituted value may be negative, and a bare `-5` beside an operator
+    // would reparse as a subtraction. Parentheses make it a term again.
+    case "number": return node.value < 0 ? `(${node.value})` : String(node.value);
+    case "name": return node.name;
+    case "negate": return `(-${formatExpression(node.operand)})`;
+    case "binary": return `(${formatExpression(node.left)} ${node.operator} ${formatExpression(node.right)})`;
+    case "call": return `${node.name}(${node.args.map(formatExpression).join(", ")})`;
+  }
+  return "";
+}
+
 /** Identifiers an expression depends on, excluding the built-in constants. */
 export function freeNames(node: ExpressionNode, found = new Set<string>()): Set<string> {
   if (node.kind === "name" && !CONSTANTS.has(node.name)) found.add(node.name);

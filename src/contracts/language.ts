@@ -84,7 +84,14 @@ export interface SourceInvocation extends SourceNode {
 
 export type SourceConstructorCall = SourceDeclaration | SourceInvocation;
 
+export interface SourceBindingStatement extends SourceNode {
+  type: "binding";
+  name: string;
+  expression: string;
+}
+
 export type SourceStatement =
+  | SourceBindingStatement
   | SourceProperty
   | SourceSubtitle
   | SourceArrangement

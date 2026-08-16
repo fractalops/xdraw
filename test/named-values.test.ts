@@ -1,0 +1,89 @@
+// `let` in a document. The resolver's own contract is in test/bindings.test.ts;
+// what matters here is that a bound name reaches the places a number is written,
+// including an expression that still has a variable of its own to be bound.
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { compile, parse } from "../src/index.ts";
+
+const element = (source: string, id: string) => {
+  const found = compile(parse(source)).toJSON().elements.find((e) => e.id === id);
+  assert.ok(found, `expected an element '${id}'`);
+  return found as unknown as Record<string, number | string>;
+};
+
+test("a bound name reaches a numeric property", () => {
+  const source = `diagram "" {
+    let base = 3
+    let emphasis = base * 2
+    a: rectangle "A" { at (60, 200); stroke-width = base }
+    b: rectangle "B" { at (60, 400); stroke-width = emphasis }
+  }`;
+  assert.equal(element(source, "a:frame").strokeWidth, 3);
+  assert.equal(element(source, "b:frame").strokeWidth, 6);
+});
+
+test("a bound name folds into an expression that keeps its own variable", () => {
+  // The curve's `t` is bound by the sampler, not by the document, so the fold
+  // has to replace `radius` and leave `t` alone rather than refusing.
+  const source = `use "xdraw/math" as math
+
+  diagram "" {
+    let radius = 60
+    mark: math.plot { at (0, 0); x = radius * cos(t); y = radius * sin(t); domain (0, tau) }
+  }`;
+  const mark = element(source, "mark:stroke");
+  assert.equal(Math.round(Number(mark.width)), 120, "a circle of the bound radius");
+  assert.equal(Math.round(Number(mark.height)), 120);
+});
+
+test("a document without bindings is untouched", () => {
+  // The fold pass returns early, so nothing that already worked can change.
+  const source = `diagram "" { a: rectangle "A" { at (10, 20); stroke-width 4 } }`;
+  assert.equal(element(source, "a:frame").strokeWidth, 4);
+});
+
+test("bindings resolve by dependency, not by the order they are written", () => {
+  const forwards = `diagram "" {
+    let a = 2
+    let b = a * 5
+    x: rectangle "X" { at (0, 0); stroke-width = b }
+  }`;
+  const backwards = `diagram "" {
+    let b = a * 5
+    let a = 2
+    x: rectangle "X" { at (0, 0); stroke-width = b }
+  }`;
+  assert.equal(element(forwards, "x:frame").strokeWidth, 10);
+  assert.equal(element(backwards, "x:frame").strokeWidth, 10);
+});
+
+test("a document error names the binding it belongs to", () => {
+  const document = (bindings: string) => `diagram "" {
+    ${bindings}
+    x: rectangle "X" { at (0, 0) }
+  }`;
+  assert.throws(() => parse(document("let a = b + 1\n    let b = a + 1")), /a -> b -> a/);
+  assert.throws(() => parse(document("let a = a + 1")), /a -> a/);
+  assert.throws(() => parse(document("let a = mystery * 2")), /unknown name 'mystery'.*'a'/);
+  assert.throws(() => parse(document("let a = 1\n    let a = 2")), /'a' is bound more than once/);
+  assert.throws(() => parse(document("let a = 1 / 0")), /'a' is not a finite number/);
+});
+
+test("an incomplete expression runs into the statement after it", () => {
+  // An expression has no closing delimiter — it ends where the grammar ends it
+  // — so `let a = 1 +` continues onto the next line and takes the following
+  // declaration's name as its right operand. The document is still rejected,
+  // but the complaint lands on the statement that got eaten rather than on the
+  // expression that was left unfinished. That is the cost of not delimiting.
+  const source = `diagram "" {
+    let a = 1 +
+    x: rectangle "X" { at (0, 0) }
+  }`;
+  assert.throws(() => parse(source), /expected a statement/);
+});
+
+test("'let' without a name or an expression says so", () => {
+  assert.throws(() => parse(`diagram "" { let }`), /expected a name after 'let'/);
+  assert.throws(() => parse(`diagram "" { let a }`), /expected '=' and an expression for 'a'/);
+});

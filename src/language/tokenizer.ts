@@ -86,6 +86,53 @@ function expressionFailure(source: string, offset: number, error: unknown): stri
   return error instanceof Error ? error.message : "expected an expression after '='";
 }
 
+
+interface ComputedPair {
+  readonly open: number;
+  readonly comma: number;
+  readonly close: number;
+  readonly left: string;
+  readonly right: string;
+}
+
+/**
+ * Reads `(a, b)` after an `=`, where a and b are expressions.
+ *
+ * A single parenthesised expression looks the same until a top-level comma
+ * appears, and an expression can never contain one, so the comma is the whole
+ * test. Anything else — no parenthesis, no comma, more than one comma —
+ * returns null and the caller reads one expression as usual.
+ */
+function computedPair(source: string, from: number): ComputedPair | null {
+  let index = from;
+  while (index < source.length && /\s/.test(source[index])) index += 1;
+  if (source[index] !== "(") return null;
+  const open = index;
+  let depth = 0;
+  let comma = -1;
+  for (index = open; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "(") depth += 1;
+    else if (char === ")") {
+      depth -= 1;
+      if (depth === 0) {
+        if (comma === -1) return null;
+        return {
+          open, comma, close: index,
+          left: source.slice(open + 1, comma),
+          right: source.slice(comma + 1, index),
+        };
+      }
+    } else if (char === "," && depth === 1) {
+      if (comma !== -1) return null;
+      comma = index;
+    } else if (char === '"' || char === "\n") {
+      return null;
+    }
+  }
+  return null;
+}
+
 export function tokenize(source: string): TokenList {
   const tokens: Token[] = [];
   const comments: Token[] = [];
@@ -168,6 +215,19 @@ export function tokenize(source: string): TokenList {
       // two numbers the way this tokenizer would read it.
       const start = offset;
       offset += 1;
+      const pair = computedPair(source, offset);
+      if (pair) {
+        // `at = (a, b)`. A pair is two expressions, and an expression cannot
+        // contain a top-level comma, so the comma is what tells them apart from
+        // a single parenthesised expression such as `(t + 1) * 2`.
+        tokens.push(token(source, starts, "(", "(", start, pair.open + 1));
+        tokens.push(token(source, starts, "expression", pair.left.trim(), pair.open + 1, pair.comma));
+        tokens.push(token(source, starts, ",", ",", pair.comma, pair.comma + 1));
+        tokens.push(token(source, starts, "expression", pair.right.trim(), pair.comma + 1, pair.close));
+        tokens.push(token(source, starts, ")", ")", pair.close, pair.close + 1));
+        offset = pair.close + 1;
+        continue;
+      }
       let parsed;
       try {
         parsed = parseExpressionPrefix(source.slice(offset));

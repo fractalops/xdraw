@@ -19,8 +19,10 @@ import {
   MAXIMUM_NODES,
   type ExpressionNode,
   evaluateExpression,
+  formatExpression,
   freeNames,
   parseExpression,
+  substituteNames,
   validateExpression,
 } from "../src/language/expression.ts";
 
@@ -299,6 +301,44 @@ test("property: a rejection always points inside the source it was given", () =>
       );
     }
   }), { numRuns: RUNS });
+});
+
+test("property: printing an expression and reading it back means the same thing", () => {
+  // formatExpression exists so a binding can be folded into an expression that
+  // still has a free variable. If printing and reparsing changed the meaning,
+  // every such fold would quietly alter the drawing.
+  fc.assert(fc.property(expression, fc.double({ min: -20, max: 20, noNaN: true }), (source, t) => {
+    const original = parseExpression(source);
+    const printed = formatExpression(original);
+    assert.equal(
+      Object.is(evaluateExpression(parseExpression(printed), { t }), evaluateExpression(original, { t })),
+      true,
+      `${source} printed as ${printed}`,
+    );
+  }), { numRuns: RUNS });
+});
+
+test("property: substitution replaces the names it is given and nothing else", () => {
+  fc.assert(fc.property(
+    expression,
+    fc.double({ min: -30, max: 30, noNaN: true }),
+    (source, bound) => {
+      const original = parseExpression(source);
+      const substituted = substituteNames(original, new Map([["t", bound]]));
+      assert.deepEqual([...freeNames(substituted)], [], "the substituted name must be gone");
+      // Substituting for t must agree with evaluating at t.
+      assert.equal(
+        Object.is(evaluateExpression(substituted, {}), evaluateExpression(original, { t: bound })),
+        true,
+      );
+      // And the printed form of the substituted tree must survive reparsing,
+      // which is what the fold pass actually relies on.
+      assert.equal(
+        Object.is(evaluateExpression(parseExpression(formatExpression(substituted)), {}), evaluateExpression(substituted, {})),
+        true,
+      );
+    },
+  ), { numRuns: RUNS });
 });
 
 test("property: a validated expression over bound names always evaluates", () => {

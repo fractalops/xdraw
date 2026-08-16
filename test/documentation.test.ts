@@ -13,6 +13,7 @@ for (const file of [
   "docs/excalidraw-plus-integration.md",
   "docs/curve-gallery.md",
   "docs/language-reference.md",
+  "docs/named-values.md",
   "docs/plotting.md",
   "docs/spec.md",
 ]) {

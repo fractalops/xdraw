@@ -63,6 +63,19 @@ Use `at (x, y)` for explicit placement and `size (width, height)` for explicit
 dimensions. Most diagrams need neither because XDraw measures and arranges
 their content.
 
+Name a number with `let` and reuse it wherever a number is written. Bindings
+resolve by what they depend on rather than by where they appear, and a cycle or
+an unbound name is a document error. See [Named values](named-values.md).
+
+```xdraw
+diagram "Sized once" {
+  let unit = 56
+  let card = unit * 5
+  first: rectangle "Ingest" { at (100, 120); size = (card, unit * 1.6) }
+  second: rectangle "Parse" { at (100, 260); size = (card, unit * 1.6) }
+}
+```
+
 ## Arrange Elements
 
 At diagram scope, use `compact`, `grid`, or `layered`:

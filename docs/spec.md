@@ -264,6 +264,24 @@ Node content may use `body` or `description`, but not both. `description` is
 the architecture-oriented spelling of the same content role. Architecture
 elements and relationships may also declare `technology`.
 
+### 7.3 Named values
+
+A `let` statement binds a name to a number for the document:
+
+```text
+binding = "let", identifier, "=", expression
+```
+
+Bindings resolve by dependency rather than by source order, so a name may be
+used before it is bound. A binding whose expression depends on itself, directly
+or through others, is invalid, as is a name used but never bound, a name bound
+more than once, and a binding that does not evaluate to a finite number.
+
+A bound name may appear in any expression. Where every free name of an
+expression is bound, the expression becomes its value; where a name remains that
+another binder supplies — `t` in a plotted curve — the bound parts are
+substituted and the expression is preserved.
+
 ## 8. Imports and Standard Libraries
 
 Imports bind a library to an alias. Aliases must be unique. Imported
