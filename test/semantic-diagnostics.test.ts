@@ -47,6 +47,8 @@ const CASES: ReadonlyArray<readonly [code: string, source: string]> = [
   ["XD1109", wrap('a: rectangle "A"\nb: rectangle "B"\ndistribute x (a, b)')],
   ["XD1209", wrap('a: rectangle "A" { size (0, 10) }')],
   ["XD1210", wrap('a: rectangle "A" { size (20, 60) }')],
+  ["XD1211", wrap('a: rectangle "A" { size (300, 30) }')],
+  ["XD1228", wrap('a: freedraw { at (0, 0); points ((0,0),(200,0)); background "#c7d2fe" }')],
   ["XD1212", 'use "xdraw/annotations" as ann\ndiagram "Checks" { n: ann.note "Floating" }'],
   ["XD1213", wrap("arrange grid { width 0 }")],
   ["XD1232", wrap('a: rectangle "A"\nb: rectangle "B"\na -> b { width 0 }')],

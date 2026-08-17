@@ -230,6 +230,11 @@ test("a node smaller than twice its padding still draws", () => {
     );
   }
 
+  // A label on a node this short would be laid out taller than the box holding
+  // it, so XD1211 says so rather than the picture quietly going wrong. That is
+  // asserted in test/semantic-diagnostics.test.ts; here we only need the drawing
+  // not to throw.
+
   // A node with room to spare keeps the padding it asked for, so nothing that
   // already fitted moves.
   const roomy = card("roomy", box(0, 0, 300, 200), { title: "Roomy" });

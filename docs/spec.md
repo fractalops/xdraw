@@ -652,6 +652,18 @@ absent and `false` when they are present.
 A freehand element may contain at most 5,000 points. A document may contain at
 most 50,000 freehand points. Coordinate magnitudes may not exceed 1,000,000.
 
+A `background` paints a freehand element only when its stroke closes, meaning
+its first and last points lie within 8 units of each other. A `background` on a
+stroke whose ends are further apart is invalid, because it would have no effect
+in any renderer. A fill is drawn solid whatever `fill-style` requests when a
+preview is rendered locally; `fill-style` is carried into the scene for the
+editor to honour.
+
+A node whose height is 40 or less and which carries a title or a body is
+reported, as its label cannot fit inside it. Where a node is smaller than twice
+its padding, the padding is reduced to fit rather than the element being
+refused.
+
 ### 15.4 Assets and images
 
 `asset` declares a relative file path or data URL. `image` and

@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { compile, parse } from "../src/index.ts";
+import { renderSceneSvg } from "../src/io/local-renderer.ts";
 
 const TAU = 6.283185307179586;
 
@@ -362,4 +363,31 @@ test("a closed curve can be filled", () => {
 
   // An unfilled plot keeps drawing as it did.
   assert.equal(stroke(withImport(lissajous())).backgroundColor, "transparent");
+});
+
+test("a filled closed curve reaches the rendered image, not just the JSON", () => {
+  // Asserting backgroundColor on the element was not enough: the local renderer
+  // drew a freedraw as its outline alone, so every preview this repository
+  // produces showed an empty ring while the JSON claimed a fill.
+  const closed = `diagram "Filled" {
+    ring: freedraw {
+      at (200, 200)
+      points ((0,0),(100,0),(100,100),(0,100),(0,0))
+      background "#c7d2fe"
+    }
+  }`;
+  assert.match(renderSceneSvg(compile(parse(closed)).toJSON()), /c7d2fe/u);
+
+  // An open stroke with a fill no longer compiles at all, so there is no case
+  // left where a document claims a fill and gets none: XD1228 covers it, and
+  // test/semantic-diagnostics.test.ts asserts that. A stroke that closes within
+  // the 8px Excalidraw allows does fill.
+  const nearlyClosed = `diagram "Nearly" {
+    ring: freedraw {
+      at (200, 200)
+      points ((0,0),(100,0),(100,100),(0,100),(0,5))
+      background "#fde68a"
+    }
+  }`;
+  assert.match(renderSceneSvg(compile(parse(nearlyClosed)).toJSON()), /fde68a/u);
 });

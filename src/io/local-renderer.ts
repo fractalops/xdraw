@@ -94,6 +94,13 @@ function points(value: unknown, label: string): Point[] {
   });
 }
 
+/**
+ * How far apart a stroke's ends may be and still count as closed, matching
+ * Excalidraw's own LINE_CONFIRM_THRESHOLD. A stroke wider than this at the seam
+ * is not filled there either, so the two agree.
+ */
+const LOOP_THRESHOLD = 8;
+
 const ELEMENT_TYPES: ReadonlySet<string> = new Set<LocalElementType>([
   "arrow", "diamond", "ellipse", "frame", "freedraw", "image", "line", "rectangle", "text",
 ]);
@@ -261,6 +268,32 @@ function linearPoints(element: RenderableSceneElement): string {
   return (element.points ?? []).map(([x, y]) => `${element.x + x},${element.y + y}`).join(" ");
 }
 
+/**
+ * The interior of a closed stroke, drawn under it.
+ *
+ * `freeDrawPath` returns the stroke's outline, so on its own a plotted circle is
+ * a ring with nothing inside. Excalidraw fills the polygon through the raw
+ * points when the stroke closes, and closes means first and last point within
+ * `LOOP_THRESHOLD` of each other; matching that keeps a preview agreeing with
+ * what the editor shows rather than approximating it differently.
+ *
+ * The fill is solid whatever `fill-style` asked for, which is what this renderer
+ * already does for every other shape: it has no hatch generator.
+ */
+function freeDrawFill(element: RenderableSceneElement, rotation: string): string {
+  const background = element.backgroundColor;
+  if (!background || background === "transparent") return "";
+  const points = element.points ?? [];
+  if (points.length < 3) return "";
+  const [firstX, firstY] = points[0];
+  const [lastX, lastY] = points[points.length - 1];
+  if (Math.hypot(lastX - firstX, lastY - firstY) > LOOP_THRESHOLD) return "";
+  const x = element.x ?? 0;
+  const y = element.y ?? 0;
+  const path = points.map(([px, py], index) => `${index === 0 ? "M" : "L"} ${x + px} ${y + py}`).join(" ");
+  return `<path d="${path} Z" fill="${escape(background)}" stroke="none" opacity="${(element.opacity ?? 100) / 100}"${rotation}/>`;
+}
+
 function freeDrawPath(element: RenderableSceneElement): string {
   const pressures = element.pressures ?? [];
   const input = (element.points ?? []).map(([x, y], index) => (
@@ -308,7 +341,8 @@ function renderElement(
     return `<polygon points="${points}" ${style}${rotation}/>`;
   }
   if (element.type === "freedraw") {
-    return `<path d="${freeDrawPath(element)}" fill="${escape(element.strokeColor ?? "#1f2937")}" opacity="${(element.opacity ?? 100) / 100}"${rotation}/>`;
+    const stroke = `<path d="${freeDrawPath(element)}" fill="${escape(element.strokeColor ?? "#1f2937")}" opacity="${(element.opacity ?? 100) / 100}"${rotation}/>`;
+    return `${freeDrawFill(element, rotation)}${stroke}`;
   }
   if (["arrow", "line"].includes(element.type)) {
     const markerStart = element.startArrowhead ? ' marker-start="url(#arrow-start)"' : "";

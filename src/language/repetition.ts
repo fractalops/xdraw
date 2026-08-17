@@ -107,12 +107,28 @@ function repetitionsOf(statement: SemanticStatement): readonly Repetition[] | nu
  * template parameter is written `${name}` as well, and repetition runs before
  * templates expand, so an unknown name here is usually one the template pass
  * will bind.
+ *
+ * A qualified name requires its `$`, and a bare `index` or `count` does not,
+ * because that is what reaches here: the parser normalises `${name}` to
+ * `{name}` in a title and its pattern admits no dots. Matching the unmarked form
+ * for dotted names as well turned `body "the {row.index} column"` into
+ * `the 0 column`, and braces are ordinary prose in TeX, in code, and in much of
+ * what a diagram carries.
  */
 function substituteInstance(value: string, repetition: Repetition, id = ""): string {
   const names = instanceScope(id, repetition);
   return value
+    // `interpolationValue` in the parser rewrites `${name}` to `{name}` in a
+    // title, so the unmarked form has to be honoured for the names it could have
+    // come from. Its regex admits no dots, so a qualified name still carries its
+    // `$` when it arrives and only the marked form is matched for those. That is
+    // what keeps prose like "the {row.index} column" as prose.
     .replace(/\$?\{each\}/gu, repetition.item ?? String(repetition.index))
-    .replace(/\$?\{([A-Za-z_][A-Za-z0-9_.-]*)\}/gu, (whole, name: string) => {
+    .replace(/\$?\{(index|count)\}/gu, (whole, name: string) => {
+      const bound = names.get(name);
+      return bound === undefined ? whole : String(bound);
+    })
+    .replace(/\$\{([A-Za-z_][A-Za-z0-9_.-]*)\}/gu, (whole, name: string) => {
       const bound = names.get(name);
       return bound === undefined ? whole : String(bound);
     });

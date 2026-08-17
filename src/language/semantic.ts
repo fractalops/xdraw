@@ -28,6 +28,7 @@ import type {
 import type {
   Diagnostic,
   DiagnosticNode,
+  Point,
   SourceLocation,
   SourceSpan,
 } from "../contracts/foundation.ts";
@@ -67,6 +68,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isGeometryStatement(statement: SemanticStatement): statement is GeometryStatement {
   return ["alignment", "distribution", "offset", "match-size", "rotation", "snap"].includes(statement.type);
+}
+
+/**
+ * Why a background cannot paint this stroke, or nothing when it can.
+ *
+ * Excalidraw fills a freehand shape only when its ends meet, within the 8px it
+ * treats as closed, and leaves it hollow otherwise. A fill on an open curve
+ * therefore does nothing in the editor and nothing in a local preview, so it is
+ * better refused than accepted and ignored.
+ */
+function openStrokeFill(background: unknown, points: readonly Point[] | undefined): string | null {
+  if (typeof background !== "string" || background === "transparent") return null;
+  if (!points || points.length < 2) return null;
+  const [firstX, firstY] = points[0];
+  const [lastX, lastY] = points[points.length - 1];
+  const gap = Math.hypot(lastX - firstX, lastY - firstY);
+  if (gap <= 8) return null;
+  return `background needs a closed stroke, and this one's ends are ${gap.toFixed(1)} apart, beyond the 8 that count as closed`;
 }
 
 function isDecisionBranch(statement: SemanticStatement): statement is DecisionBranchStatement {
@@ -680,12 +699,18 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
         if (typeof statement.simulatePressure !== "boolean") {
           state.diagnostics.push(diagnostic("XD1226", "freedraw simulate-pressure must be true or false", statement));
         }
+        const unfillable = openStrokeFill(statement.attributes?.background, points);
+        if (unfillable) state.diagnostics.push(diagnostic("XD1228", unfillable, statement));
       }
     },
   },
   {
     family: "node-size",
     apply(statement, _context, state) {
+      const hasLabel = (node: SemanticStatement & { title?: unknown; statements?: readonly SemanticStatement[] }): boolean => (
+        (typeof node.title === "string" && node.title.length > 0)
+        || (node.statements ?? []).some((child) => child.type === "body")
+      );
       if (statement.type === "node" && statement.size) {
         const [width, height] = statement.size;
         if (!(width > 0) || !(height > 0)) {
@@ -694,6 +719,13 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
           state.diagnostics.push(diagnostic("XD1244", "decision size must be at least 96 by 72", statement));
         } else if (statement.kind !== "junction" && width <= 40) {
           state.diagnostics.push(diagnostic("XD1210", "node width must be greater than 40 to contain its label", statement));
+        } else if (statement.kind !== "junction" && height <= 40 && hasLabel(statement)) {
+          // The width rule's missing half. A short node used to fail loudly when
+          // its padding could not fit, and now the padding gives way instead, so
+          // nothing else would notice that a label is being laid out taller than
+          // the box that holds it. Gated on there being a label, because an
+          // unlabelled node this short is a tick mark and perfectly legitimate.
+          state.diagnostics.push(diagnostic("XD1211", "node height must be greater than 40 to contain its label", statement));
         }
       }
     },

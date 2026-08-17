@@ -237,6 +237,27 @@ test("a qualified instance name substitutes in a string as it does in an express
   );
 });
 
+test("a qualified name in prose keeps its braces", () => {
+  // Matching the unmarked form for dotted names turned `the {row.index} column`
+  // into `the 0 column`. The parser only de-dollars undotted names, so a
+  // qualified one always arrives marked and the unmarked spelling is prose.
+  const drawing = compile(parse(`diagram "Prose" {
+    row: rectangle "R" {
+      count 2
+      at = (100, 100 + 200 * row.index)
+      size (460, 160)
+      body "the {row.index} column, and \${row.index} substituted"
+    }
+  }`)).toJSON();
+  const bodies = drawing.elements
+    .filter((item) => item.id.endsWith(":body"))
+    .map((item) => (item as unknown as { text: string }).text);
+  assert.equal(bodies.length, 2);
+  assert.match(bodies[0], /the \{row\.index\} column/u, "the unmarked form is prose");
+  assert.match(bodies[0], /and 0 substituted/u, "the marked form is a value");
+  assert.match(bodies[1], /and 1 substituted/u);
+});
+
 test("a name no repeat supplies is left for the template pass", () => {
   // Repetition runs before templates expand, and a template parameter is
   // written the same way, so an unknown name must survive rather than be
