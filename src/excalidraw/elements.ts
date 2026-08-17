@@ -1,5 +1,6 @@
 import { nonceFor, seedFor } from "../language/identity.ts";
 import { measureTextWidth } from "../text/metrics.ts";
+import type { BorderShape } from "../geometry.ts";
 import type { Bounds, Point } from "../contracts/foundation.ts";
 import type {
   ArrowElement,
@@ -82,21 +83,32 @@ export function diamond(
 }
 
 /**
- * Node kinds whose outline is the ellipse inscribed in their box rather than the
- * box itself.
+ * The outline each node kind is drawn with, for the kinds that are not boxes.
  *
  * Two things need this answer and used to decide it separately: the adapter, to
  * pick which factory draws the frame, and the router, to work out where a
  * connector meets the shape. Keeping them apart is how connectors came to stop
  * short of every ellipse on a diagonal, since only one of the two had been told.
- * A kind absent from here is treated as a box, which is right for a rectangle
- * and wrong for anything round, so a new round kind belongs in this set.
+ *
+ * A kind absent from here is met as a box, which is right for a rectangle and
+ * wrong for anything else, so a kind with a different border belongs here. That
+ * this table sits in the compiler rather than in a kind's declared lowering is
+ * the reason a new library cannot bring its own border.
  */
-export const ELLIPTICAL_NODE_KINDS: ReadonlySet<string> = new Set(["ellipse"]);
+const NODE_OUTLINES: ReadonlyMap<string, BorderShape> = new Map([
+  ["ellipse", "ellipse"],
+  ["diamond", "diamond"],
+  ["decision", "diamond"],
+]);
 
-/** Whether this node kind is drawn, and met by connectors, as an ellipse. */
+/** Which border a connector should meet for this node kind. */
+export function outlineOfKind(kind: unknown): BorderShape {
+  return (typeof kind === "string" ? NODE_OUTLINES.get(kind) : undefined) ?? "box";
+}
+
+/** Whether this node kind is drawn as an ellipse rather than a box. */
 export function isEllipticalKind(kind: unknown): boolean {
-  return typeof kind === "string" && ELLIPTICAL_NODE_KINDS.has(kind);
+  return outlineOfKind(kind) === "ellipse";
 }
 
 export function ellipse(

@@ -1,5 +1,5 @@
 import { card, connect } from "../excalidraw/components.ts";
-import { isEllipticalKind } from "../excalidraw/elements.ts";
+import { outlineOfKind } from "../excalidraw/elements.ts";
 import { anchor, borderPoint, box } from "../geometry.ts";
 import type { BorderShape } from "../geometry.ts";
 import { splitEndpoint } from "./endpoints.ts";
@@ -108,7 +108,7 @@ function routeWithWaypoints(start: Point, waypoints: readonly Point[], end: Poin
 /** The outline a connector should meet for this element. */
 function borderShape(state: SceneGraph, id: string): BorderShape {
   const semantic = state.objects?.get(id)?.semantic as { kind?: unknown } | undefined;
-  return isEllipticalKind(semantic?.kind) ? "ellipse" : "box";
+  return outlineOfKind(semantic?.kind);
 }
 
 function bindingElementId(state: SceneGraph, id: string): string {

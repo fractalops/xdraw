@@ -72,8 +72,15 @@ export const anchor: Record<"left" | "right" | "top" | "bottom" | "center", (bou
   ],
 };
 
-/** Which outline a connector should meet: a box's, or the ellipse inside it. */
-export type BorderShape = "box" | "ellipse";
+/**
+ * Which outline a connector should meet.
+ *
+ * Excalidraw has three native shapes and each has a different border, so a
+ * connector aiming at a shape's centre crosses a different curve for each. Using
+ * the box for all three put every diagonal connector off by a wide margin on the
+ * other two: outside an ellipse, and inside a diamond.
+ */
+export type BorderShape = "box" | "ellipse" | "diamond";
 
 /**
  * Where a ray from the centre of `bounds` towards `target` leaves the border.
@@ -89,17 +96,18 @@ export function borderPoint(bounds: Bounds, target: Point, shape: BorderShape = 
   const dx = target[0] - centre[0];
   const dy = target[1] - centre[1];
   if (dx === 0 && dy === 0) return centre;
+  // All three agree on the cardinal axes and diverge everywhere else, which is
+  // why using one for all of them looked correct until a connector ran diagonally.
+  const a = bounds.width / 2;
+  const b = bounds.height / 2;
   const scale = shape === "ellipse"
-    // On a diagonal a box corner stands well outside the ellipse inscribed in
-    // it — half again as far, for a circle — so using the box for both left a
-    // visible gap between a connector and the shape it was joining. The two
-    // agree only on the cardinal axes, which is why an ellipse looked right
-    // there and nowhere else.
-    ? 1 / Math.hypot(dx / (bounds.width / 2), dy / (bounds.height / 2))
-    : Math.min(
-      dx === 0 ? Number.POSITIVE_INFINITY : bounds.width / 2 / Math.abs(dx),
-      dy === 0 ? Number.POSITIVE_INFINITY : bounds.height / 2 / Math.abs(dy),
-    );
+    ? 1 / Math.hypot(dx / a, dy / b)
+    : shape === "diamond"
+      ? 1 / (Math.abs(dx) / a + Math.abs(dy) / b)
+      : Math.min(
+        dx === 0 ? Number.POSITIVE_INFINITY : a / Math.abs(dx),
+        dy === 0 ? Number.POSITIVE_INFINITY : b / Math.abs(dy),
+      );
   return [centre[0] + dx * scale, centre[1] + dy * scale];
 }
 

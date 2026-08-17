@@ -432,6 +432,39 @@ test("a straight run meets an ellipse's own outline, not its bounding box", () =
   }
 });
 
+test("each native shape is met on its own border", () => {
+  // Excalidraw has three shapes and each has a different border. Using the box
+  // for all three left a connector outside an ellipse and inside a diamond, and
+  // only on diagonals, which is why it looked right on the cardinal axes.
+  const drawing = compile(parse(`diagram "Shapes" {
+    box: rectangle "box" { at (100, 400); size (140, 90) }
+    round: ellipse "round" { at (400, 400); size (140, 90) }
+    dia: diamond "dia" { at (700, 400); size (140, 100) }
+    far: rectangle "far" { at (400, 80); size (120, 72) }
+    box -- far
+    round -- far
+    dia -- far
+  }`)).toJSON();
+  const frame = (id) => drawing.elements.find((item) => item.id === `${id}:frame`);
+  const startOf = (index) => {
+    const line = drawing.elements.filter((item) => item.type === "line")[index];
+    return [line.x + line.points[0][0], line.y + line.points[0][1]];
+  };
+  const unit = (id, [x, y]) => {
+    const e = frame(id);
+    return [(x - (e.x + e.width / 2)) / (e.width / 2), (y - (e.y + e.height / 2)) / (e.height / 2)];
+  };
+
+  const [bx, by] = unit("box", startOf(0));
+  assert.ok(Math.abs(Math.max(Math.abs(bx), Math.abs(by)) - 1) < 0.001, "a box is met where the larger axis reaches 1");
+
+  const [rx, ry] = unit("round", startOf(1));
+  assert.ok(Math.abs(Math.hypot(rx, ry) - 1) < 0.001, `an ellipse is met on its own curve, got ${Math.hypot(rx, ry)}`);
+
+  const [dx, dy] = unit("dia", startOf(2));
+  assert.ok(Math.abs(Math.abs(dx) + Math.abs(dy) - 1) < 0.001, `a diamond is met on its own edge, got ${Math.abs(dx) + Math.abs(dy)}`);
+});
+
 test("an explicit anchor still means that side's midpoint", () => {
   const drawing = compile(parse(`diagram "Anchored" {
     hub: rectangle "" { at (460, 260); size (80, 80) }
