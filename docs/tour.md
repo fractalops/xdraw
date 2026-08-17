@@ -784,6 +784,46 @@ sampling near it is a matter of luck. The compiler finds it because dividing by
 a range that contains zero produces an unbounded range: the pole is a
 consequence of the arithmetic rather than something to be detected.
 
+### Giving a curve a reference frame
+
+There is no `axes` construct. A frame is built from the pieces already described:
+a stroke for each axis, a repeated stroke for the ticks, and a repeated text for
+the labels, each placed from its own index.
+
+![Two curves on labelled axes, one filled and one open](images/labelled-axes.png)
+
+```xdraw
+diagram "Axes" {
+  let x0 = 200
+  let y0 = 500
+  let unit = 88
+
+  xaxis: freedraw { at = (x0, y0); points ((-26, 0), (566, 0)); stroke-width 0.4 }
+
+  xtick: freedraw {
+    count 6
+    at = (x0 + unit * xtick.index, y0)
+    points ((0, 0), (0, 8))
+    stroke-width 0.4
+  }
+  xlabel: text "${index}" {
+    count 6
+    at = (x0 + unit * xlabel.index - 4, y0 + 18)
+    font-size 15
+  }
+}
+```
+
+Because the frame is arithmetic over `unit`, changing that one binding rescales
+the whole figure. Full source, with both axes and two curves, in
+[`examples/labelled-axes.xdraw`](../examples/labelled-axes.xdraw).
+
+Two limits are worth knowing before building one. A label can show its index but
+not a value computed from it, so ticks read `0` to `5` rather than `-3` to `3` or
+`pi/4`; interpolating an expression into a string is not yet possible. And a
+`background` fills a curve only when the stroke closes, within 8 units, so the
+region under an open curve cannot be shaded.
+
 ### Curves from a template
 
 A plot is described when the document is read and drawn afterwards, so a

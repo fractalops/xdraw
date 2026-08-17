@@ -4,7 +4,7 @@ diagram "Markers placed along a curve" {
   subtitle "Each label sits at a fraction of the curve's own length, not of its parameter"
 
   let cx = 620
-  let cy = 340
+  let cy = 420
   let reach = 260
 
   spiral: math.plot {
@@ -13,7 +13,7 @@ diagram "Markers placed along a curve" {
     y = 13 * t * sin(t)
     domain (0, 20)
     stroke "#0891b2"
-    stroke-width 3
+    stroke-width 1
   }
 
   start: text "start" {
