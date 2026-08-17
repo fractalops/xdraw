@@ -1,5 +1,5 @@
 import { card, connect } from "../excalidraw/components.ts";
-import { anchor, box } from "../geometry.ts";
+import { anchor, borderPoint, box } from "../geometry.ts";
 import { splitEndpoint } from "./endpoints.ts";
 import { inferredSides, routeConnection } from "./router.ts";
 import type {
@@ -159,8 +159,14 @@ export function renderConnection(
     const waypoints = parseWaypoints(connection.attributes.via);
     const adapterRoute = state.adapterRoutes.get(`${index}:${nodeIndex}`);
     const style = connectionStyle(connection.attributes.style);
-    const start = anchor[startSide](fromBounds);
-    const end = anchor[endSide](toBounds);
+    // A straight run whose sides were inferred meets each border where it
+    // actually crosses. Writing '@top' asks for that side's midpoint and still
+    // gets it, and routed styles keep midpoints because their segments leave
+    // perpendicular to the side.
+    const radial = (style === "straight" || style === "line")
+      && from.side === undefined && to.side === undefined;
+    const start = radial ? borderPoint(fromBounds, anchor.center(toBounds)) : anchor[startSide](fromBounds);
+    const end = radial ? borderPoint(toBounds, anchor.center(fromBounds)) : anchor[endSide](toBounds);
     if (waypoints) {
       if (!connection.generatedRoute) {
         state.diagnostics?.warn("XD2003", "connection via disables automatic obstacle routing", connection);

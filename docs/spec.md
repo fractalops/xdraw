@@ -436,7 +436,12 @@ The synonyms `north`, `east`, `south`, and `west` are accepted by the semantic
 model. Authors should prefer the five canonical spellings above.
 
 An anchor selects the attachment side and is not part of the referenced
-element's source ID.
+element's source ID. A written anchor attaches at that side's midpoint. When
+both endpoints of a `straight` or `line` connection omit their anchor, each end
+attaches where the segment between the two centres crosses the border, so
+several connectors leaving one element in different directions do not share a
+point. Routed styles always attach at the midpoint, because their first segment
+leaves perpendicular to the side.
 
 ## 10. Connections
 

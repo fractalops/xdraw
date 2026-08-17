@@ -375,3 +375,43 @@ test("dense routed connectors avoid unrelated node interiors", () => {
   const direct = [[120, 135], [520, 135]];
   assert.equal(measureRouteQuality([direct], [obstacle]).obstacleIntersections, 1);
 });
+
+test("a straight run meets each border where it crosses, not at a side midpoint", () => {
+  // Four spokes leaving a hub diagonally all resolve to the same cardinal side,
+  // so anchoring them at that side's midpoint made every one appear to start
+  // from a single point. A hub-and-spoke is the shape that shows it.
+  const drawing = compile(parse(`diagram "Radial" {
+    hub: rectangle "" { at (460, 260); size (80, 80) }
+    ne: rectangle "" { at (700, 100); size (80, 80) }
+    nw: rectangle "" { at (220, 100); size (80, 80) }
+    se: rectangle "" { at (700, 420); size (80, 80) }
+    sw: rectangle "" { at (220, 420); size (80, 80) }
+    hub -- ne
+    hub -- nw
+    hub -- se
+    hub -- sw
+  }`)).toJSON();
+  const starts = drawing.elements
+    .filter((item) => item.type === "line")
+    .map((item) => `${Math.round(item.x + item.points[0][0])},${Math.round(item.y + item.points[0][1])}`);
+  assert.equal(starts.length, 4);
+  assert.equal(new Set(starts).size, 4, `four spokes should leave four points, got ${starts.join(" ")}`);
+  // Each start is on the hub's border, never inside it.
+  for (const start of starts) {
+    const [x, y] = start.split(",").map(Number);
+    assert.ok(x === 460 || x === 540 || y === 260 || y === 340, `${start} is not on the hub border`);
+  }
+});
+
+test("an explicit anchor still means that side's midpoint", () => {
+  const drawing = compile(parse(`diagram "Anchored" {
+    hub: rectangle "" { at (460, 260); size (80, 80) }
+    ne: rectangle "" { at (700, 100); size (80, 80) }
+    hub@top -- ne@bottom
+  }`)).toJSON();
+  const line = drawing.elements.find((item) => item.type === "line");
+  assert.deepEqual(
+    [Math.round(line.x + line.points[0][0]), Math.round(line.y + line.points[0][1])],
+    [500, 260],
+  );
+});

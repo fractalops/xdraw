@@ -72,6 +72,26 @@ export const anchor: Record<"left" | "right" | "top" | "bottom" | "center", (bou
   ],
 };
 
+/**
+ * Where a ray from the centre of `bounds` towards `target` leaves the border.
+ *
+ * The four cardinal anchors answer "which side", not "where on it", so a hub
+ * with attachments in six directions gives the same midpoint to every connector
+ * that resolves to the same side, and they all appear to start from one point.
+ * A straight run between two shapes should meet each border where it genuinely
+ * crosses, which is what this returns.
+ */
+export function borderPoint(bounds: Bounds, target: Point): Point {
+  const centre = anchor.center(bounds);
+  const dx = target[0] - centre[0];
+  const dy = target[1] - centre[1];
+  if (dx === 0 && dy === 0) return centre;
+  const horizontal = dx === 0 ? Number.POSITIVE_INFINITY : bounds.width / 2 / Math.abs(dx);
+  const vertical = dy === 0 ? Number.POSITIVE_INFINITY : bounds.height / 2 / Math.abs(dy);
+  const scale = Math.min(horizontal, vertical);
+  return [centre[0] + dx * scale, centre[1] + dy * scale];
+}
+
 type AxisProperties =
   | { start: "x"; size: "width" }
   | { start: "y"; size: "height" };
