@@ -218,6 +218,32 @@ the usable coordinate range, is refused with a diagnostic rather than
 approximated. The [tour](docs/tour.md#plotting-curves) is the guide, and it
 also records what curves reach and where they stop.
 
+Curves share a frame, and a closed one encloses a region:
+
+![Two curves on labelled axes, one filled and one open](docs/images/labelled-axes.png)
+
+The frame is not a special construct. A row of ticks and its labels are one
+declaration each, placed from the instance's own index, so the whole figure moves
+by editing `unit`:
+
+```text
+xtick: freedraw {
+  count 6
+  at = (x0 + unit * xtick.index, y0)
+  points ((0, 0), (0, 8))
+  stroke "#475569"
+  stroke-width 0.4
+}
+xlabel: text "${index}" {
+  count 6
+  at = (x0 + unit * xlabel.index - 4, y0 + 18)
+  font-size 15
+}
+```
+
+Full source, both axes and both curves, in
+[`examples/labelled-axes.xdraw`](examples/labelled-axes.xdraw).
+
 Tables have measured columns, wrapped cells, and remain editable in Excalidraw:
 
 ![Editable table rendered by XDraw](docs/images/tables.png)

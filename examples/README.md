@@ -57,6 +57,7 @@ xdraw build examples/compiler-flow.xdraw
 |---|---|
 | `parametric-plots.xdraw` | A butterfly, a spirograph, a harmonograph and a Lissajous weave |
 | `curve-gallery.xdraw` | Six classical curves from the same constructor |
+| `labelled-axes.xdraw` | Two curves on a frame built from repeated strokes and labels |
 | `plot-tolerance.xdraw` | What the stated tolerance buys, at three settings |
 | `curve-markers.xdraw` | Markers placed at a distance along a drawn curve |
 | `templated-curves.xdraw` | One rose template, six parameterisations |
