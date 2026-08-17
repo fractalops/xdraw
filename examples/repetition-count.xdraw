@@ -1,0 +1,12 @@
+use "xdraw/palette" as palette
+
+diagram "One declaration, eleven elements" {
+  subtitle "count names instances by position, so index alone drives the step"
+
+  tick: rectangle "·" {
+    count 11
+    at = (90 + 92 * tick.index, 300 - 14 * tick.index)
+    size (76, 130)
+    style palette.success
+  }
+}

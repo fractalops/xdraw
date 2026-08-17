@@ -35,7 +35,8 @@ xdraw build examples/compiler-flow.xdraw
 | Example | What it explains |
 |---|---|
 | `named-values.xdraw` | A number named once and used everywhere it applies |
-| `repetition.xdraw` | One declaration expanded by `each` and by `count` |
+| `repetition.xdraw` | One declaration expanded by `each`, then addressed by name |
+| `repetition-count.xdraw` | One declaration expanded by `count`, stepped by index |
 | `measured-annotations.xdraw` | Positions taken from geometry the compiler has measured |
 
 ## Content
@@ -53,7 +54,7 @@ xdraw build examples/compiler-flow.xdraw
 
 | Example | What it explains |
 |---|---|
-| `parametric-plots.xdraw` | A butterfly, a harmonograph and a decaying wave |
+| `parametric-plots.xdraw` | A butterfly, a spirograph, a harmonograph and a Lissajous weave |
 | `curve-gallery.xdraw` | Six classical curves from the same constructor |
 | `plot-tolerance.xdraw` | What the stated tolerance buys, at three settings |
 | `curve-markers.xdraw` | Markers placed at a distance along a drawn curve |

@@ -1,34 +1,34 @@
 use "xdraw/palette" as palette
 
-diagram "One declaration, many elements" {
-  subtitle "A ring and a scale, each written once and placed from its own index"
+diagram "One declaration, nine elements" {
+  subtitle "Each service is placed from its own index, and each is addressable by name"
 
-  let hub = 380
-  let ring = 210
-  let spokes = 9
+  let cx = 560
+  let cy = 500
+  let wide = 400
+  let tall = 280
 
-  centre: ellipse "hub" {
-    at = (hub - 70, hub - 45)
+  gateway: ellipse "gateway" {
+    at = (cx - 70, cy - 45)
     size (140, 90)
     style palette.accent
   }
 
   spoke: ellipse "${each}" {
     each ("auth", "billing", "search", "audit", "email", "queue", "cache", "report", "admin")
-    at = (hub - 60 + ring * cos(tau * spoke.index / spoke.count), hub - 36 + ring * sin(tau * spoke.index / spoke.count))
+    at = (cx - 60 + wide * cos(tau * spoke.index / spoke.count),
+          cy - 36 + tall * sin(tau * spoke.index / spoke.count))
     size (120, 72)
     style palette.info
   }
 
-  tick: rectangle "·" {
-    count 11
-    at = (880 + 62 * tick.index, 300 - 6 * tick.index)
-    size (52, 90)
-    style palette.success
-  }
-
-  scale: text "eleven ticks, each stepped from its own index" {
-    at (880, 440)
-    font-size 19
-  }
+  gateway -- spoke.auth
+  gateway -- spoke.billing
+  gateway -- spoke.search
+  gateway -- spoke.audit
+  gateway -- spoke.email
+  gateway -- spoke.queue
+  gateway -- spoke.cache
+  gateway -- spoke.report
+  gateway -- spoke.admin
 }

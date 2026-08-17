@@ -174,8 +174,10 @@ expression holds more than 512 terms
 **The magnitude limit**, at a million pixels, which `exp(t)` crosses around
 t = 14.
 
-**Nothing about the domain**, which accepts any expression: the twelve turns a
-butterfly curve needs are written `(0, 6 * tau)`.
+**Nothing about the domain**, which accepts any expression once it is written
+as an equation: the twelve turns a butterfly curve needs are
+`domain = (0, 6 * tau)`. Without the `=` the interval takes plain numbers only,
+so `domain (0, 6 * tau)` is a syntax error rather than a slower path.
 
 ## Sources
 

@@ -7,22 +7,31 @@ by position.
 use "xdraw/palette" as palette
 
 diagram "Ring" {
-  let hub = 380
-  let ring = 210
+  let cx = 560
+  let cy = 500
+  let wide = 400
+  let tall = 280
+
+  gateway: ellipse "gateway" {
+    at = (cx - 70, cy - 45)
+    size (140, 90)
+    style palette.accent
+  }
 
   spoke: ellipse "${each}" {
-    each ("auth", "billing", "search", "audit", "email")
-    at = (hub + ring * cos(tau * spoke.index / spoke.count), hub + ring * sin(tau * spoke.index / spoke.count))
+    each ("auth", "billing", "search", "audit", "email", "queue", "cache", "report", "admin")
+    at = (cx - 60 + wide * cos(tau * spoke.index / spoke.count), cy - 36 + tall * sin(tau * spoke.index / spoke.count))
     size (120, 72)
     style palette.info
   }
 }
 ```
 
-![Nine services in a computed ring, and eleven ticks stepped from their index](images/repetition.png)
+![Nine services around a gateway, each placed by trigonometry on its own index](images/repetition.png)
 
-Neither of those is writable by hand at any length: the position of each element
-depends on which instance it is. Full source in
+That is not writable by hand at any length: the position of each element depends
+on which instance it is. Full source, including the connectors that address the
+instances by name, in
 [`examples/repetition.xdraw`](../examples/repetition.xdraw).
 
 ## `each` names by item, `count` names by position
@@ -61,11 +70,13 @@ expressions:
 diagram "" {
   tick: rectangle "·" {
     count 11
-    at = (880 + 62 * tick.index, 300 - 6 * tick.index)
-    size (52, 90)
+    at = (90 + 92 * tick.index, 300 - 14 * tick.index)
+    size (76, 130)
   }
 }
 ```
+
+![Eleven rectangles stepped right and up, each from its own index](images/repetition-count.png)
 
 `each.index` and `each.count` work too, if the declaration's own name is
 awkward to repeat.

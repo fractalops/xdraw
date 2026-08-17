@@ -88,20 +88,47 @@ Numbers can be named, computed, and repeated, so a diagram whose positions
 follow a rule is written as that rule:
 
 ```xdraw
-diagram "Ring" {
-  let hub = 380
-  let ring = 210
+use "xdraw/palette" as palette
+
+diagram "One declaration, nine elements" {
+  subtitle "Each service is placed from its own index, and each is addressable by name"
+
+  let cx = 560
+  let cy = 500
+  let wide = 400
+  let tall = 280
+
+  gateway: ellipse "gateway" {
+    at = (cx - 70, cy - 45)
+    size (140, 90)
+    style palette.accent
+  }
 
   spoke: ellipse "${each}" {
-    each ("auth", "billing", "search", "audit", "email")
-    at = (hub + ring * cos(tau * spoke.index / spoke.count),
-          hub + ring * sin(tau * spoke.index / spoke.count))
+    each ("auth", "billing", "search", "audit", "email", "queue", "cache", "report", "admin")
+    at = (cx - 60 + wide * cos(tau * spoke.index / spoke.count),
+          cy - 36 + tall * sin(tau * spoke.index / spoke.count))
     size (120, 72)
+    style palette.info
   }
+
+  gateway -- spoke.auth
+  gateway -- spoke.billing
+  gateway -- spoke.search
+  gateway -- spoke.audit
+  gateway -- spoke.email
+  gateway -- spoke.queue
+  gateway -- spoke.cache
+  gateway -- spoke.report
+  gateway -- spoke.admin
 }
 ```
 
-![Nine services placed around a computed ring](docs/images/repetition.png)
+![Nine services around a gateway, each placed by trigonometry on its own index](docs/images/repetition.png)
+
+One declaration produced all nine ellipses, and `each` named them by item
+rather than by position, which is why `spoke.billing` is something a connector
+can address. Inserting a tenth service leaves every existing name untouched.
 
 A position can also come from an element the compiler has already measured,
 which is how an annotation stays attached to a box whose size depends on its
@@ -193,7 +220,7 @@ XDRAW
 `math.plot` draws a parametric curve from a pair of expressions, and guarantees
 the drawn line stays within a stated distance of the true curve:
 
-![Three parametric curves: a butterfly, a damped harmonograph, and a decaying wave](docs/images/parametric-plots.png)
+![Four parametric curves: a butterfly, a spirograph rosette, a harmonograph, and a Lissajous weave](docs/images/parametric-plots.png)
 
 ```bash
 xdraw build examples/parametric-plots.xdraw -o output/parametric-plots.png
