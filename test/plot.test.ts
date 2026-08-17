@@ -264,6 +264,36 @@ test("a parameter no template supplies is reported, not passed to the sampler", 
   assert.throws(() => compile(parse(orphan)), /'\$\{amp\}' is not supplied by any template/);
 });
 
+test("a plot may be placed from another element's measured geometry", () => {
+  // A plot becomes a freehand stroke, and freehand may be placed that way — so
+  // this ought to have worked. It did not: the plot pass added the sample
+  // origin to an `at` that was still text, concatenating a string with a
+  // number and producing `'flow.a.center_y60'`.
+  const source = withImport(`diagram "" {
+    flow: frame "F" {
+      arrange row { gap 40 }
+      a: rectangle "A"
+      b: rectangle "B"
+    }
+    mark: math.plot {
+      at = (flow.a.right + 40, flow.a.center_y)
+      x = 60 * cos(t)
+      y = 60 * sin(t)
+      domain (0, tau)
+    }
+  }`);
+  const scene = compile(parse(source)).toJSON();
+  const box = scene.elements.find((e) => e.id === "flow.a:frame");
+  const mark = scene.elements.find((e) => e.id === "mark:stroke");
+  assert.ok(box && mark, "both must be drawn");
+  const referenced = box as unknown as { x: number; y: number; width: number; height: number };
+  const curve = mark as unknown as { x: number; y: number; width: number; height: number };
+  // The curve is a circle of radius 60 centred on the resolved point, so its
+  // left edge sits 60 to the left of that point.
+  assert.equal(Math.round(curve.x + curve.width / 2), Math.round(referenced.x + referenced.width + 40));
+  assert.equal(Math.round(curve.y + curve.height / 2), Math.round(referenced.y + referenced.height / 2));
+});
+
 test("a plot may sit inside a container", () => {
   // A plot lowers to a freedraw, which every container already accepts, but the
   // child policy is checked against the declared semantic kind rather than what

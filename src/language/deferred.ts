@@ -106,6 +106,20 @@ export function requireResolved(value: Deferred, owner: string, why: string): nu
   throw new UnresolvedError(`${owner} (${why})`, outstandingNames(value), value);
 }
 
+/**
+ * Adds a number to a value that may still be waiting.
+ *
+ * A stage often knows an offset before it knows the thing being offset — the
+ * curve sampler knows where its first point sits relative to the origin long
+ * before layout has produced that origin. Composing the two keeps the result a
+ * single value rather than forcing the stage to resolve early.
+ */
+export function offsetBy(value: Deferred, delta: number): Deferred {
+  if (!isPending(value)) return value + delta;
+  if (delta === 0) return value;
+  return formatExpression(parseExpression(`(${value}) + ${delta}`));
+}
+
 /** True when the text could be read as an expression at all. */
 export function isExpressionSource(source: string): boolean {
   try {

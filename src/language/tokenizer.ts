@@ -99,6 +99,10 @@ interface ComputedPair {
  * appears, and an expression can never contain one, so the comma is the whole
  * test. Anything else — no parenthesis, no comma, more than one comma —
  * returns null and the caller reads one expression as usual.
+ *
+ * A newline inside the parentheses is ordinary whitespace, as it is everywhere
+ * else in the language. Refusing one made the construct most likely to grow
+ * long enough to want wrapping the one that could not be wrapped.
  */
 /**
  * A copy of the source in which every `${name}` is a plain identifier of the
@@ -134,7 +138,9 @@ function computedPair(source: string, from: number): ComputedPair | null {
     } else if (char === "," && depth === 1) {
       if (comma !== -1) return null;
       comma = index;
-    } else if (char === '"' || char === "\n") {
+    } else if (char === '"') {
+      // A quote means this is not a pair of expressions — an expression cannot
+      // contain one — so stop rather than scanning to the end of the document.
       return null;
     }
   }

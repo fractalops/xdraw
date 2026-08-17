@@ -189,9 +189,8 @@ plot 'mark' could not be drawn: '${amp}' is not supplied by any template
 
 ## Limits worth knowing
 
-- **A `domain` end is a number or a constant, not an expression.** `(0, tau)`
-  works; `(0, 6 * tau)` does not, so a range of twelve turns still has to be
-  written out as a number.
+- **A `domain` end is a number, a constant, or an expression** — `(0, 6 * tau)`
+  works, as does one naming a `let` binding.
 - **A closed curve shows a faint seam** where its start and end meet, because
   the stroke has ends even when the curve does not.
 - **Fidelity is bounded on the emitted points, not on the rendered stroke.**

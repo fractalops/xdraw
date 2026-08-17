@@ -351,7 +351,7 @@ The standard libraries are:
 | `xdraw/process` | `lane` |
 | `xdraw/sequence` | `sequence`, `participant` |
 | `xdraw/table` | `table`, `header`, `row` |
-| `xdraw/math` | `formula` |
+| `xdraw/math` | `formula`, `plot` |
 | `xdraw/annotations` | `note`, `callout` |
 | `xdraw/connectors` | `junction` |
 | `xdraw/assets` | `icon` |
@@ -654,17 +654,45 @@ event handlers, remote references, embedded active content, or CSS imports.
 Default limits are 10 MiB per file, 25 MiB per document, and 8,192 pixels per
 dimension.
 
+### 15.4a Geometry references
+
+Within an expression, `element.part` is a placed element's measured geometry.
+The parts are `left`, `right`, `top`, `bottom`, `width`, `height`, `center_x`
+and `center_y`. An element's own identifier may contain dots, so the last
+segment is the part and everything before it is the element.
+
+`along_x(stroke, u)` and `along_y(stroke, u)` give a point at fraction `u` of a
+drawn stroke's length, measured by arc length rather than by parameter. `u` is
+clamped to the range 0 to 1. Only a freehand stroke may be walked this way.
+
+These names exist only after measurement and layout, so they may be used only
+where resolution can wait that long: the `at` property of `text` and `freedraw`.
+A node placed with `at` takes part in layout and so may not refer to a box that
+layout has yet to place; a document that tries is invalid. Only elements that
+layout places have geometry, so `text` and `freedraw` are not themselves
+addressable.
+
+Underscored names — `center_x`, `along_x` — are expression-level names, where a
+hyphen would read as subtraction. Document-level property names remain
+hyphenated.
+
 ### 15.5 Expressions and plotted curves
 
-An expression is a closed sublanguage with one free variable, `t`:
+An expression is a closed sublanguage:
 
 ```text
 expression = term, { operator, term }
-term       = number | constant | "t" | call | "-", term | "(", expression, ")"
+term       = number | constant | name | call | "-", term | "(", expression, ")"
 call       = function-name, "(", expression, { ",", expression }, ")"
 operator   = "+" | "-" | "*" | "/" | "^"
 constant   = "pi" | "tau" | "e"
+name       = identifier, { ".", identifier }
 ```
+
+A `name` is resolved by whichever part of compilation supplies it, per §7.3: a
+`let` binding, a repeat's `index` or `count`, a template parameter, a placed
+element's geometry, or — within `xdraw/math.plot` — the curve parameter `t`. A
+name no stage supplies is invalid.
 
 `^` is right-associative and binds more tightly than unary minus; the other
 operators are left-associative. Function names are `sin`, `cos`, `tan`, `asin`,

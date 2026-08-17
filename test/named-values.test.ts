@@ -87,6 +87,30 @@ test("a document error names the binding it belongs to", () => {
   assert.throws(() => parse(document("let a = 1 / 0")), /'a' is not a finite number/);
 });
 
+test("a computed pair may break across lines", () => {
+  // Specification §7.2 says line breaks are insignificant, and this was the one
+  // place they were not — in the construct most likely to grow long enough to
+  // want wrapping.
+  const wrapped = `diagram "" {
+    let m = 10
+    a: text "A" {
+      at = (m + 5,
+            m + 9)
+    }
+  }`;
+  const oneLine = `diagram "" {
+    let m = 10
+    a: text "A" { at = (m + 5, m + 9) }
+  }`;
+  const boxOf = (source: string) => {
+    const found = compile(parse(source)).toJSON().elements.find((e) => e.id === "a");
+    assert.ok(found, "expected the text element");
+    return found as unknown as { x: number; y: number };
+  };
+  assert.deepEqual(boxOf(wrapped), boxOf(oneLine), "wrapping must not change the meaning");
+  assert.equal(boxOf(wrapped).x, 15);
+});
+
 test("an incomplete expression runs into the statement after it", () => {
   // An expression has no closing delimiter — it ends where the grammar ends it
   // — so `let a = 1 +` continues onto the next line and takes the following

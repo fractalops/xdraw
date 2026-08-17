@@ -11,6 +11,7 @@
  * plotted curve exactly as they do to a drawn one.
  */
 import { sampleCurve } from "../language/curve-sampler.ts";
+import { offsetBy } from "../language/deferred.ts";
 import type {
   DiagramDocument,
   FreedrawStatement,
@@ -48,11 +49,19 @@ function draw(statement: PlotStatement): FreedrawStatement {
 
   // Points are relative to `at`, as freedraw expects, and the first is the
   // origin of the stroke rather than the first sample.
+  //
+  // `at` may still be waiting on a measured box, because a plot is drawn before
+  // layout runs and a freehand stroke may be placed from geometry. Offsetting
+  // it keeps it a single value for the later pass to resolve; adding to it
+  // directly concatenated a string with a number.
   const [originX, originY] = result.points[0];
   const drawn: FreedrawStatement = {
     ...statement,
     type: "freedraw",
-    at: [statement.at[0] + originX, statement.at[1] + originY],
+    at: [
+      offsetBy(statement.at[0], originX),
+      offsetBy(statement.at[1], originY),
+    ] as unknown as FreedrawStatement["at"],
     points: result.points.map(([x, y]) => [x - originX, y - originY] as [number, number]),
     pressures: [],
     simulatePressure: false,
