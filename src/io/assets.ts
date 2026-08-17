@@ -123,7 +123,10 @@ export function inspectSvgDimensions(bytes: Uint8Array): Point | null {
     "preserveaspectratio", "r", "refx", "refy", "role", "rx", "ry", "spreadmethod", "stop-color",
     "stop-opacity", "stroke", "stroke-dasharray", "stroke-dashoffset", "stroke-linecap",
     "stroke-linejoin", "stroke-miterlimit", "stroke-opacity", "stroke-width", "text-anchor", "transform",
-    "viewbox", "width", "x", "x1", "x2", "y", "y1", "y2",
+    // 'version' is inert enumerated metadata, but Illustrator and Sketch stamp
+    // it on the root of everything they export, so refusing it turned away
+    // published icon sets over a string that cannot carry a URL or a script.
+    "version", "viewbox", "width", "x", "x1", "x2", "y", "y1", "y2",
   ]);
   let rootSeen = false;
   let rootDimensions: Point | null = null;

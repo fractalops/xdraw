@@ -65,6 +65,31 @@ test("asset limits and malformed content fail with bounded messages", async () =
   );
 });
 
+test("design-tool exports are accepted despite their inert root metadata", async () => {
+  // Illustrator and Sketch stamp version="1.1" and an xlink namespace onto
+  // everything they export, which is how most published icon sets arrive.
+  // Neither can carry a URL or a script, so refusing them turned real icons
+  // away over metadata.
+  const exported = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"'
+    + ' width="80px" height="80px" viewBox="0 0 80 80" version="1.1">'
+    + '<title>Icon</title><g fill="none"><rect width="80" height="80" fill="#8C4FFF"/></g></svg>';
+  const drawing = compile(await resolveAssets(
+    parse('diagram "Icons" { mark: asset "mark.svg"; hero: image(mark) { at (0,0); size (80,80) } }'),
+    new MemoryFileSystem({ "mark.svg": exported }),
+  )).toJSON();
+  assert.equal(Object.keys(drawing.files).length, 1);
+  assert.equal(drawing.elements.find((item) => item.id === "hero").type, "image");
+
+  // The allowance is for 'version' alone; a style attribute still carries CSS.
+  await assert.rejects(
+    () => resolveAssets(
+      parse('diagram "Unsafe" { bad: asset "bad.svg" }'),
+      new MemoryFileSystem({ "bad.svg": exported.replace("version=", "style=\"fill:red\" version=") }),
+    ),
+    /may not contain executable or remote content/,
+  );
+});
+
 test("asset files survive the semantic IR boundary", async () => {
   const filesystem = new MemoryFileSystem({ "logo.svg": SVG });
   const resolved = await resolveAssets(
