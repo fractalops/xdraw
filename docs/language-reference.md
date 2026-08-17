@@ -136,7 +136,7 @@ Tree nodes must be direct children, reachable from the root, acyclic, and
 limited to one parent each.
 
 A text or freehand element may be placed from another element's measured
-geometry — `at = (flow.emit.right + 24, flow.emit.center_y)`. See
+geometry, `at = (flow.emit.right + 24, flow.emit.center_y)`. See
 [Placing from measured geometry](geometry-references.md).
 
 ## Connect and Address Elements
@@ -274,8 +274,8 @@ arguments is reported when the document is read.
 `tolerance` sets the greatest distance the drawn line may fall from the true
 curve, in pixels, and defaults to `0.5`. It is a guarantee rather than a
 target: the compiler bounds each span of the curve rather than sampling it, so
-a curve it cannot draw within the tolerance — one with a pole, or one that
-leaves the usable coordinate range — is refused with a diagnostic instead of
+a curve it cannot draw within the tolerance, one with a pole, or one that
+leaves the usable coordinate range, is refused with a diagnostic instead of
 being approximated. [Plotting curves](plotting.md) covers this in full.
 
 A sequence uses `seq.sequence` as its container and needs at least two

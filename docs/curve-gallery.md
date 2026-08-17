@@ -44,7 +44,7 @@ The rest of the gallery is in
 ![The same Weierstrass curve truncated at three, six, and nine terms, each rougher than the last](images/fractal-curve.png)
 
 A [Weierstrass function](https://mathworld.wolfram.com/WeierstrassFunction.html)
-is continuous everywhere and differentiable nowhere — the classic
+is continuous everywhere and differentiable nowhere: the classic
 counterexample to the intuition that a continuous curve must have a tangent
 almost everywhere. Truncating the sum at *k* terms gives something drawable:
 
@@ -56,11 +56,11 @@ Three rows, at three, six, and nine terms. The self-similarity is the point:
 each row is the one above it with finer detail added on the same skeleton, and
 the ninth term oscillates 6561 times faster than the first.
 
-This is the hardest case the sampler handles well. **It is exactly the shape
-the old sampler got wrong** — high frequency riding on low — and the reason the
-tolerance had to become a bound rather than an estimate. Nine terms needs 3917
-points and 409 ms, and the drawn line stays within 0.484px of the true curve.
-Source: [`examples/fractal-curve.xdraw`](../examples/fractal-curve.xdraw).
+This is the hardest shape to draw accurately: high frequency riding on low, so
+that a sampler judging flatness from a handful of probes will call a span
+straight when it is anything but. Nine terms needs 3917 points and 409 ms, and
+the drawn line stays within 0.484px of the true curve. Source:
+[`examples/fractal-curve.xdraw`](../examples/fractal-curve.xdraw).
 
 ## Fractals: what a closed vocabulary reaches, and what it cannot
 
@@ -77,7 +77,7 @@ is no way to say "repeat this transformation", and no complex arithmetic, so
 those constructions are out of reach by shape rather than by degree. No larger
 budget or finer tolerance brings them closer.
 
-What *is* reachable is the other family of fractals — the ones defined by a
+What *is* reachable is the other family of fractals: the ones defined by a
 convergent series, which truncate to an ordinary function of `t`:
 
 ![Blancmange, Riemann, and two lacunary loops](images/fractal-series.png)
@@ -90,7 +90,7 @@ lacunary loop  x + iy = Σ aⁿ · e^(i·bⁿt)   drawn as two real series
 
 The lacunary loops are the pretty ones, and they are genuinely self-similar:
 each lobe carries a smaller copy of the whole figure. They are also the most
-expensive thing here — the ratio-4 loop takes 2,049 points at a 1px tolerance.
+expensive thing here: the ratio-4 loop takes 2,049 points at a 1px tolerance.
 
 ### The finding worth keeping
 
@@ -98,8 +98,8 @@ The blancmange curve needs *distance from t to the nearest integer*, and there
 are two ways to write it:
 
 ```
-abs(u - round(u))            mentions u twice   — cannot be sampled
-abs(asin(sin(pi * u))) / pi  mentions u once    — 311 points
+abs(u - round(u))            mentions u twice, cannot be sampled
+abs(asin(sin(pi * u))) / pi  mentions u once, 311 points
 ```
 
 **They agree to the last digit at every value of t**, and the first one is
@@ -150,7 +150,7 @@ Not one exceeded its tolerance. The closest was 0.484 of 0.5.
 ## Where it breaks
 
 It does break, and this is the useful half. Every limit below produces a
-diagnostic naming what was hit — never a wrong curve, a crash, or a hang.
+diagnostic naming what was hit, never a wrong curve, a crash, or a hang.
 
 **The default point budget, at around ten thousand oscillations.** A Weierstrass
 sum of eleven terms, or `sin(5000·t)` over a unit range, exhausts 5,000 points
@@ -160,8 +160,8 @@ before reaching a half-pixel tolerance:
 sampling exceeded 5000 points before reaching a tolerance of 0.5
 ```
 
-Raising `maximumPoints` gets further — thirteen terms draws in 6,213 points and
-896 ms — so the wall is the budget rather than the method. A coarser tolerance
+Raising `maximumPoints` gets further, thirteen terms draws in 6,213 points and
+896 ms: so the wall is the budget rather than the method. A coarser tolerance
 is usually the better answer.
 
 **The expression size limit, at 512 terms.** A Weierstrass sum of about forty
@@ -174,23 +174,8 @@ expression holds more than 512 terms
 **The magnitude limit**, at a million pixels, which `exp(t)` crosses around
 t = 14.
 
-**A `domain` end takes a number or a constant, not arithmetic.** `(0, tau)`
-works and `(0, 6 * tau)` does not, so the twelve turns a butterfly curve needs
-are still written as `37.699111843077517`.
-
-## One bug this found
-
-Writing the flow diagram turned up a real defect: a plot could not be nested
-inside a `frame`, `group`, or `section`.
-
-```
-constructor 'frame' does not accept child kind 'plot'
-```
-
-A plot lowers to a freehand stroke, which every container already accepts, but
-the child policy is checked against the *declared* semantic kind rather than
-what it lowers to — and `plot` had never been added to the list. Fixed, and
-pinned by a test that fails if the entry is removed again.
+**Nothing about the domain**, which accepts any expression: the twelve turns a
+butterfly curve needs are written `(0, 6 * tau)`.
 
 ## Sources
 

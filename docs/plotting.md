@@ -55,7 +55,7 @@ assignment, no control flow, no property access, and one variable.
 | functions | `sin` `cos` `tan` `asin` `acos` `atan` `atan2` `sqrt` `abs` `sign` `floor` `ceil` `round` `min` `max` `exp` `log` `hypot` |
 
 `^` is right-associative and binds tighter than unary minus, so `-2^2` is `-4`
-and `2^3^2` is `512` — as they read on paper.
+and `2^3^2` is `512`, as they read on paper.
 
 An expression is written after `=`, not in quotes, because it is an equation
 rather than a string. It ends where the grammar says it ends: after a complete
@@ -79,11 +79,11 @@ x = a * t        unknown name 'a'
 `tolerance` is the greatest distance the drawn line may fall from the true
 curve, in pixels. It defaults to `0.5`.
 
-![The same rose at tolerance 16, 3, and 0.5 — petals collapse at the coarsest](images/plot-tolerance.png)
+![The same rose at tolerance 16, 3, and 0.5. Petals collapse at the coarsest](images/plot-tolerance.png)
 
 The same three-petal rose, drawn three times. At a 16px tolerance the petals
 collapse into a scrawl; at 0.5px they are full. The compiler spends points where
-the curve bends and none where it does not — 21 points, then 65, then 129.
+the curve bends and none where it does not: 21 points, then 65, then 129.
 
 The word *guarantee* is meant literally. The compiler does not sample the curve
 at some points and hope the rest behaves; it bounds each span of the curve and
@@ -119,7 +119,7 @@ The third is the interesting one. Both `sqrt(abs(t))` and `cos(2t)` are
 perfectly well behaved; dividing one by the other introduces a pole that neither
 has on its own. Nothing about the shape of the expression gives it away, and
 sampling near it is a matter of luck. The compiler finds it because dividing by
-a range that contains zero produces an unbounded range — the pole is a
+a range that contains zero produces an unbounded range: the pole is a
 consequence of the arithmetic rather than something to be detected.
 
 ## Composing with the rest of the language
@@ -189,7 +189,7 @@ plot 'mark' could not be drawn: '${amp}' is not supplied by any template
 
 ## Limits worth knowing
 
-- **A `domain` end is a number, a constant, or an expression** — `(0, 6 * tau)`
+- **A `domain` end is a number, a constant, or an expression.** `(0, 6 * tau)`
   works, as does one naming a `let` binding.
 - **A closed curve shows a faint seam** where its start and end meet, because
   the stroke has ends even when the curve does not.
@@ -198,8 +198,8 @@ plot 'mark' could not be drawn: '${amp}' is not supplied by any template
   a coarse curve rather than harming it.
 - **A curve that crosses the negative x axis through `atan2`** has a genuine
   jump there, and the stroke will cross the gap with a straight segment.
-- **Expressions are bounded in size** — at most 512 terms and 64 levels of
-  nesting — so a generated document cannot exhaust the compiler.
+- **Expressions are bounded in size**, at most 512 terms and 64 levels of
+  nesting: so a generated document cannot exhaust the compiler.
 
 ## Where it lives
 

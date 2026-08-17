@@ -18,8 +18,8 @@ The diagrams are generated from runnable examples under
 The boxes are the artifacts that exist at each point. The arrows are the
 transformations between them. Each is described below in the order it runs.
 
-`SemanticDocument` is the seam. Everything before it works in source terms —
-tokens, spans, constructors, templates. Everything after works in geometry —
+`SemanticDocument` is the seam. Everything before it works in source terms, 
+tokens, spans, constructors, templates. Everything after works in geometry, 
 measured text, positioned bounds, routed connectors. Most changes belong
 entirely on one side of it, so identifying the side first narrows the search.
 
@@ -32,8 +32,8 @@ It exports two entry points:
 
 - `compile` renders synchronously.
 - `compileAsync` first resolves the three inputs that cannot be produced
-  synchronously — syntax highlighting, formula rasterisation, and ELK placement
-  — then hands the results to the same renderer.
+  synchronously, syntax highlighting, formula rasterisation, and ELK placement
+, then hands the results to the same renderer.
 
 The asynchrony sits at the edges. Rendering itself is pure, which is why scene
 output is reproducible.
@@ -48,7 +48,7 @@ into tokens that retain their offsets, so every later diagnostic can name a line
 and column.
 
 [`src/language/parser.ts`](../src/language/parser.ts) has two halves.
-`parseSyntax` builds a `SourceDocument` — structure without meaning.
+`parseSyntax` builds a `SourceDocument`, structure without meaning.
 `lowerSyntax` then resolves that against the library manifests and produces a
 `DiagramDocument`. `parseSource` runs both.
 
@@ -80,7 +80,7 @@ opaque representation does not survive the `structuredClone` that repetition and
 template expansion both use, and a cloned value came back looking resolved.
 
 [`src/language/repetition.ts`](../src/language/repetition.ts) turns a repeated
-declaration into its instances, before templates expand — so a repeat may use a
+declaration into its instances, before templates expand: so a repeat may use a
 template, and everything after sees ordinary declarations. Children expand
 before their parent, because an inner repeat's position mentions its own index.
 
@@ -93,13 +93,13 @@ AST into a `SemanticDocument`: it lowers decision branches, indexes every
 object and reference, and runs `validateSemanticDocument`.
 
 That validator is a frozen array of rule families applied to each statement.
-**Array order is part of the contract** — it determines the order diagnostics
+**Array order is part of the contract**: it determines the order diagnostics
 appear in, which `test/semantic-diagnostics.test.ts` pins.
 
 ## Expressions and plotted curves
 
 [`src/language/expression.ts`](../src/language/expression.ts) is a bounded
-expression sublanguage — eighteen functions, three constants, five operators,
+expression sublanguage, eighteen functions, three constants, five operators,
 and one free variable bound by the caller. It follows Vega's restriction list:
 no assignment, no control flow, no property access. It is reachable from one
 constructor and is not the language growing general expressions.
@@ -107,7 +107,7 @@ constructor and is not the language growing general expressions.
 Two size limits bound it, and they catch different shapes. `MAXIMUM_NESTING`
 bounds parser recursion, which is what a deep chain of parentheses exhausts.
 `MAXIMUM_NODES` bounds the tree, which is what a long left-associative chain
-exhausts — `t+1+1+1…` is consumed by a loop rather than by recursion, so the
+exhausts, `t+1+1+1…` is consumed by a loop rather than by recursion, so the
 parser never nests while the tree grows one level per term, and the stack then
 overflows in the evaluator rather than in the parser.
 
@@ -117,10 +117,10 @@ contains every value the expression takes across it.
 
 [`src/language/curve-sampler.ts`](../src/language/curve-sampler.ts) uses that to
 turn a pair of expressions into a polyline. **Its tolerance is a bound, not an
-estimate**, and that distinction is the reason the interval module exists —
+estimate**, and that distinction is the reason the interval module exists, 
 see the constraints below.
 
-`math.plot` lowers to a *description* — its equations, domain and tolerance —
+`math.plot` lowers to a *description*, its equations, domain and tolerance,
 and [`src/compile/plot-pass.ts`](../src/compile/plot-pass.ts) draws it into a
 `freedraw` statement afterwards. The split matters: the pass runs after
 templates expand, so a template may supply a value to an equation, and before
@@ -151,10 +151,10 @@ integration runs in a worker; see [`src/layout/elk/`](../src/layout/elk/).
 [`src/compile/geometry-references.ts`](../src/compile/geometry-references.ts)
 resolves an `at` that names another element's geometry, against the boxes layout
 has just produced. Only text and freehand may refer, because they take no part in
-layout — a node placed with `at` displaces the very box it would be measuring.
+layout: a node placed with `at` displaces the very box it would be measuring.
 
 [`src/compile/geometry-pass.ts`](../src/compile/geometry-pass.ts) then applies
-the precision-geometry statements — alignment, distribution, offset,
+the precision-geometry statements, alignment, distribution, offset,
 `match-size`, rotation, and snapping. These run **after** automatic layout, so
 they override it rather than participate in it.
 
@@ -188,8 +188,8 @@ graph free of runtime cycles.
 Keep shared types in `contracts/`. Moving them into the modules that use them
 converts type-only edges into runtime edges and makes cycles easy to introduce.
 
-Modules named in the package `exports` map — `index.ts`, `browser.ts`,
-`xdraw.ts`, `excalidraw-api.ts` — stay at the `src/` root, because moving one
+Modules named in the package `exports` map, `index.ts`, `browser.ts`,
+`xdraw.ts`, `excalidraw-api.ts`, stay at the `src/` root, because moving one
 changes the published package layout.
 
 ## Extension points
@@ -206,7 +206,7 @@ Four seams, each with two or more existing implementations:
 | file system | [`io/filesystem.ts`](../src/io/filesystem.ts) | rooted, in-memory |
 
 Prefer adding an implementation behind an existing seam. Introduce a new one
-only when a second concrete use exists — one implementation is a hypothetical
+only when a second concrete use exists, one implementation is a hypothetical
 seam, two is a real one.
 
 ## Constraints worth knowing
@@ -242,8 +242,8 @@ These look incidental and are not.
   to within floating-point error in the bounds themselves.
 - **Interval rules must over-estimate, never under-estimate.** A range that is
   too wide costs subdivision; a range that is too narrow silently produces a
-  wrong curve. Where a tight rule would be intricate — `atan2` across its branch
-  cut, a fractional power of a negative base — the rules widen to the whole line
+  wrong curve. Where a tight rule would be intricate, `atan2` across its branch
+  cut, a fractional power of a negative base: the rules widen to the whole line
   and let the caller subdivide.
 
 ## Reference card
@@ -261,5 +261,5 @@ the seams, and the constraints.
   build.
 - `npm run test:types` checks the published type declarations.
 - `test/corpus.test.ts` pins compiled output by fingerprint. When it fails,
-  inspect the scene diff before accepting a new fingerprint — the failure means
+  inspect the scene diff before accepting a new fingerprint: the failure means
   output changed, not that the test is stale.

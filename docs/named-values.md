@@ -91,7 +91,7 @@ reports who used it rather than defaulting to zero.
 
 ## One rough edge
 
-An expression has no closing delimiter — it ends where the grammar ends it — so
+An expression has no closing delimiter. It ends where the grammar ends it, so
 an unfinished one runs into the statement after it:
 
 ```text
@@ -103,6 +103,6 @@ diagram "" {
 
 `1 +` continues onto the next line and takes `x` as its right operand. The
 document is still rejected, but the complaint lands on the statement that got
-eaten — `expected a statement` — rather than on the expression that was left
+eaten, `expected a statement`, rather than on the expression that was left
 unfinished. That is the cost of not delimiting expressions, and it is pinned by
 a test so it cannot quietly get worse.

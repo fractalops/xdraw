@@ -35,7 +35,7 @@ depend on the text inside each box and the gap the layout chose. Full source in
 
 A reference is written `element.part`, and a nested element keeps its qualified
 name: `flow.ingest.right`. The parts are a closed set and none contains a dot,
-so the last segment is always the part — which is what makes
+so the last segment is always the part: which is what makes
 `flow.ingest.right` unambiguous even though `flow.ingest` is itself a name.
 
 References compose with arithmetic and with `let`:
@@ -65,8 +65,8 @@ A name must be bound with 'let'; only text and freehand may be placed from
 another element's geometry
 ```
 
-A node placed with `at` participates in document layout — the
-document grows to contain it and everything else shifts — so resolving its
+A node placed with `at` participates in document layout: the
+document grows to contain it and everything else shifts: so resolving its
 position against a box it had already displaced would need resolving again. The
 dependency would be between placement and layout rather than between two names,
 which no amount of cycle detection can see. Measured: adding one absolutely
@@ -108,7 +108,7 @@ diagram "Markers" {
 ![A spiral with five labels along it, crowding where the turns are tight](images/curve-markers.png)
 
 The fraction is **arc length, not parameter**. Halfway along a spiral is halfway
-along the line you can see, not halfway through the range of `t` — which is why
+along the line you can see, not halfway through the range of `t`: which is why
 the markers above crowd near the centre, where the same length of line covers
 much less ground. A fraction outside 0…1 is clamped to the ends.
 

@@ -82,6 +82,40 @@ and the [`examples/`](examples/) directory. The
 [language guide](docs/language-reference.md) explains how to use the language;
 the [specification](docs/spec.md) defines its syntax and semantics.
 
+### Computed layouts
+
+Numbers can be named, computed, and repeated, so a diagram whose positions
+follow a rule is written as that rule:
+
+```xdraw
+diagram "Ring" {
+  let hub = 380
+  let ring = 210
+
+  spoke: ellipse "${each}" {
+    each ("auth", "billing", "search", "audit", "email")
+    at = (hub + ring * cos(tau * spoke.index / spoke.count),
+          hub + ring * sin(tau * spoke.index / spoke.count))
+    size (120, 72)
+  }
+}
+```
+
+![Nine services placed around a computed ring](docs/images/repetition.png)
+
+A position can also come from an element the compiler has already measured,
+which is how an annotation stays attached to a box whose size depends on its
+text:
+
+```text
+label: text "beside the last box" {
+  at = (flow.emit.right + 24, flow.emit.center_y)
+}
+```
+
+[Named values](docs/named-values.md), [repetition](docs/repetition.md), and
+[measured geometry](docs/geometry-references.md) cover these in full.
+
 ## Rich Content
 
 XDraw renders TeX formulas as SVG while keeping the scene editable:
@@ -114,8 +148,8 @@ the drawn line stays within a stated distance of the true curve:
 xdraw build examples/parametric-plots.xdraw -o output/parametric-plots.png
 ```
 
-A curve it cannot draw to that accuracy — one with a pole, or one that leaves
-the usable coordinate range — is refused with a diagnostic rather than
+A curve it cannot draw to that accuracy, one with a pole, or one that leaves
+the usable coordinate range, is refused with a diagnostic rather than
 approximated. See [Plotting curves](docs/plotting.md) for the guide and
 [the gallery](docs/curve-gallery.md) for what it manages and where it stops.
 

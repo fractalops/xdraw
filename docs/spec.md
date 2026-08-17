@@ -281,7 +281,7 @@ number.
 
 A bound name may appear in any expression. Where every free name of an
 expression is bound, the expression becomes its value; where a name remains that
-another binder supplies — `t` in a plotted curve — the bound parts are
+another binder supplies, `t` in a plotted curve, the bound parts are
 substituted and the expression is preserved.
 
 Within an expression, a name is a number that some part of compilation supplies
@@ -672,7 +672,7 @@ layout has yet to place; a document that tries is invalid. Only elements that
 layout places have geometry, so `text` and `freedraw` are not themselves
 addressable.
 
-Underscored names — `center_x`, `along_x` — are expression-level names, where a
+Underscored names, `center_x`, `along_x`, are expression-level names, where a
 hyphen would read as subtraction. Document-level property names remain
 hyphenated.
 
@@ -691,7 +691,7 @@ name       = identifier, { ".", identifier }
 
 A `name` is resolved by whichever part of compilation supplies it, per §7.3: a
 `let` binding, a repeat's `index` or `count`, a template parameter, a placed
-element's geometry, or — within `xdraw/math.plot` — the curve parameter `t`. A
+element's geometry, or, within `xdraw/math.plot`, the curve parameter `t`. A
 name no stage supplies is invalid.
 
 `^` is right-associative and binds more tightly than unary minus; the other
@@ -707,7 +707,7 @@ An expression may contain at most 512 terms and nest at most 64 levels deep.
 expressions and `domain` is an interval. Optional `tolerance` is the greatest
 distance the emitted polyline may lie from the curve, in pixels, and defaults
 to 0.5. A conforming compiler bounds each span of the curve rather than
-sampling it, and invalidates a curve it cannot draw within that tolerance —
+sampling it, and invalidates a curve it cannot draw within that tolerance, 
 including one whose value is unbounded on the domain, or whose coordinates
 exceed the freehand magnitude limit.
 

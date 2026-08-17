@@ -73,7 +73,7 @@ awkward to repeat.
 ## Repeats may nest
 
 A repeated declaration inside a container works, and its instances are named
-under it — `panel.cell.0`. Children expand before their parent, so an inner
+under it, `panel.cell.0`. Children expand before their parent, so an inner
 repeat's index is resolved before the outer one folds anything.
 
 ## What is rejected
@@ -94,5 +94,5 @@ declaration is cheap to write and expensive to draw.
 ## Where it runs
 
 [`src/language/repetition.ts`](../src/language/repetition.ts), before templates
-expand — so a repeated declaration may use a template, and the instances are
+expand: so a repeated declaration may use a template, and the instances are
 ordinary declarations by the time anything else sees them.
