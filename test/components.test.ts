@@ -215,3 +215,25 @@ test("drawing rejects non-positive shape dimensions", () => {
   const drawing = new Drawing().add(rectangle("bad", { x: 0, y: 0, width: -1, height: 20 }));
   assert.throws(() => drawing.toJSON(), /must have positive width and height/);
 });
+
+test("a node smaller than twice its padding still draws", () => {
+  // An axis tick is a few pixels tall, and the default padding of 20 used to
+  // make one impossible: `card` asked `inset` for a content box that could not
+  // exist, and the RangeError escaped as `inset must produce positive width and
+  // height` with no code and no source location. The size is what the author
+  // wrote; the padding is usually a default they never chose, so the padding
+  // gives way.
+  for (const [width, height] of [[2, 8], [42, 7], [60, 40], [1, 1]]) {
+    assert.doesNotThrow(
+      () => card("tick", box(0, 0, width, height), {}),
+      `${width} by ${height} should draw`,
+    );
+  }
+
+  // A node with room to spare keeps the padding it asked for, so nothing that
+  // already fitted moves.
+  const roomy = card("roomy", box(0, 0, 300, 200), { title: "Roomy" });
+  const label = roomy.find((element) => element.id === "roomy:title");
+  assert.ok(label, "a titled node still gets its label");
+  assert.equal(Math.round(label.x), 20);
+});

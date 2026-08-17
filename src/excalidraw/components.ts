@@ -299,7 +299,14 @@ export function card(
     link: options.link,
     locked: options.locked,
   };
-  const content = inset(bounds, options.padding ?? 20);
+  // A node no larger than twice its padding leaves no room for a content box,
+  // and `inset` rightly refuses to produce one. Asking it to was the mistake:
+  // the padding is usually the default rather than something the author chose,
+  // so honour the size they did write and shrink the padding to fit. A tick mark
+  // eight pixels tall is a legitimate thing to draw. Where a label genuinely
+  // does not fit, XD1210 already says so.
+  const room = Math.max(0, (Math.min(bounds.width, bounds.height) - 1) / 2);
+  const content = inset(bounds, Math.min(options.padding ?? 20, room));
   const groupIds = options.groupIds ?? (options.startLabel || options.endLabel ? [`${id}:group`] : []);
   if (options.boundLabel && options.title && !options.body) {
     const label = boundText(`${id}:title`, `${id}:frame`, content, options.title, {
