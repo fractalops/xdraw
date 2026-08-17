@@ -19,6 +19,8 @@ interface FreedrawElement {
   height: number;
   strokeColor: string;
   strokeWidth: number;
+  backgroundColor: string;
+  fillStyle: string;
   points: Array<[number, number]>;
   pressures: number[];
   simulatePressure: boolean;
@@ -339,4 +341,25 @@ test("plot is declared in the math library alongside formula", () => {
     /unknown|import/i,
     "without the import it must not resolve",
   );
+});
+
+test("a closed curve can be filled", () => {
+  // `freedraw` has accepted `background` and `fill-style` all along, and a plot
+  // lowers to exactly that element, so withholding them at the constructor kept
+  // a shaded region out of reach: the area under a curve, a feasible region, a
+  // phase-space basin.
+  const element = stroke(withImport(lissajous('background "#c7d2fe"\n    fill-style solid')));
+  assert.equal(element.backgroundColor, "#c7d2fe");
+  assert.equal(element.fillStyle, "solid");
+
+  // The hatch styles come along, because they were already in the palette.
+  for (const style of ["hachure", "cross-hatch"]) {
+    assert.doesNotThrow(
+      () => stroke(withImport(lissajous(`background "#fecaca"\n    fill-style ${style}`))),
+      `fill-style ${style} should be accepted`,
+    );
+  }
+
+  // An unfilled plot keeps drawing as it did.
+  assert.equal(stroke(withImport(lissajous())).backgroundColor, "transparent");
 });

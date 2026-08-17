@@ -175,6 +175,7 @@ export const CORE_LIBRARY_MANIFEST = defineLibraryManifest({
         { name: "link", kind: "string", required: false, synopsis: "Hyperlink." },
         { name: "locked", kind: "boolean", required: false, synopsis: "Whether the stroke is locked." },
         { name: "opacity", kind: "number", required: false, synopsis: "Element opacity." },
+        ...repetitionProperties,
         { name: "points", kind: "points", required: true, synopsis: "Stroke points." },
         { name: "pressures", kind: "numbers", required: false, synopsis: "Pressure values." },
         { name: "roughness", kind: "number", required: false, synopsis: "Stroke roughness." },
@@ -390,6 +391,8 @@ export const STANDARD_LIBRARY_MANIFESTS = normalizeLibraryCatalog([
         arguments: noArguments,
         properties: [
           { name: "at", kind: "pair", required: true, synopsis: "Curve origin." },
+          { name: "background", kind: "string", required: false, synopsis: "Fill color for a closed curve." },
+          { name: "fill-style", kind: "identifier", required: false, synopsis: "Fill style." },
           { name: "x", kind: "expression", required: true, synopsis: "Expression for the x coordinate, in t." },
           { name: "y", kind: "expression", required: true, synopsis: "Expression for the y coordinate, in t." },
           { name: "domain", kind: "interval", required: true, synopsis: "Parameter range, as (start, end)." },
