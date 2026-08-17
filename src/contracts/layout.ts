@@ -270,6 +270,11 @@ export interface SceneGraph {
   annotations: NoteStatement[];
   diagnostics?: DiagnosticCollector;
   labelBounds: Bounds[];
+  /**
+   * Absolute points of every drawn stroke, so a connector can meet a plotted
+   * shape on the line it actually draws rather than on its bounding box.
+   */
+  strokePoints: Map<string, readonly Point[]>;
   visuals: SceneVisual[];
   frameMembership: Map<string, string>;
   containerMembership: Map<string, string>;

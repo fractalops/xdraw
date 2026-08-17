@@ -1,4 +1,9 @@
-import type { ConstructorManifest, LibraryManifest, ManifestValueKind } from "./manifests/contracts.ts";
+import type {
+  ConstructorManifest,
+  LibraryManifest,
+  ManifestBorder,
+  ManifestValueKind,
+} from "./manifests/contracts.ts";
 import { BUILTIN_LIBRARY_MANIFESTS, CORE_LIBRARY_MANIFEST, STANDARD_LIBRARY_MANIFESTS } from "./manifests/builtins.ts";
 
 export type PropertyKind = "pair" | "string" | "identifier" | "number" | "points" | "numbers" | "endpoint";
@@ -129,4 +134,23 @@ export function normalizePropertyValue<T>(value: T): T | boolean {
   if (value === "true") return true;
   if (value === "false") return false;
   return value;
+}
+
+/**
+ * The border each element kind declares, indexed once across every library.
+ *
+ * Built from the manifests rather than written out here, so a library that
+ * introduces a kind with its own border needs no change to the compiler. The
+ * router and the adapter both read this, which is what stops them disagreeing
+ * about a shape and leaving a connector short of it.
+ */
+const BORDER_BY_ELEMENT_KIND: ReadonlyMap<string, ManifestBorder> = new Map(
+  listLibraryManifests().flatMap((library) => library.constructors.flatMap((item) => (
+    item.lowering.elementKind ? [[item.lowering.elementKind, item.lowering.border] as const] : []
+  ))),
+);
+
+/** The border a connector should meet for this element kind. */
+export function borderOfElementKind(kind: unknown): ManifestBorder {
+  return (typeof kind === "string" ? BORDER_BY_ELEMENT_KIND.get(kind) : undefined) ?? "box";
 }

@@ -334,6 +334,8 @@ diagram "Context" {
 The core vocabulary and every standard library are described by library
 manifests. A manifest defines exported constructors and values, constructor
 arguments, allowed properties, child roles, defaults, and semantic lowering. A
+constructor's lowering names the semantic kind it produces, the element kind it
+draws as, its tone, and the border a connector meets it on. A
 conforming compiler must apply the core manifest, an imported library manifest,
 or a document-scoped template before semantic lowering. It must reject:
 
@@ -445,6 +447,13 @@ attaches where the segment between the two centres crosses the border, so
 several connectors leaving one element in different directions do not share a
 point. Routed styles always attach at the midpoint, because their first segment
 leaves perpendicular to the side.
+
+Which border that is depends on the element. A drawn stroke is met where the ray
+last crosses the line it draws, so a plotted shape is met on its own outline; the
+furthest crossing is used, because a curve that folds back over itself should be
+met at its outer boundary. Every other element is met on the border its kind
+declares in its library manifest, which is one of `box`, `ellipse`, or `diamond`.
+A kind that declares none is a box.
 
 ## 10. Connections
 

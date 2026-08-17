@@ -90,10 +90,21 @@ export interface ConstructorDefaultsManifest {
   readonly properties: Readonly<Record<string, JsonValue>>;
 }
 
+/**
+ * The outline a connector meets for this kind.
+ *
+ * Excalidraw's three native shapes have three different borders, and a connector
+ * aimed at a shape's centre crosses a different curve for each. Declaring it here
+ * rather than in a table inside the compiler is what lets a library introduce a
+ * kind whose border is not a box.
+ */
+export type ManifestBorder = "box" | "ellipse" | "diamond";
+
 export interface ConstructorLoweringManifest {
   readonly semanticKind: ManifestSemanticKind;
   readonly elementKind: ManifestElementKind | null;
   readonly tone: ManifestTone | null;
+  readonly border: ManifestBorder;
 }
 
 export interface ConstructorManifest {

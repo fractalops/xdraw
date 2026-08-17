@@ -218,6 +218,7 @@ export function createSceneGraph(document: SemanticDocument, options: SceneGraph
     annotations: [],
     diagnostics: options.diagnostics,
     labelBounds: [],
+    strokePoints: new Map(),
     visuals: [],
     frameMembership: new Map(),
     containerMembership: new Map(),

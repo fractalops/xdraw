@@ -8,6 +8,7 @@ import { Drawing } from "../src/excalidraw/document.ts";
 import { renderAnnotation, renderConnection } from "../src/routing/renderer.ts";
 import { synchronizeEndpointLabels } from "../src/routing/labels.ts";
 import { routeConnection } from "../src/routing/router.ts";
+import { borderOfElementKind, listLibraryManifests } from "../src/language/registry.ts";
 import { createMeasurer } from "../src/compile/measurement.ts";
 
 test("explicit waypoints and endpoint labels compile deterministically", () => {
@@ -463,6 +464,47 @@ test("each native shape is met on its own border", () => {
 
   const [dx, dy] = unit("dia", startOf(2));
   assert.ok(Math.abs(Math.abs(dx) + Math.abs(dy) - 1) < 0.001, `a diamond is met on its own edge, got ${Math.abs(dx) + Math.abs(dy)}`);
+});
+
+test("a plotted shape is met on the line it draws, not on its box", () => {
+  // A stroke has points rather than a declared border, so its outline is the
+  // only thing that can be intersected. Using the bounding box put a diagonal
+  // connector 16% short of a plotted circle, the same error a native ellipse had.
+  const drawing = compile(parse(`use "xdraw/math" as math
+  diagram "Diagonal" {
+    drawn: math.plot { at (400, 400); x = 100 * cos(t); y = 100 * sin(t); domain (0, tau) }
+    far: rectangle "far" { at (760, 90); size (120, 72) }
+    drawn -- far
+  }`)).toJSON();
+  const stroke = drawing.elements.find((item) => item.id === "drawn:stroke");
+  const line = drawing.elements.find((item) => item.type === "line");
+  const x = line.x + line.points[0][0];
+  const y = line.y + line.points[0][1];
+  const nx = (x - (stroke.x + stroke.width / 2)) / (stroke.width / 2);
+  const ny = (y - (stroke.y + stroke.height / 2)) / (stroke.height / 2);
+  assert.ok(
+    Math.abs(Math.hypot(nx, ny) - 1) < 0.01,
+    `should meet the drawn circle, got ${Math.hypot(nx, ny)}`,
+  );
+  // The box would have been reached well before the curve on this diagonal.
+  assert.ok(Math.max(Math.abs(nx), Math.abs(ny)) < 0.95, "and not the bounding box");
+});
+
+test("a kind declares its border in its library manifest", () => {
+  // The compiler used to hold the kind-to-border table, so a library could not
+  // introduce a shape with its own border. It is manifest data now.
+  const kinds = listLibraryManifests()
+    .flatMap((library) => library.constructors)
+    .filter((item) => item.lowering.border !== "box")
+    .map((item) => `${item.name}:${item.lowering.border}`)
+    .sort();
+  assert.deepEqual(kinds, ["diamond:diamond", "ellipse:ellipse"]);
+  // Anything that does not declare one is a box, which is what they all meant
+  // before the field existed.
+  assert.equal(borderOfElementKind("card"), "box");
+  assert.equal(borderOfElementKind("architecture-database"), "box");
+  assert.equal(borderOfElementKind("ellipse"), "ellipse");
+  assert.equal(borderOfElementKind("decision"), "diamond");
 });
 
 test("an explicit anchor still means that side's midpoint", () => {

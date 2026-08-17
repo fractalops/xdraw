@@ -111,6 +111,43 @@ export function borderPoint(bounds: Bounds, target: Point, shape: BorderShape = 
   return [centre[0] + dx * scale, centre[1] + dy * scale];
 }
 
+/**
+ * Where a ray from `centre` towards `target` last leaves a closed polyline.
+ *
+ * A plotted shape has points rather than a declared border, so the only way to
+ * meet it on its own outline is to intersect the line it actually draws. The
+ * furthest crossing is the one wanted: a spiral or a rose crosses the ray several
+ * times, and a connector should stop at the outermost boundary rather than dive
+ * into the middle of the figure.
+ *
+ * Returns null when the ray misses every segment, which happens for an open
+ * stroke the ray never reaches, and the caller falls back to the bounding box.
+ */
+export function strokeBorderPoint(
+  points: readonly Point[],
+  centre: Point,
+  target: Point,
+): Point | null {
+  const dx = target[0] - centre[0];
+  const dy = target[1] - centre[1];
+  if ((dx === 0 && dy === 0) || points.length < 2) return null;
+  let best: number | null = null;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const [ax, ay] = points[index];
+    const [bx, by] = points[index + 1];
+    const ex = bx - ax;
+    const ey = by - ay;
+    const denominator = dx * ey - dy * ex;
+    if (denominator === 0) continue;
+    // How far along the ray, and how far along this segment, the two meet.
+    const along = ((ax - centre[0]) * ey - (ay - centre[1]) * ex) / denominator;
+    const across = ((ax - centre[0]) * dy - (ay - centre[1]) * dx) / denominator;
+    if (along <= 0 || across < 0 || across > 1) continue;
+    if (best === null || along > best) best = along;
+  }
+  return best === null ? null : [centre[0] + dx * best, centre[1] + dy * best];
+}
+
 type AxisProperties =
   | { start: "x"; size: "width" }
   | { start: "y"; size: "height" };

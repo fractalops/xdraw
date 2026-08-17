@@ -260,6 +260,12 @@ export function renderCompilation(
   resolveGeometryReferences(scene.statements, state.bounds, strokes);
   collectDetachedStatements(scene.statements, isFreedraw).forEach(({ statement, frameId, locked }) => {
     const element = renderFreedraw(drawing, renderableFreedraw(statement), styles.resolveFreedraw(statement));
+    // Recomputed here rather than reused from above, because `at` may have been
+    // a geometry reference that only resolved on the line before this.
+    state.strokePoints.set(statement.id, statement.points.map(([x, y]) => [
+      statement.at[0] + x,
+      statement.at[1] + y,
+    ] as Point));
     element.frameId = frameId;
     if (locked) element.locked = true;
     registerBounds(state, statement.id, {

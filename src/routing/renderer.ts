@@ -1,7 +1,6 @@
 import { card, connect } from "../excalidraw/components.ts";
 import { outlineOfKind } from "../excalidraw/elements.ts";
-import { anchor, borderPoint, box } from "../geometry.ts";
-import type { BorderShape } from "../geometry.ts";
+import { anchor, borderPoint, box, strokeBorderPoint } from "../geometry.ts";
 import { splitEndpoint } from "./endpoints.ts";
 import { inferredSides, routeConnection } from "./router.ts";
 import type {
@@ -105,10 +104,22 @@ function routeWithWaypoints(start: Point, waypoints: readonly Point[], end: Poin
   return first ? [start, first, ...waypoints.slice(1), end] : [start, end];
 }
 
-/** The outline a connector should meet for this element. */
-function borderShape(state: SceneGraph, id: string): BorderShape {
+/**
+ * Where a connector meets this element, aiming at `target`.
+ *
+ * A drawn stroke has points rather than a declared border, so it is met on the
+ * line it actually draws: the alternative is its bounding box, which for a
+ * circle plotted from equations is wrong by the same margin a native ellipse was.
+ * Everything else is met on the border its kind declares.
+ */
+function radialPoint(state: SceneGraph, id: string, bounds: Bounds, target: Point): Point {
+  const points = state.strokePoints?.get(id);
+  if (points && points.length >= 2) {
+    const crossing = strokeBorderPoint(points, anchor.center(bounds), target);
+    if (crossing) return crossing;
+  }
   const semantic = state.objects?.get(id)?.semantic as { kind?: unknown } | undefined;
-  return outlineOfKind(semantic?.kind);
+  return borderPoint(bounds, target, outlineOfKind(semantic?.kind));
 }
 
 function bindingElementId(state: SceneGraph, id: string): string {
@@ -173,12 +184,8 @@ export function renderConnection(
     // perpendicular to the side.
     const radial = (style === "straight" || style === "line")
       && from.side === undefined && to.side === undefined;
-    const start = radial
-      ? borderPoint(fromBounds, anchor.center(toBounds), borderShape(state, from.id))
-      : anchor[startSide](fromBounds);
-    const end = radial
-      ? borderPoint(toBounds, anchor.center(fromBounds), borderShape(state, to.id))
-      : anchor[endSide](toBounds);
+    const start = radial ? radialPoint(state, from.id, fromBounds, anchor.center(toBounds)) : anchor[startSide](fromBounds);
+    const end = radial ? radialPoint(state, to.id, toBounds, anchor.center(fromBounds)) : anchor[endSide](toBounds);
     if (waypoints) {
       if (!connection.generatedRoute) {
         state.diagnostics?.warn("XD2003", "connection via disables automatic obstacle routing", connection);

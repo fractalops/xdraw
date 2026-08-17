@@ -6,6 +6,7 @@ import type {
   ConstructorDefaultsManifest,
   ConstructorManifest,
   ConstructorPropertyManifest,
+  ManifestBorder,
   ManifestDocumentation,
   ManifestElementKind,
   ManifestSemanticKind,
@@ -100,6 +101,7 @@ function simpleConstructor(
     readonly children?: ChildPolicyManifest;
     readonly defaults?: ConstructorDefaultsManifest;
     readonly tone?: ManifestTone | null;
+    readonly border?: ManifestBorder;
     readonly identity?: "named" | "anonymous";
   } = {},
 ): ConstructorManifest {
@@ -114,6 +116,10 @@ function simpleConstructor(
       semanticKind,
       elementKind,
       tone: options.tone ?? null,
+      // A box unless the kind says otherwise, which is right for every element
+      // whose border is its bounding box and wrong only where a shape declares
+      // its own.
+      border: options.border ?? "box",
     },
     documentation: docs(synopsis, example),
   };
@@ -137,8 +143,8 @@ export const CORE_LIBRARY_MANIFEST = defineLibraryManifest({
   values: [],
   constructors: [
     simpleConstructor("rectangle", "node", "card", "Rectangular node.", "item: rectangle \"Item\""),
-    simpleConstructor("ellipse", "node", "ellipse", "Elliptical node.", "item: ellipse \"Item\""),
-    simpleConstructor("diamond", "node", "decision", "Diamond decision node.", "choice: diamond \"Valid?\""),
+    simpleConstructor("ellipse", "node", "ellipse", "Elliptical node.", "item: ellipse \"Item\"", { border: "ellipse" }),
+    simpleConstructor("diamond", "node", "decision", "Diamond decision node.", "choice: diamond \"Valid?\"", { border: "diamond" }),
     simpleConstructor("frame", "frame", "frame", "Visible container.", "area: frame \"Area\" { item: rectangle \"Item\" }", {
       properties: frameProperties,
       children: contentChildren,

@@ -15,6 +15,7 @@ import type {
   LibraryManifest,
   LibraryManifestSummary,
   LibraryValueManifest,
+  ManifestBorder,
   ManifestDocumentation,
   ManifestElementKind,
   ManifestSemanticKind,
@@ -104,6 +105,7 @@ const SEMANTIC_KINDS = new Set<ManifestSemanticKind>(
   Object.keys(SEMANTIC_KIND_SUPPORT) as ManifestSemanticKind[],
 );
 const TONES = new Set<ManifestTone>(Object.keys(TONE_SUPPORT) as ManifestTone[]);
+const BORDERS = new Set<ManifestBorder>(["box", "ellipse", "diamond"]);
 
 const NAME_PATTERN = /^[a-z][a-z0-9-]*$/u;
 const LIBRARY_PATTERN = /^xdraw\/[a-z][a-z0-9-]*$/u;
@@ -119,8 +121,13 @@ function record(value: unknown, path: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function exactKeys(value: Record<string, unknown>, allowed: readonly string[], path: string): void {
-  const allowedSet = new Set(allowed);
+function exactKeys(
+  value: Record<string, unknown>,
+  allowed: readonly string[],
+  path: string,
+  optional: readonly string[] = [],
+): void {
+  const allowedSet = new Set([...allowed, ...optional]);
   const unknown = Object.keys(value).filter((key) => !allowedSet.has(key)).sort();
   if (unknown.length > 0) fail(path, `contains unknown field(s): ${unknown.join(", ")}`);
   const missing = allowed.filter((key) => !(key in value));
@@ -306,11 +313,15 @@ function defaults(value: unknown, path: string): ConstructorDefaultsManifest {
 
 function lowering(value: unknown, path: string): ConstructorLoweringManifest {
   const input = record(value, path);
-  exactKeys(input, ["semanticKind", "elementKind", "tone"], path);
+  // `border` may be omitted, and omitting it means a box. Every kind that
+  // existed before borders were declarable meant exactly that, so an absent
+  // field carries the same meaning rather than needing a schema version.
+  exactKeys(input, ["semanticKind", "elementKind", "tone"], path, ["border"]);
   return {
     semanticKind: closedValue(input.semanticKind, `${path}.semanticKind`, SEMANTIC_KINDS),
     elementKind: nullableClosedValue(input.elementKind, `${path}.elementKind`, ELEMENT_KINDS),
     tone: nullableClosedValue(input.tone, `${path}.tone`, TONES),
+    border: input.border === undefined ? "box" : closedValue(input.border, `${path}.border`, BORDERS),
   };
 }
 
