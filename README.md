@@ -116,6 +116,57 @@ label: text "beside the last box" {
 [Named values](docs/named-values.md), [repetition](docs/repetition.md), and
 [measured geometry](docs/geometry-references.md) cover these in full.
 
+### Reusable structure
+
+A `template` is a shape written once and instantiated wherever it applies. Each
+instance owns its elements, so the three environments below share a definition
+without sharing any identity:
+
+```xdraw
+use "xdraw/architecture" as arch
+
+diagram "Deployment environments" {
+  subtitle "One template, instantiated once per environment"
+
+  arrange grid { columns 1; gap 40 }
+
+  tier: template(name, store_tech) {
+    env: section "${name}" {
+      arrange row { gap 124 }
+
+      api: arch.container "API" {
+        description "Serves orders over HTTP"
+        technology "Go"
+        size (260, 140)
+      }
+      cache: arch.container "Cache" {
+        description "Holds recent reads"
+        technology "Redis"
+        size (260, 140)
+      }
+      store: arch.database "Orders" {
+        description "Order and line-item history"
+        technology "${store_tech}"
+        size (260, 140)
+      }
+
+      api@right -> cache@left "reads" { technology "RESP" }
+      cache@right -> store@left "on a miss" { technology "SQL" }
+    }
+  }
+
+  dev: tier ("development", "SQLite")
+  staging: tier ("staging", "Postgres 15")
+  production: tier ("production", "Postgres 15, replicated")
+}
+```
+
+![The same API, cache, and database drawn for development, staging, and production](docs/images/deployment-environments.png)
+
+Nothing here carries a coordinate. `arrange` places the sections down the page
+and the containers across each one, and `@right` and `@left` name where a
+connector should attach rather than where it should be drawn.
+
 ## Rich Content
 
 XDraw renders TeX formulas as SVG while keeping the scene editable:
@@ -159,6 +210,15 @@ Tables have measured columns, wrapped cells, and remain editable in Excalidraw:
 
 ```bash
 xdraw build examples/tables.xdraw -o output/tables.png
+```
+
+Code blocks keep their indentation and are coloured token by token, and the
+text stays selectable in the scene:
+
+![TypeScript and SQL rendered with syntax highlighting](docs/images/code-blocks.png)
+
+```bash
+xdraw build examples/code-blocks.xdraw -o output/code-blocks.png
 ```
 
 ## Hosted Scenes
@@ -214,6 +274,20 @@ xdraw pull <address-or-id> [-o <output>]
 `build`, `check`, and `apply` accept a file, standard input, or inline source
 with `-e`. Commands that contact Excalidraw+ use `EXCALIDRAW_API_KEY`. Run
 `xdraw --help` for the complete command reference.
+
+`check` reports more than syntax. It reads the diagram the way a reviewer
+would, and says what it noticed and where:
+
+```text
+XD2101: architecture element 'flow.api' should describe its responsibility at 7:5
+XD2101: architecture element 'flow.store' should describe its responsibility at 8:5
+XD2104: relationships between architecture containers should name their technology or protocol at 10:5
+XD2001: layout gap 40 was raised to 98 so connector labels fit at 5:5
+XD2006: 'flow.api' and 'flow.store' share a row but differ in height, so their connector will not be level; match-size (flow.api, flow.store) height levels them at 10:5
+```
+
+Advisories like these do not stop a build. Errors do, and each one names the
+line that caused it.
 
 ## Acknowledgements
 

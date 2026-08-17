@@ -1,0 +1,36 @@
+use "xdraw/architecture" as arch
+
+diagram "Deployment environments" {
+  subtitle "One template, instantiated once per environment"
+
+  arrange grid { columns 1; gap 40 }
+
+  tier: template(name, store_tech) {
+    env: section "${name}" {
+      arrange row { gap 124 }
+
+      api: arch.container "API" {
+        description "Serves orders over HTTP"
+        technology "Go"
+        size (260, 140)
+      }
+      cache: arch.container "Cache" {
+        description "Holds recent reads"
+        technology "Redis"
+        size (260, 140)
+      }
+      store: arch.database "Orders" {
+        description "Order and line-item history"
+        technology "${store_tech}"
+        size (260, 140)
+      }
+
+      api@right -> cache@left "reads" { technology "RESP" }
+      cache@right -> store@left "on a miss" { technology "SQL" }
+    }
+  }
+
+  dev: tier ("development", "SQLite")
+  staging: tier ("staging", "Postgres 15")
+  production: tier ("production", "Postgres 15, replicated")
+}
