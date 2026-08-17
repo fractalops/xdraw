@@ -72,6 +72,9 @@ export const anchor: Record<"left" | "right" | "top" | "bottom" | "center", (bou
   ],
 };
 
+/** Which outline a connector should meet: a box's, or the ellipse inside it. */
+export type BorderShape = "box" | "ellipse";
+
 /**
  * Where a ray from the centre of `bounds` towards `target` leaves the border.
  *
@@ -81,14 +84,22 @@ export const anchor: Record<"left" | "right" | "top" | "bottom" | "center", (bou
  * A straight run between two shapes should meet each border where it genuinely
  * crosses, which is what this returns.
  */
-export function borderPoint(bounds: Bounds, target: Point): Point {
+export function borderPoint(bounds: Bounds, target: Point, shape: BorderShape = "box"): Point {
   const centre = anchor.center(bounds);
   const dx = target[0] - centre[0];
   const dy = target[1] - centre[1];
   if (dx === 0 && dy === 0) return centre;
-  const horizontal = dx === 0 ? Number.POSITIVE_INFINITY : bounds.width / 2 / Math.abs(dx);
-  const vertical = dy === 0 ? Number.POSITIVE_INFINITY : bounds.height / 2 / Math.abs(dy);
-  const scale = Math.min(horizontal, vertical);
+  const scale = shape === "ellipse"
+    // On a diagonal a box corner stands well outside the ellipse inscribed in
+    // it — half again as far, for a circle — so using the box for both left a
+    // visible gap between a connector and the shape it was joining. The two
+    // agree only on the cardinal axes, which is why an ellipse looked right
+    // there and nowhere else.
+    ? 1 / Math.hypot(dx / (bounds.width / 2), dy / (bounds.height / 2))
+    : Math.min(
+      dx === 0 ? Number.POSITIVE_INFINITY : bounds.width / 2 / Math.abs(dx),
+      dy === 0 ? Number.POSITIVE_INFINITY : bounds.height / 2 / Math.abs(dy),
+    );
   return [centre[0] + dx * scale, centre[1] + dy * scale];
 }
 

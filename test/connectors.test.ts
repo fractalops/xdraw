@@ -403,6 +403,35 @@ test("a straight run meets each border where it crosses, not at a side midpoint"
   }
 });
 
+test("a straight run meets an ellipse's own outline, not its bounding box", () => {
+  // A box corner stands half again as far from the centre as the ellipse
+  // inscribed in it, so computing the crossing on the box left a visible gap on
+  // every diagonal spoke of a hub and none on the cardinal ones.
+  const drawing = compile(parse(`diagram "Radial" {
+    hub: ellipse "hub" { at (460, 260); size (140, 90) }
+    ne: ellipse "ne" { at (760, 100); size (120, 72) }
+    e: ellipse "e" { at (800, 275); size (120, 72) }
+    hub -- ne
+    hub -- e
+  }`)).toJSON();
+  const shape = (id) => drawing.elements.find((item) => item.id === `${id}:frame`);
+  const onOutline = (element, [x, y]) => {
+    const nx = (x - (element.x + element.width / 2)) / (element.width / 2);
+    const ny = (y - (element.y + element.height / 2)) / (element.height / 2);
+    return nx * nx + ny * ny;
+  };
+  const lines = drawing.elements.filter((item) => item.type === "line");
+  assert.equal(lines.length, 2);
+  for (const line of lines) {
+    const start = [line.x + line.points[0][0], line.y + line.points[0][1]];
+    // 1 is exactly on the outline; the box would have given about 1.8 diagonally.
+    assert.ok(
+      Math.abs(onOutline(shape("hub"), start) - 1) < 0.001,
+      `a spoke should leave the ellipse's edge, got ${onOutline(shape("hub"), start)}`,
+    );
+  }
+});
+
 test("an explicit anchor still means that side's midpoint", () => {
   const drawing = compile(parse(`diagram "Anchored" {
     hub: rectangle "" { at (460, 260); size (80, 80) }

@@ -1,5 +1,5 @@
 import { boundText, card, fitTextSize, lane, tone } from "./components.ts";
-import { arrow, diamond, ellipse, frame, freedraw, image, text } from "./elements.ts";
+import { arrow, diamond, ellipse, frame, freedraw, image, isEllipticalKind, text } from "./elements.ts";
 import { box } from "../geometry.ts";
 import { wrapTextToWidth } from "../text/metrics.ts";
 import { renderCodeBlock } from "../text/code-block.ts";
@@ -127,7 +127,7 @@ function renderNode(
     boundLabel: !bodyOf(node),
     groupIds,
     ...style,
-    frameFactory: node.kind === "ellipse" ? ellipse : undefined,
+    frameFactory: isEllipticalKind(node.kind) ? ellipse : undefined,
   }));
   if (node.kind === "person" || node.kind === "database") {
     drawing.add(text(`${node.id}:kind`, { x: bounds.x + 12, y: bounds.y + bounds.height - 24 }, node.kind === "person" ? "PERSON" : "DATA", {

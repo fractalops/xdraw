@@ -1,5 +1,7 @@
 import { card, connect } from "../excalidraw/components.ts";
+import { isEllipticalKind } from "../excalidraw/elements.ts";
 import { anchor, borderPoint, box } from "../geometry.ts";
+import type { BorderShape } from "../geometry.ts";
 import { splitEndpoint } from "./endpoints.ts";
 import { inferredSides, routeConnection } from "./router.ts";
 import type {
@@ -103,6 +105,12 @@ function routeWithWaypoints(start: Point, waypoints: readonly Point[], end: Poin
   return first ? [start, first, ...waypoints.slice(1), end] : [start, end];
 }
 
+/** The outline a connector should meet for this element. */
+function borderShape(state: SceneGraph, id: string): BorderShape {
+  const semantic = state.objects?.get(id)?.semantic as { kind?: unknown } | undefined;
+  return isEllipticalKind(semantic?.kind) ? "ellipse" : "box";
+}
+
 function bindingElementId(state: SceneGraph, id: string): string {
   if (state.visuals?.find((visual) => visual.id === id)?.type === "frame") return id;
   const semantic = state.objects?.get(id)?.semantic;
@@ -165,8 +173,12 @@ export function renderConnection(
     // perpendicular to the side.
     const radial = (style === "straight" || style === "line")
       && from.side === undefined && to.side === undefined;
-    const start = radial ? borderPoint(fromBounds, anchor.center(toBounds)) : anchor[startSide](fromBounds);
-    const end = radial ? borderPoint(toBounds, anchor.center(fromBounds)) : anchor[endSide](toBounds);
+    const start = radial
+      ? borderPoint(fromBounds, anchor.center(toBounds), borderShape(state, from.id))
+      : anchor[startSide](fromBounds);
+    const end = radial
+      ? borderPoint(toBounds, anchor.center(fromBounds), borderShape(state, to.id))
+      : anchor[endSide](toBounds);
     if (waypoints) {
       if (!connection.generatedRoute) {
         state.diagnostics?.warn("XD2003", "connection via disables automatic obstacle routing", connection);

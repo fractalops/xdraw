@@ -81,6 +81,24 @@ export function diamond(
   return baseElement(id, "diamond", bounds, options);
 }
 
+/**
+ * Node kinds whose outline is the ellipse inscribed in their box rather than the
+ * box itself.
+ *
+ * Two things need this answer and used to decide it separately: the adapter, to
+ * pick which factory draws the frame, and the router, to work out where a
+ * connector meets the shape. Keeping them apart is how connectors came to stop
+ * short of every ellipse on a diagonal, since only one of the two had been told.
+ * A kind absent from here is treated as a box, which is right for a rectangle
+ * and wrong for anything round, so a new round kind belongs in this set.
+ */
+export const ELLIPTICAL_NODE_KINDS: ReadonlySet<string> = new Set(["ellipse"]);
+
+/** Whether this node kind is drawn, and met by connectors, as an ellipse. */
+export function isEllipticalKind(kind: unknown): boolean {
+  return typeof kind === "string" && ELLIPTICAL_NODE_KINDS.has(kind);
+}
+
 export function ellipse(
   id: string,
   bounds: Bounds,
