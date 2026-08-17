@@ -47,7 +47,7 @@ export interface LayoutStatement extends StatementMetadata {
 }
 
 export interface GeometryStatement extends StatementMetadata {
-  type: "alignment" | "distribution" | "offset" | "match-size" | "rotation" | "snap";
+  type: "alignment" | "distribution" | "offset" | "match-size" | "rotation" | "snap" | "layer";
   ids: string[];
   mode?: string;
   axis?: string;
@@ -90,7 +90,13 @@ export interface SnapStatement extends RenderableGeometryStatementBase {
   grid: number;
 }
 
+export interface LayerStatement extends RenderableGeometryStatementBase {
+  type: "layer";
+  mode: "front" | "back";
+}
+
 export type RenderableGeometryStatement =
+  | LayerStatement
   | AlignmentStatement
   | DistributionStatement
   | OffsetStatement

@@ -67,7 +67,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isGeometryStatement(statement: SemanticStatement): statement is GeometryStatement {
-  return ["alignment", "distribution", "offset", "match-size", "rotation", "snap"].includes(statement.type);
+  return ["alignment", "distribution", "offset", "match-size", "rotation", "snap", "layer"].includes(statement.type);
 }
 
 /**
@@ -774,6 +774,10 @@ export function validateSemanticDocument(document: SemanticValidationDocument): 
       ));
     } else if (reference.kind === "geometry operation") {
       const targetType = definitions.get(id)!.type;
+      // Layer order changes which element is drawn on top, and every drawn thing
+      // has a place in that order. The restriction below is about what can be
+      // *moved*, which is a different question.
+      if (reference.operation === "layer") continue;
       const supportedNode = ["node", "participant", "branch", "leaf"].includes(targetType);
       const supportedCode = targetType === "code"
         && reference.operation !== undefined

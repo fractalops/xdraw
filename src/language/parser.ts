@@ -252,6 +252,50 @@ export function parseSyntax(source: string): SourceDocument {
     return statements;
   }
 
+  /**
+   * The operations that adjust what has already been placed.
+   *
+   * Extracted from `statement` because seven verbs of the same shape crowded out
+   * everything else in it, and because they belong together: each takes a
+   * selection and refines the drawing rather than adding to it.
+   */
+  function geometryOperation(start: Token): SourceGeometryStatement | null {
+    if (start.value === "align" && peek("identifier") && peek("(", undefined, 1)) {
+      const mode = identifier(undefined, "expected an alignment mode");
+      return located<SourceGeometryStatement>({ type: "alignment", mode, references: selection(`align ${mode}`) }, start, tokens[index - 1]);
+    }
+    if (start.value === "distribute") {
+      const axis = identifier(undefined, "expected distribution axis 'x' or 'y'");
+      return located<SourceGeometryStatement>({ type: "distribution", axis, references: selection(`distribute ${axis}`) }, start, tokens[index - 1]);
+    }
+    if (start.value === "offset") {
+      const references = selection("offset");
+      identifier("by", "expected 'by' and an offset");
+      return located<SourceGeometryStatement>({ type: "offset", references, by: pair("offset") }, start, tokens[index - 1]);
+    }
+    if (start.value === "match-size") {
+      const references = selection("match-size");
+      const axis = peek("identifier") ? identifier() : "both";
+      return located<SourceGeometryStatement>({ type: "match-size", references, axis }, start, tokens[index - 1]);
+    }
+    if (start.value === "rotate") {
+      const references = selection("rotate");
+      const degrees = Number(take("number", undefined, "expected rotation in degrees").value);
+      return located<SourceGeometryStatement>({ type: "rotation", references, degrees }, start, tokens[index - 1]);
+    }
+    if (start.value === "bring-to-front" || start.value === "send-to-back") {
+      const mode = start.value === "bring-to-front" ? "front" : "back";
+      return located<SourceGeometryStatement>({ type: "layer", mode, references: selection(start.value) }, start, tokens[index - 1]);
+    }
+    if (start.value === "snap") {
+      const references = selection("snap");
+      identifier("to", "expected 'to' and a grid size");
+      const grid = Number(take("number", undefined, "expected grid size").value);
+      return located<SourceGeometryStatement>({ type: "snap", references, grid }, start, tokens[index - 1]);
+    }
+    return null;
+  }
+
   function statement(): SourceStatement {
     const start = take("identifier", undefined, "expected a statement");
     if (start.value === "subtitle") {
@@ -265,35 +309,8 @@ export function parseSyntax(source: string): SourceDocument {
       return located({ type: "binding", name, expression }, start, tokens[index - 1]);
     }
     if (start.value === "arrange") return arrangement(start);
-    if (start.value === "align" && peek("identifier") && peek("(", undefined, 1)) {
-      const mode = identifier(undefined, "expected an alignment mode");
-      return located({ type: "alignment", mode, references: selection(`align ${mode}`) }, start, tokens[index - 1]);
-    }
-    if (start.value === "distribute") {
-      const axis = identifier(undefined, "expected distribution axis 'x' or 'y'");
-      return located({ type: "distribution", axis, references: selection(`distribute ${axis}`) }, start, tokens[index - 1]);
-    }
-    if (start.value === "offset") {
-      const references = selection("offset");
-      identifier("by", "expected 'by' and an offset");
-      return located({ type: "offset", references, by: pair("offset") }, start, tokens[index - 1]);
-    }
-    if (start.value === "match-size") {
-      const references = selection("match-size");
-      const axis = peek("identifier") ? identifier() : "both";
-      return located({ type: "match-size", references, axis }, start, tokens[index - 1]);
-    }
-    if (start.value === "rotate") {
-      const references = selection("rotate");
-      const degrees = Number(take("number", undefined, "expected rotation in degrees").value);
-      return located({ type: "rotation", references, degrees }, start, tokens[index - 1]);
-    }
-    if (start.value === "snap") {
-      const references = selection("snap");
-      identifier("to", "expected 'to' and a grid size");
-      const grid = Number(take("number", undefined, "expected grid size").value);
-      return located({ type: "snap", references, grid }, start, tokens[index - 1]);
-    }
+    const geometry = geometryOperation(start);
+    if (geometry) return geometry;
 
     if (peek(":")) {
       take(":");
@@ -378,7 +395,7 @@ function isDeclaration(statement: SourceStatement): statement is SourceDeclarati
 }
 
 function isGeometryStatement(statement: SourceStatement): statement is SourceGeometryStatement {
-  return ["alignment", "distribution", "offset", "match-size", "rotation", "snap"].includes(statement.type);
+  return ["alignment", "distribution", "offset", "match-size", "rotation", "snap", "layer"].includes(statement.type);
 }
 
 function isPoint(value: SourcePropertyValue | undefined): value is Point {

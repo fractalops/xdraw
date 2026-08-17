@@ -1120,6 +1120,24 @@ diagram "Aligned" {
 The alignment modes are `left`, `center-x`, `right`, `top`, `center-y`, and
 `bottom`. `match-size` accepts `width`, `height`, or `both`.
 
+A scene has no depth beyond the order its elements are drawn in, which is what
+Excalidraw's own front-and-back commands change, so `bring-to-front` and
+`send-to-back` do the same:
+
+```xdraw
+diagram "Badge on a line" {
+  left: rectangle "Left" { at (100, 300); size (140, 90) }
+  right: rectangle "Right" { at (500, 300); size (140, 90) }
+  left -- right
+  badge: text "on the line" { at (300, 330) }
+  bring-to-front (badge)
+}
+```
+
+Without the last line the connector covers the label, because a connector is
+drawn after the elements it joins. These two operations accept anything drawn,
+text and images included, since they change no position.
+
 ## Hosted scenes
 
 XDraw can discover, create, update, and retrieve hosted Excalidraw+ scenes. The

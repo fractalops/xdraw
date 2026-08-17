@@ -132,4 +132,7 @@ diagram "Network hub" {
     at = (cx + 0.5 * wide * cos(1 * slot) - 230, cy + 0.5 * tall * sin(1 * slot) + 6)
     size (200, 44); wrap-width 200; auto-size false; align right; font-size 14
   }
+
+  # A badge annotates the line it sits on, so it belongs above it.
+  bring-to-front (vpn, vpn_name, peering_link, peering_name)
 }

@@ -11,7 +11,7 @@ import {
   renderImage,
   renderSceneVisuals,
 } from "../excalidraw/adapter.ts";
-import { applyGeometryStatements } from "./geometry-pass.ts";
+import { applyGeometryStatements, applyLayerOrder } from "./geometry-pass.ts";
 import { resolveGeometryReferences } from "./geometry-references.ts";
 import { renderAnnotation, renderConnection } from "../routing/renderer.ts";
 import { splitEndpoint } from "../routing/endpoints.ts";
@@ -304,6 +304,8 @@ export function renderCompilation(
       renderAnnotation(drawing, state, annotation, index, registerBounds);
     }
   });
+  // Last, because depth is the order of what has been drawn.
+  applyLayerOrder(drawing, scene.statements);
   for (const element of drawing.elements.filter(isFixedTextElement)) {
     const measured = Math.max(...String(element.text).split("\n").map((line) => (
       measureTextWidth(line, element.fontSize, element.fontFamily)

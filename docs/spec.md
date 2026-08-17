@@ -550,13 +550,14 @@ an acyclic graph. Tree connections may reference only direct child nodes.
 
 ```text
 geometry-operation = alignment | distribution | offset | match-size
-                   | rotation | snap
+                   | rotation | snap | layer
 alignment    = "align", alignment-mode, selection
 distribution = "distribute", ( "x" | "y" ), selection
 offset       = "offset", selection, "by", pair
 match-size   = "match-size", selection, [ "width" | "height" | "both" ]
 rotation     = "rotate", selection, number
 snap         = "snap", selection, "to", number
+layer        = ( "bring-to-front" | "send-to-back" ), selection
 ```
 
 Alignment modes are `left`, `center-x`, `right`, `top`, `center-y`, and
@@ -569,6 +570,14 @@ Geometry operations apply after automatic layout. Nodes and sequence
 participants support all operations. Code supports `align`, `distribute`,
 `offset`, and `snap`. Freehand supports `align`, `distribute`, `offset`,
 `rotate`, and `snap`. Neither supports `match-size`.
+
+`bring-to-front` and `send-to-back` are the exception to the paragraph above:
+they accept any drawn element, including text, images, and icons, because they
+change the order things are drawn in rather than where anything sits. A scene has
+no depth other than that order, so these move the named elements, and everything
+each of them owns, to the end or the beginning of it. They are applied after
+every element exists, which means after connectors, so an element may be lifted
+above a connector that joins others.
 
 ## 13. Styles and Themes
 

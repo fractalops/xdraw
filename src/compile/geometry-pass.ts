@@ -6,7 +6,7 @@ import type { Drawing } from "../excalidraw/document.ts";
 import type { DrawingElement } from "../contracts/render.ts";
 
 function isGeometryStatement(statement: SemanticStatement): statement is GeometryStatement {
-  return ["alignment", "distribution", "offset", "match-size", "rotation", "snap"].includes(statement.type);
+  return ["alignment", "distribution", "offset", "match-size", "rotation", "snap", "layer"].includes(statement.type);
 }
 
 function isAlignmentMode(value: unknown): value is AlignmentMode {
@@ -40,6 +40,9 @@ function renderableGeometryStatement(statement: GeometryStatement): RenderableGe
   }
   if (statement.type === "snap" && typeof statement.grid === "number" && statement.grid > 0) {
     return { ...statement, type: "snap", grid: statement.grid };
+  }
+  if (statement.type === "layer" && (statement.mode === "front" || statement.mode === "back")) {
+    return { ...statement, type: "layer", mode: statement.mode };
   }
   throw new Error(`invalid validated geometry statement: ${statement.type}`);
 }
@@ -163,6 +166,9 @@ export function applyGeometryStatements(
   statements: readonly SemanticStatement[],
 ): void {
   for (const statement of geometryStatements(statements)) {
+    // Layer order is applied after everything is drawn, because it reorders the
+    // emitted elements rather than moving any of them.
+    if (statement.type === "layer") continue;
     const bounds = statement.ids.map((id) => requiredBounds(scene, id));
     if (statement.type === "alignment" || statement.type === "distribution") {
       const resolved = statement.type === "alignment"
@@ -190,5 +196,36 @@ export function applyGeometryStatements(
         y: Math.round(bounds[index].y / statement.grid) * statement.grid,
       }));
     }
+  }
+}
+
+/**
+ * Applies `bring-to-front` and `send-to-back` by reordering what has been drawn.
+ *
+ * In Excalidraw a scene has no z-index: depth is the order of the element array,
+ * and its own front-and-back commands reorder that array. This does the same, so
+ * a document says the thing Excalidraw would say and the two agree.
+ *
+ * It runs last, unlike every other operation in the family, because connectors
+ * are drawn after the elements they join and an element cannot be lifted above
+ * something that does not exist yet.
+ */
+export function applyLayerOrder(drawing: Drawing, statements: readonly SemanticStatement[]): void {
+  for (const statement of geometryStatements(statements)) {
+    if (statement.type !== "layer") continue;
+    // A card owns `id:frame` and `id:title`, while an icon, an image and a piece
+    // of free text are the element `id` itself, so both spellings count.
+    const owned = (id: string): DrawingElement[] => {
+      const elements = drawing.elements.filter((element) => (
+        element.id === id || element.id.startsWith(`${id}:`)
+      ));
+      if (!elements.length) throw new Error(`layer order found no rendered elements for: ${id}`);
+      return elements;
+    };
+    const moved: DrawingElement[] = [];
+    for (const id of statement.ids) moved.push(...owned(id));
+    const lifted = new Set(moved);
+    const rest = drawing.elements.filter((element) => !lifted.has(element));
+    drawing.elements = statement.mode === "front" ? [...rest, ...moved] : [...moved, ...rest];
   }
 }

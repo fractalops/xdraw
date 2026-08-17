@@ -519,3 +519,27 @@ test("an explicit anchor still means that side's midpoint", () => {
     [500, 260],
   );
 });
+
+test("layer order lifts an element above what was drawn after it", () => {
+  // Excalidraw has no z-index: depth is the order of the element array, and its
+  // own front-and-back commands reorder that array. A badge sitting on a
+  // connector needs exactly that, because connectors are drawn after the
+  // elements they join and so cover anything placed on them.
+  const source = (operation) => `diagram "Z" {
+    a: rectangle "A" { at (100, 300); size (140, 90) }
+    b: rectangle "B" { at (500, 300); size (140, 90) }
+    mark: text "on the line" { at (300, 330) }
+    a -- b
+    ${operation}
+  }`;
+  const orderOf = (operation) => compile(parse(source(operation))).toJSON()
+    .elements.filter((item) => item.id === "mark" || item.type === "line")
+    .map((item) => (item.type === "line" ? "line" : "mark"));
+
+  // Without it the connector is drawn last and covers the label.
+  assert.deepEqual(orderOf(""), ["mark", "line"]);
+  assert.deepEqual(orderOf("bring-to-front (mark)"), ["line", "mark"]);
+  assert.deepEqual(orderOf("send-to-back (mark)"), ["mark", "line"]);
+  // Sending the connector back has the same effect from the other side.
+  assert.deepEqual(orderOf("send-to-back (a, b)"), ["mark", "line"]);
+});

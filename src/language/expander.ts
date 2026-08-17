@@ -129,6 +129,7 @@ function rewriteStatement(
     case "match-size":
     case "rotation":
     case "snap":
+    case "layer":
       statement.ids = statement.ids.map((value) => rewriteReference(value, ids, prefix));
       break;
     case "image":

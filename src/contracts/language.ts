@@ -53,7 +53,7 @@ export interface SourceArrangement extends SourceNode {
 }
 
 export interface SourceGeometryStatement extends SourceNode {
-  type: "alignment" | "distribution" | "offset" | "match-size" | "rotation" | "snap";
+  type: "alignment" | "distribution" | "offset" | "match-size" | "rotation" | "snap" | "layer";
   references: string[];
   mode?: string;
   axis?: string;
