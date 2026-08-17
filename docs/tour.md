@@ -141,6 +141,8 @@ attachment side matters:
 
 ```xdraw
 diagram "Request path" {
+  arrange grid { columns 2; gap 90 }
+
   source: frame "Source" { api: rectangle "API" }
   target: frame "Target" { worker: rectangle "Worker" }
 
@@ -521,10 +523,23 @@ use "xdraw/architecture" as arch
 use "xdraw/palette" as palette
 
 diagram "Services" {
+  arrange grid { columns 1; gap 40 }
+
   service: template(name, visual_style) {
-    api: arch.container "${name} API" { style $visual_style }
-    data: arch.database "${name} data"
-    api -> data
+    unit: section "${name}" {
+      arrange row { gap 185 }
+
+      api: arch.container "${name} API" {
+        description "Serves ${name} over HTTP"
+        technology "Go"
+        style $visual_style
+      }
+      data: arch.database "${name} data" {
+        description "Stores ${name} records"
+        technology "Postgres"
+      }
+      api -> data "reads and writes" { technology "SQL" }
+    }
   }
 
   orders: service("Orders", palette.info)
@@ -533,8 +548,12 @@ diagram "Services" {
 ```
 
 Arguments bind by position. `$name` supplies a complete property value and
-`${name}` interpolates into a string. Instance IDs are qualified, so the
-elements above are `orders.api`, `billing.api`, and so on.
+`${name}` interpolates into a string, including into the section's own title.
+Instance IDs are qualified, so the elements above are `orders.unit.api`,
+`billing.unit.api`, and so on.
+
+A template may hold a container, which is what keeps each instance together on
+the page rather than letting the document layout mix them.
 
 ## Semantic libraries
 
