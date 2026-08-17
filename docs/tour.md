@@ -163,6 +163,17 @@ A written anchor attaches at that side's midpoint. When both ends of a
 segment between the two centres crosses the border, so several connectors
 leaving one element in different directions do not pile onto the same point.
 
+Which border that is depends on the element. A rectangle is met on its box, an
+ellipse on its own curve, and a diamond on its edge, so a connector arriving
+diagonally neither stops short of a round shape nor buries its end in a pointed
+one. Each kind declares its border in the library it comes from, so a library may
+bring a shape of its own.
+
+A drawn stroke has points rather than a declared border, so it is met where the
+ray last crosses the line it draws. That is what lets a curve plotted from
+equations be joined like any other shape, and the furthest crossing is used
+because a curve that folds back over itself should be met at its outer edge.
+
 The routes are `auto`, `straight`, `elbow`, `curved`, and `line`. Use
 `via ((x, y), (x, y))` when a connector needs explicit waypoints.
 
