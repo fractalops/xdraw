@@ -26,6 +26,7 @@ xdraw build examples/compiler-flow.xdraw
 | `xdraw-architecture.xdraw` | Architecture notation, composite symbols, boundaries and routing |
 | `architecture-cheatsheet.xdraw` | The architecture library's constructors side by side |
 | `deployment-environments.xdraw` | One template instantiated once per environment |
+| `network-hub.xdraw` | Embedded icons placed on a computed ring |
 | `connections.xdraw` | Connector routes, arrowheads and structural links |
 | `frames.xdraw` | Native frame ownership, nesting and locking |
 | `styling.xdraw` | Theme, named-style and local-property precedence |

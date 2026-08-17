@@ -84,63 +84,51 @@ the [specification](docs/spec.md) defines its syntax and semantics.
 
 ### Computed layouts
 
-Numbers can be named, computed, and repeated, so a diagram whose positions
-follow a rule is written as that rule:
+Numbers can be named and computed, so a diagram whose positions follow a rule is
+written as that rule. Here a core router and its six links sit on one ring:
+
+![A core router with six links placed around a computed ring](docs/images/network-hub.png)
+
+Not one coordinate is typed. The ring is stated once, and a link names only
+which of the six slots it occupies:
 
 ```xdraw
-use "xdraw/palette" as palette
+use "xdraw/assets" as assets
 
-diagram "One declaration, nine elements" {
-  subtitle "Each service is placed from its own index, and each is addressable by name"
-
+diagram "Network hub" {
   let cx = 560
-  let cy = 500
-  let wide = 400
-  let tall = 280
+  let cy = 460
+  let wide = 420
+  let tall = 245
+  let slot = tau / 6
 
-  gateway: ellipse "gateway" {
-    at = (cx - 70, cy - 45)
-    size (140, 90)
-    style palette.accent
+  cloud: asset "examples/assets/network/cloud.svg"
+
+  cloud_north: rectangle "" {
+    at = (cx + wide * cos(4 * slot) - 36, cy + tall * sin(4 * slot) - 36); size (72, 72)
+    background "transparent"; stroke "transparent"
   }
-
-  spoke: ellipse "${each}" {
-    each ("auth", "billing", "search", "audit", "email", "queue", "cache", "report", "admin")
-    at = (cx - 60 + wide * cos(tau * spoke.index / spoke.count),
-          cy - 36 + tall * sin(tau * spoke.index / spoke.count))
-    size (120, 72)
-    style palette.info
+  cloud_north_mark: assets.icon(cloud) {
+    at = (cx + wide * cos(4 * slot) - 36, cy + tall * sin(4 * slot) - 36)
+    size (72, 72); alt "An attached cloud network"
   }
-
-  gateway -- spoke.auth
-  gateway -- spoke.billing
-  gateway -- spoke.search
-  gateway -- spoke.audit
-  gateway -- spoke.email
-  gateway -- spoke.queue
-  gateway -- spoke.cache
-  gateway -- spoke.report
-  gateway -- spoke.admin
+  cloud_north_name: text "Cloud network" {
+    at = (cloud_north.center_x - 65, cloud_north.top - 54)
+    size (130, 48); wrap-width 130; auto-size false; align center; font-size 14
+  }
 }
 ```
 
-![Nine services around a gateway, each placed by trigonometry on its own index](docs/images/repetition.png)
+The other five links differ only in their slot number and their icon. The label
+is placed from `cloud_north.center_x` and `cloud_north.top`, geometry the
+compiler measured rather than anything the document stated, so moving the ring
+moves the labels with it. Full source in
+[`examples/network-hub.xdraw`](examples/network-hub.xdraw).
 
-One declaration produced all nine ellipses, and `each` named them by item
-rather than by position, which is why `spoke.billing` is something a connector
-can address. Inserting a tenth service leaves every existing name untouched.
-
-A position can also come from an element the compiler has already measured,
-which is how an annotation stays attached to a box whose size depends on its
-text:
-
-```text
-label: text "beside the last box" {
-  at = (flow.emit.right + 24, flow.emit.center_y)
-}
-```
-
-[Named values](docs/named-values.md), [repetition](docs/repetition.md), and
+A declaration can also repeat. `each` names its instances by item and `count`
+names them by position, which is how nine services get placed around a ring
+from one `ellipse`. [Named values](docs/named-values.md),
+[repetition](docs/repetition.md), and
 [measured geometry](docs/geometry-references.md) cover these in full.
 
 ### Reusable structure

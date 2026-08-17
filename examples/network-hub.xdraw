@@ -1,0 +1,135 @@
+use "xdraw/assets" as assets
+
+diagram "Network hub" {
+  subtitle "Six links on one ring: every card names its slot, and nothing else moves"
+
+  let cx = 560
+  let cy = 460
+  let wide = 420
+  let tall = 245
+  let slot = tau / 6
+
+  router: asset "assets/network/router.svg"
+  cloud: asset "assets/network/cloud.svg"
+  firewall: asset "assets/network/firewall.svg"
+  datacenter: asset "assets/network/datacenter.svg"
+  storage: asset "assets/network/storage.svg"
+  internet: asset "assets/network/internet.svg"
+  tunnel: asset "assets/network/tunnel.svg"
+  peer: asset "assets/network/peer.svg"
+
+  hub: rectangle "" {
+    at = (cx - 40, cy - 40); size (80, 80)
+    background "transparent"; stroke "transparent"
+  }
+  hub_mark: assets.icon(router) {
+    at = (cx - 40, cy - 40); size (80, 80); alt "The core router"
+  }
+  hub_name: text "Core router" {
+    at = (hub.center_x - 55, hub.bottom + 30)
+    size (110, 48); wrap-width 110; auto-size false; align center; font-size 14
+  }
+
+  cloud_north: rectangle "" {
+    at = (cx + wide * cos(4 * slot) - 36, cy + tall * sin(4 * slot) - 36); size (72, 72)
+    background "transparent"; stroke "transparent"
+  }
+  cloud_north_mark: assets.icon(cloud) {
+    at = (cx + wide * cos(4 * slot) - 36, cy + tall * sin(4 * slot) - 36)
+    size (72, 72); alt "An attached cloud network"
+  }
+  cloud_north_name: text "Cloud network" {
+    at = (cloud_north.center_x - 65, cloud_north.top - 54)
+    size (130, 48); wrap-width 130; auto-size false; align center; font-size 14
+  }
+
+  edge: rectangle "" {
+    at = (cx + wide * cos(5 * slot) - 36, cy + tall * sin(5 * slot) - 36); size (72, 72)
+    background "transparent"; stroke "transparent"
+  }
+  edge_mark: assets.icon(firewall) {
+    at = (cx + wide * cos(5 * slot) - 36, cy + tall * sin(5 * slot) - 36)
+    size (72, 72); alt "A perimeter firewall"
+  }
+  edge_name: text "Perimeter firewall" {
+    at = (edge.center_x - 65, edge.top - 54)
+    size (130, 48); wrap-width 130; auto-size false; align center; font-size 14
+  }
+
+  site: rectangle "" {
+    at = (cx + wide * cos(3 * slot) - 36, cy + tall * sin(3 * slot) - 36); size (72, 72)
+    background "transparent"; stroke "transparent"
+  }
+  site_mark: assets.icon(datacenter) {
+    at = (cx + wide * cos(3 * slot) - 36, cy + tall * sin(3 * slot) - 36)
+    size (72, 72); alt "An on-premises data centre"
+  }
+  site_name: text "On-premises site" {
+    at = (site.center_x - 65, site.bottom + 20)
+    size (130, 70); wrap-width 130; auto-size false; align center; font-size 14
+  }
+
+  archive: rectangle "" {
+    at = (cx + wide * cos(0 * slot) - 36, cy + tall * sin(0 * slot) - 36); size (72, 72)
+    background "transparent"; stroke "transparent"
+  }
+  archive_mark: assets.icon(storage) {
+    at = (cx + wide * cos(0 * slot) - 36, cy + tall * sin(0 * slot) - 36)
+    size (72, 72); alt "A storage tier"
+  }
+  archive_name: text "Storage tier" {
+    at = (archive.center_x - 65, archive.bottom + 20)
+    size (130, 70); wrap-width 130; auto-size false; align center; font-size 14
+  }
+
+  cloud_south: rectangle "" {
+    at = (cx + wide * cos(2 * slot) - 36, cy + tall * sin(2 * slot) - 36); size (72, 72)
+    background "transparent"; stroke "transparent"
+  }
+  cloud_south_mark: assets.icon(cloud) {
+    at = (cx + wide * cos(2 * slot) - 36, cy + tall * sin(2 * slot) - 36)
+    size (72, 72); alt "A second cloud network"
+  }
+  cloud_south_name: text "Cloud network" {
+    at = (cloud_south.center_x - 65, cloud_south.bottom + 20)
+    size (130, 70); wrap-width 130; auto-size false; align center; font-size 14
+  }
+
+  exchange: rectangle "" {
+    at = (cx + wide * cos(1 * slot) - 36, cy + tall * sin(1 * slot) - 36); size (72, 72)
+    background "transparent"; stroke "transparent"
+  }
+  exchange_mark: assets.icon(internet) {
+    at = (cx + wide * cos(1 * slot) - 36, cy + tall * sin(1 * slot) - 36)
+    size (72, 72); alt "A public internet exchange"
+  }
+  exchange_name: text "Internet exchange" {
+    at = (exchange.center_x - 65, exchange.bottom + 20)
+    size (130, 70); wrap-width 130; auto-size false; align center; font-size 14
+  }
+
+  hub -- cloud_north
+  hub -- edge
+  hub -- site
+  hub -- archive
+  hub -- cloud_south
+  hub -- exchange
+
+  vpn: assets.icon(tunnel) {
+    at = (cx + 0.5 * wide * cos(3 * slot) - 24, cy + 0.5 * tall * sin(3 * slot) - 24)
+    size (48, 48); alt "An encrypted tunnel"
+  }
+  vpn_name: text "Encrypted tunnel" {
+    at = (cx + 0.5 * wide * cos(3 * slot) - 110, cy + 0.5 * tall * sin(3 * slot) + 32)
+    size (220, 22); wrap-width 220; auto-size false; align center; font-size 14
+  }
+
+  peering_link: assets.icon(peer) {
+    at = (cx + 0.5 * wide * cos(1 * slot) - 24, cy + 0.5 * tall * sin(1 * slot) - 24)
+    size (48, 48); alt "A peering link"
+  }
+  peering_name: text "Peering link" {
+    at = (cx + 0.5 * wide * cos(1 * slot) - 230, cy + 0.5 * tall * sin(1 * slot) + 6)
+    size (200, 44); wrap-width 200; auto-size false; align right; font-size 14
+  }
+}
