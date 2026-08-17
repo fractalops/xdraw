@@ -17,7 +17,7 @@
 XDraw is a small DSL for describing diagrams and drawings. It compiles to
 editable Excalidraw scenes and can also render PNG and SVG previews.
 
-## Quick Start
+## Quick start
 
 You need Node.js 22.18 or newer.
 
@@ -69,7 +69,8 @@ cat compiler-flow.xdraw | xdraw build -o output/compiler-flow.excalidraw
 
 ## Language
 
-This quick reference covers declarations, core primitives, and composition:
+The reference below covers a declaration's anatomy, the primitives, composition,
+and the build:
 
 ![XDraw quick reference](docs/images/readme-cheatsheet.png)
 
@@ -177,11 +178,11 @@ diagram "Deployment environments" {
 
 ![The same API, cache, and database drawn for development, staging, and production](docs/images/deployment-environments.png)
 
-Nothing here carries a coordinate. `arrange` places the sections down the page
-and the containers across each one, and `@right` and `@left` name where a
-connector should attach rather than where it should be drawn.
+Here the positions are not computed either. `arrange` places the sections down
+the page and the containers across each one, and `@right` and `@left` name where
+a connector should attach rather than where it should be drawn.
 
-## Rich Content
+## Rich content
 
 XDraw renders TeX formulas as SVG while keeping the scene editable:
 
@@ -222,7 +223,7 @@ Curves share a frame, and a closed one encloses a region:
 
 ![Two curves on labelled axes, one filled and one open](docs/images/labelled-axes.png)
 
-The frame is not a special construct. A row of ticks and its labels are one
+The frame is built from ordinary pieces. A row of ticks and its labels are one
 declaration each, placed from the instance's own index, so the whole figure moves
 by editing `unit`:
 
@@ -261,7 +262,7 @@ text stays selectable in the scene:
 xdraw build examples/code-blocks.xdraw -o output/code-blocks.png
 ```
 
-## Hosted Scenes
+## Hosted scenes
 
 XDraw can also read and update scenes in Excalidraw+. Set an API key, then list
 the scenes you can access:

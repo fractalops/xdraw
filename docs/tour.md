@@ -241,8 +241,9 @@ let sin = 5          'sin' is a function of the expression language and cannot b
 A cycle reports the path that closes it rather than looping, and an unbound name
 reports who used it rather than defaulting to zero.
 
-**One rough edge.** An expression has no closing delimiter. It ends where the
-grammar ends it, so an unfinished one runs into the statement after it:
+An expression has no closing delimiter, which is the one rough edge here. It
+ends where the grammar ends it, so an unfinished one runs into the statement
+after it:
 
 ```text
 diagram "" {
@@ -435,10 +436,10 @@ diagram "" {
 
 ### What may refer, and what may be referred to
 
-**Text and freehand may refer.** They are drawn where they are told and take no
-part in layout.
+Text and freehand may refer. They are drawn where they are told and take no part
+in layout.
 
-**A node may not**, and says so rather than failing later:
+A node may not, and says so rather than failing later:
 
 ```
 node 'tag' at could not be resolved to numbers: 'flow.a.right + 20'.
@@ -453,7 +454,7 @@ between placement and layout rather than between two names, which no amount of
 cycle detection can see. Measured: adding one absolutely placed rectangle moved
 the frame it would have referenced from y=118 to y=731.
 
-**Only laid-out elements may be referred to.** Nodes, frames, sections, and
+Only laid-out elements may be referred to. Nodes, frames, sections, and
 groups have boxes. Text and freehand do not, because the layout never placed
 them, so they are not addressable:
 
@@ -950,8 +951,8 @@ each lobe carries a smaller copy of the whole figure. They are also the most
 expensive thing here, with the ratio-4 loop taking 2,049 points at a 1px
 tolerance.
 
-**The finding worth keeping.** The blancmange curve needs *distance from t to
-the nearest integer*, and there are two ways to write it:
+The blancmange curve is where this gets interesting. It needs *distance from t
+to the nearest integer*, and there are two ways to write it:
 
 ```
 abs(u - round(u))            mentions u twice, cannot be sampled
@@ -1005,10 +1006,10 @@ Not one exceeded its tolerance. The closest was 0.484 of 0.5.
 
 ### Where it breaks
 
-It does break, and this is the useful half. Every limit below produces a
-diagnostic naming what was hit, never a wrong curve, a crash, or a hang.
+Every limit below produces a diagnostic naming what was hit rather than a wrong
+curve or a hang.
 
-**The default point budget, at around ten thousand oscillations.** A Weierstrass
+The point budget runs out at around ten thousand oscillations. A Weierstrass
 sum of eleven terms, or `sin(5000·t)` over a unit range, exhausts 5,000 points
 before reaching a half-pixel tolerance:
 
@@ -1020,17 +1021,16 @@ Raising `maximumPoints` gets further, and thirteen terms draws in 6,213 points
 and 896 ms, so the wall is the budget rather than the method. A coarser tolerance
 is usually the better answer.
 
-**The expression size limit, at 512 terms.** A Weierstrass sum of about forty
-terms still parses; sixty does not:
+Expressions are capped at 512 terms. A Weierstrass sum of about forty terms
+still parses; sixty does not:
 
 ```
 expression holds more than 512 terms
 ```
 
-**The magnitude limit**, at a million pixels, which `exp(t)` crosses around
-t = 14.
+The magnitude limit is a million pixels, which `exp(t)` crosses around t = 14.
 
-**Nothing about the domain**, which accepts any expression once it is written as
+The domain itself is unlimited, and accepts any expression once it is written as
 an equation: the twelve turns a butterfly curve needs are
 `domain = (0, 6 * tau)`. Without the `=` the interval takes plain numbers only,
 so `domain (0, 6 * tau)` is a syntax error rather than a slower path.

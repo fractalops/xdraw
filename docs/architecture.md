@@ -211,26 +211,24 @@ seam, two is a real one.
 
 ## Constraints worth knowing
 
-These look incidental and are not.
-
-- **Validation-rule order is observable.** It sets the order of returned
+- Validation-rule order is observable. It sets the order of returned
   diagnostics.
-- **Browser worker construction must stay a literal.** Bundlers only detect a
+- Browser worker construction must stay a literal. Bundlers only detect a
   worker when they can see `new Worker(new URL("./worker-browser.js",
   import.meta.url))` written out. Computing that URL produces a page that hangs
   with no error.
-- **`contracts/` holds types only.** See the module-layer section above.
-- **Two validators run, and both are load-bearing.** `language/validator.ts`
+- `contracts/` holds types only. See the module-layer section above.
+- Two validators run, and both are load-bearing. `language/validator.ts`
   checks documents against manifests; `validateSemanticDocument` checks semantic
   constraints. The overlap is deliberate: `compile` accepts a `SemanticDocument`,
   so a caller can bypass the parser entirely.
-- **Code has its own size budget**, larger than the one for display text. See
+- Code has its own size budget, larger than the one for display text. See
   [`src/text/policy.ts`](../src/text/policy.ts).
-- **Property names are global.** [`src/language/registry.ts`](../src/language/registry.ts)
+- Property names are global. [`src/language/registry.ts`](../src/language/registry.ts)
   builds one name-to-kind map across every constructor in every library, and
   throws at load if two constructors give the same property name different
   kinds. Reusing a name means accepting its existing kind.
-- **A curve sampled to a tolerance is bounded, not estimated.** Subdividing
+- A curve sampled to a tolerance is bounded, not estimated. Subdividing
   until a few interior samples look close enough says nothing about the points
   between them; measured against curves of high frequency that approach
   exceeded its stated tolerance by up to twenty seven times and reported
@@ -240,9 +238,9 @@ These look incidental and are not.
   the magnitude limit, so all three are one mechanism rather than three. The
   bounds use double precision without directed rounding, so the guarantee holds
   to within floating-point error in the bounds themselves.
-- **Interval rules must over-estimate, never under-estimate.** A range that is
+- Interval rules must over-estimate, never under-estimate. A range that is
   too wide costs subdivision; a range that is too narrow silently produces a
-  wrong curve. Where a tight rule would be intricate, `atan2` across its branch
+  wrong curve. Where a tight rule would be fiddly, `atan2` across its branch
   cut, a fractional power of a negative base: the rules widen to the whole line
   and let the caller subdivide.
 
