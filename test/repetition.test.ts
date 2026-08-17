@@ -212,3 +212,61 @@ test("property: each item becomes exactly one element, keyed by the item", () =>
     assert.deepEqual(ids(source), items.map((item) => `s.${item}:frame`));
   }), { numRuns: Math.min(RUNS, 40) });
 });
+
+test("a qualified instance name substitutes in a string as it does in an expression", () => {
+  // `spoke.index` reaching a number inside an expression while `${spoke.index}`
+  // reached the drawing as literal text was a difference nobody would predict.
+  const drawing = compile(parse(`diagram "Q" {
+    spoke: text "\${spoke.index} of \${spoke.count}" {
+      count 3
+      at = (100 + 60 * spoke.index, 200)
+    }
+  }`)).toJSON();
+  const texts = drawing.elements
+    .filter((item) => item.type === "text" && item.id.startsWith("spoke."))
+    .map((item) => (item as unknown as { text: string }).text);
+  assert.deepEqual(texts, ["0 of 3", "1 of 3", "2 of 3"]);
+
+  // The bare and 'each'-qualified spellings agree with it.
+  const other = compile(parse(`diagram "Q" {
+    tick: text "\${index}/\${each.count}" { count 2; at = (100, 100 + 40 * tick.index) }
+  }`)).toJSON();
+  assert.deepEqual(
+    other.elements.filter((item) => item.type === "text" && item.id.startsWith("tick.")).map((item) => (item as unknown as { text: string }).text),
+    ["0/2", "1/2"],
+  );
+});
+
+test("a name no repeat supplies is left for the template pass", () => {
+  // Repetition runs before templates expand, and a template parameter is
+  // written the same way, so an unknown name must survive rather than be
+  // substituted or refused.
+  const drawing = compile(parse(`diagram "T" {
+    card: template(label) {
+      row: text "\${label}" { count 2; at = (100, 100 + 40 * row.index) }
+    }
+    a: card("kept")
+  }`)).toJSON();
+  assert.deepEqual(
+    drawing.elements
+      .filter((item) => item.type === "text" && item.id.startsWith("a.row."))
+      .map((item) => (item as unknown as { text: string }).text),
+    ["kept", "kept"],
+  );
+});
+
+test("a stroke repeats, so a row of ticks is one declaration", () => {
+  const drawing = compile(parse(`diagram "Ticks" {
+    tick: freedraw {
+      count 9
+      at = (160 + 80 * tick.index, 520)
+      points ((0, 0), (0, 8))
+    }
+  }`)).toJSON();
+  const strokes = drawing.elements.filter((item) => item.type === "freedraw");
+  assert.equal(strokes.length, 9);
+  assert.deepEqual(
+    strokes.map((item) => Math.round(item.x)),
+    [160, 240, 320, 400, 480, 560, 640, 720, 800],
+  );
+});

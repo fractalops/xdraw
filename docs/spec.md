@@ -310,8 +310,11 @@ must be a whole number of at least one. A declaration may produce at most 512
 instances.
 
 Within an instance, `${each}` is the item, and `<id>.index` and `<id>.count` are
-the instance's position and the total. A repeated declaration inside a container
-expands before its container does.
+the instance's position and the total. Every name an instance supplies is
+available in two forms: bare inside an expression, and wrapped in `${...}`
+inside a string. A `${...}` name the repeat does not supply is left untouched,
+because template expansion uses the same marker and runs afterwards. A repeated
+declaration inside a container expands before its container does.
 
 ## 8. Imports and Standard Libraries
 

@@ -320,6 +320,22 @@ whenever the instances have names worth using.
 | `name.index` | which instance this is, from 0 |
 | `name.count` | how many there are |
 
+Each of those reaches a string as well, wrapped in `${...}`, so a repeat can
+label its own instances:
+
+```xdraw
+diagram "" {
+  step: text "${index} of ${count}" {
+    count 4
+    at = (120 + 150 * step.index, 200)
+  }
+}
+```
+
+`${step.index}` and `${each.index}` are the same value written differently. A
+`${...}` name no repeat supplies is left alone, since a template parameter looks
+the same and is bound later.
+
 `index` and `count` are what make repetition worth having, because they reach
 expressions:
 
