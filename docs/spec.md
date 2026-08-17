@@ -284,6 +284,15 @@ expression is bound, the expression becomes its value; where a name remains that
 another binder supplies — `t` in a plotted curve — the bound parts are
 substituted and the expression is preserved.
 
+Within an expression, a name is a number that some part of compilation supplies
+later: a `let` binding, a repeat's `index` or `count`, a template parameter, or
+a placed element's geometry. A name no stage supplies is invalid, and is
+reported against the property that used it. A document cannot observe whether a
+value has been supplied yet.
+
+String interpolation is a separate mechanism: `${name}` in a string is text
+somebody supplies, not arithmetic, and the two do not mix.
+
 ### 7.4 Repetition
 
 A declaration may carry `each` or `count`, but not both, and produces one

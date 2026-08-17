@@ -69,6 +69,16 @@ property" messages, including their suggestions.
 
 ## Expanding and lowering
 
+[`src/language/deferred.ts`](../src/language/deferred.ts) holds the one idea
+that `let` bindings, a repeat's index, a template parameter and a measured box
+all share: a name whose value someone supplies later. Each stage calls `advance`
+with the names it knows, and only the last stage that could have supplied a name
+calls `demand` and turns what is left into a diagnostic.
+
+A pending value is a plain string, which is load-bearing rather than lazy: an
+opaque representation does not survive the `structuredClone` that repetition and
+template expansion both use, and a cloned value came back looking resolved.
+
 [`src/language/repetition.ts`](../src/language/repetition.ts) turns a repeated
 declaration into its instances, before templates expand — so a repeat may use a
 template, and everything after sees ordinary declarations. Children expand

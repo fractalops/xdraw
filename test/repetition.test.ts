@@ -148,6 +148,27 @@ test("an item may not repeat, because two instances cannot share a name", () => 
   );
 });
 
+test("an index in prose is left alone", () => {
+  // Substitution used to be a regex run over every string in the subtree, so a
+  // body mentioning `t1.index` in a sentence was rewritten. A name is only a
+  // value inside an expression; in text it is text.
+  const source = `diagram "" {
+    t1: rectangle "\${each}" {
+      each ("one", "two")
+      at = (100 + 200 * index, 100)
+      size (200, 110)
+      body "see t1.index in the manual"
+    }
+  }`;
+  const bodies = elements(source)
+    .filter((e) => String(e.id).includes("body"))
+    .map((e) => String((e as unknown as { text: string }).text));
+  assert.ok(bodies.length > 0, "the fixture must produce body text");
+  for (const body of bodies) {
+    assert.match(body, /t1\.index/, `prose was rewritten: ${body}`);
+  }
+});
+
 test("a document that repeats nothing is untouched", () => {
   const source = `diagram "" { a: rectangle "A" { at (10, 20); size (120, 80) } }`;
   assert.deepEqual(ids(source), ["a:frame"]);

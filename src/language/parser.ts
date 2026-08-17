@@ -33,8 +33,9 @@ import {
   resolveTone,
 } from "./registry.ts";
 import { validateLanguageDocument } from "./validator.ts";
-import { type ExpressionNode, CONSTANTS, evaluateExpression, formatExpression, freeNames, parseExpression, substituteNames } from "./expression.ts";
+import { type ExpressionNode, CONSTANTS, parseExpression } from "./expression.ts";
 import { resolveBindings } from "./bindings.ts";
+import { advance } from "./deferred.ts";
 
 function located<T extends object>(value: T, start: Token, end: Token): T & SourceNode {
   Object.defineProperty(value, "span", {
@@ -954,11 +955,10 @@ function foldBindings(document: SourceDocument): SourceDocument {
   const foldExpression = (source: string): number | string => {
     // A template supplies this one; it is not an expression yet.
     if (source.includes("${")) return source;
-    const node = parseExpression(source);
-    if (callsDeferred(node)) return source;
-    const unbound = [...freeNames(node)].filter((name) => !(name in environment));
-    if (unbound.length === 0) return evaluateExpression(node, environment);
-    return formatExpression(substituteNames(node, values));
+    // `along_x` needs a drawn stroke, which does not exist until layout has
+    // run, so an expression calling one is carried on as written.
+    if (callsDeferred(parseExpression(source))) return source;
+    return advance(source, values);
   };
 
   const fold = (statements: readonly SourceStatement[]): SourceStatement[] => statements

@@ -10,7 +10,8 @@
  * layout it refers to. That is what keeps the dependency between names rather
  * than between placement and layout, which a symbol table could not see.
  */
-import { type ExpressionNode, ExpressionError, evaluateExpression, freeNames, parseExpression } from "../language/expression.ts";
+import { type ExpressionNode, ExpressionError, evaluateExpression, formatExpression, freeNames, parseExpression } from "../language/expression.ts";
+import { advance, demand } from "../language/deferred.ts";
 import type { Bounds, Point } from "../contracts/foundation.ts";
 import type { SemanticStatement } from "../contracts/semantic.ts";
 
@@ -129,8 +130,10 @@ export function geometryEnvironment(
 }
 
 /**
- * Evaluates one expression against the placed boxes, naming what it could not
- * resolve rather than defaulting to zero.
+ * Evaluates one expression against the placed boxes.
+ *
+ * Layout is the last stage that can supply a name, so this is where a value
+ * that is still waiting becomes a diagnostic rather than being carried further.
  */
 export function resolveGeometryExpression(
   source: string,
@@ -144,23 +147,26 @@ export function resolveGeometryExpression(
     const detail = error instanceof ExpressionError ? error.message : String(error);
     throw new GeometryReferenceError(`${owner}: '${source}' is not a valid expression: ${detail}`);
   }
-  // `along_x(curve, u)` and `along_y(curve, u)` name a stroke rather than a
-  // number, so they are handled before evaluation: the call is replaced by the
-  // coordinate it resolves to, and the stroke's name never becomes a variable.
-  node = resolveAlongCalls(node, environment, owner);
-  const values: Record<string, number> = {};
-  for (const name of freeNames(node)) {
+  const resolved = resolveAlongCalls(node, environment, owner);
+  const names = new Map<string, number>();
+  for (const name of freeNames(resolved)) {
     const value = environment.lookup(name);
     if (value === undefined) {
-      throw new GeometryReferenceError(
-        environment.describes(name)
-          ? `${owner}: no element '${splitReference(name)?.element}' to take '${splitReference(name)?.part}' from`
-          : `${owner}: unknown name '${name}'`,
-      );
+      // A name that looks like a geometry reference gets the better message;
+      // anything else is reported by the shared resolver, which names it and
+      // says nobody defined it.
+      if (environment.describes(name)) {
+        const reference = splitReference(name);
+        throw new GeometryReferenceError(
+          `${owner}: no element '${reference?.element}' to take '${reference?.part}' from`,
+        );
+      }
+      continue;
     }
-    values[name] = value;
+    names.set(name, value);
   }
-  const result = evaluateExpression(node, values);
+  const advanced = advance(formatExpression(resolved), names);
+  const result = demand(advanced, owner);
   if (!Number.isFinite(result)) {
     throw new GeometryReferenceError(`${owner}: '${source}' is not a finite number`);
   }

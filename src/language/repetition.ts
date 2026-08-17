@@ -14,7 +14,7 @@
  * `index`, `count`, and item, reaching expressions through the same
  * substitution templates already use.
  */
-import { evaluateExpression, freeNames, parseExpression } from "./expression.ts";
+import { advance, scope } from "./deferred.ts";
 import type { DiagramDocument, SemanticStatement } from "../contracts/semantic.ts";
 
 export class RepetitionError extends Error {
@@ -90,35 +90,41 @@ function repetitionsOf(statement: SemanticStatement): readonly Repetition[] | nu
 }
 
 /**
- * Rewrites `${...}` in a string, and `name.index` / `name.count` inside an
- * expression, for one instance.
+ * Substitutes `${each}` and friends in a string.
+ *
+ * Only the marked form is replaced, and only in text. An unmarked name such as
+ * `t1.index` is left alone: it is a value inside an expression and prose
+ * elsewhere, and the previous regex pass could not tell the difference — it
+ * rewrote `body "see t1.index in the manual"` into `see 0 in the manual`.
  */
-function substituteInstance(value: string, id: string, repetition: Repetition): string {
-  // A nested declaration's id is qualified — `panel.cell` — but its own source
-  // says `cell.index`, so both the qualified name and its last segment have to
-  // be recognised.
-  const local = id.slice(id.lastIndexOf(".") + 1);
-  // A title arrives as `{each}` because the parser has already stripped the
-  // dollar the way it does for a template parameter; anywhere else the marked
-  // form survives. Both are accepted so an author need not know the difference.
+function substituteInstance(value: string, repetition: Repetition): string {
   return value
     .replace(/\$?\{each\}/gu, repetition.item ?? String(repetition.index))
     .replace(/\$?\{index\}/gu, String(repetition.index))
-    .replace(/\$?\{count\}/gu, String(repetition.total))
-    .replace(new RegExp(`\\b${id}\\.index\\b`, "gu"), String(repetition.index))
-    .replace(new RegExp(`\\b${id}\\.count\\b`, "gu"), String(repetition.total))
-    .replace(new RegExp(`\\b${local}\\.index\\b`, "gu"), String(repetition.index))
-    .replace(new RegExp(`\\b${local}\\.count\\b`, "gu"), String(repetition.total))
-    .replace(/\beach\.index\b/gu, String(repetition.index))
-    .replace(/\beach\.count\b/gu, String(repetition.total));
+    .replace(/\$?\{count\}/gu, String(repetition.total));
 }
 
-function substituteDeep(value: unknown, id: string, repetition: Repetition): unknown {
-  if (typeof value === "string") return substituteInstance(value, id, repetition);
-  if (Array.isArray(value)) return value.map((item) => substituteDeep(item, id, repetition));
+/** The names a repeat supplies to expressions inside it. */
+function instanceScope(id: string, repetition: Repetition): ReadonlyMap<string, number> {
+  const local = id.slice(id.lastIndexOf(".") + 1);
+  return scope({
+    index: repetition.index,
+    count: repetition.total,
+    [`${id}.index`]: repetition.index,
+    [`${id}.count`]: repetition.total,
+    [`${local}.index`]: repetition.index,
+    [`${local}.count`]: repetition.total,
+    "each.index": repetition.index,
+    "each.count": repetition.total,
+  });
+}
+
+function substituteDeep(value: unknown, repetition: Repetition): unknown {
+  if (typeof value === "string") return substituteInstance(value, repetition);
+  if (Array.isArray(value)) return value.map((item) => substituteDeep(item, repetition));
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
-    Object.entries(value).map(([key, item]) => [key, substituteDeep(item, id, repetition)]),
+    Object.entries(value).map(([key, item]) => [key, substituteDeep(item, repetition)]),
   );
 }
 
@@ -128,38 +134,32 @@ function instantiate(statement: SemanticStatement, repetition: Repetition): Sema
   const clone = structuredClone(statement) as unknown as Record<string, unknown>;
   const span = (statement as { span?: unknown }).span;
 
+  const names = instanceScope(id, repetition);
   clone.id = `${id}.${repetition.key}`;
   for (const key of ["title", "value", "authoredSource"] as const) {
-    if (typeof clone[key] === "string") clone[key] = substituteInstance(clone[key], id, repetition);
+    if (typeof clone[key] === "string") clone[key] = substituteInstance(clone[key], repetition);
   }
   // A pair is folded to numbers here rather than left as text: every name it
   // could hold is now known, and leaving it would put the burden on a later
   // pass that has no reason to know about repetition.
   for (const key of ["at", "size"] as const) {
     if (!Array.isArray(clone[key])) continue;
-    clone[key] = (substituteDeep(clone[key], id, repetition) as unknown[]).map((part) => {
-      if (typeof part !== "string") return part;
-      const node = parseExpression(part);
-      // A name still free belongs to something else — an inner repeat's own
-      // index, or an element whose geometry layout has not produced yet — so
-      // the pair is left as written for whoever can resolve it.
-      if (freeNames(node).size > 0) return part;
-      const value = evaluateExpression(node, {});
-      if (!Number.isFinite(value)) {
-        throw new RepetitionError(`'${id}' ${key} does not resolve to a number for instance '${repetition.key}'`);
-      }
-      return value;
-    });
+    // A pair is advanced through this instance's names. Anything still waiting
+    // belongs to a later stage — an outer repeat, or geometry layout has not
+    // produced yet — and is carried on as written.
+    clone[key] = (substituteDeep(clone[key], repetition) as unknown[]).map((part) => (
+      typeof part === "string" ? advance(part, names) : part
+    ));
   }
   if (clone.attributes && typeof clone.attributes === "object") {
     const attributes = { ...(clone.attributes as Record<string, unknown>) };
     delete attributes.each;
     delete attributes.count;
-    clone.attributes = substituteDeep(attributes, id, repetition);
+    clone.attributes = substituteDeep(attributes, repetition);
   }
   if (Array.isArray(clone.statements)) {
     clone.statements = (clone.statements as SemanticStatement[]).map((child) => (
-      substituteDeep(child, id, repetition) as SemanticStatement
+      substituteDeep(child, repetition) as SemanticStatement
     ));
   }
   if (span) Object.defineProperty(clone, "span", { value: span, enumerable: false });
