@@ -839,5 +839,5 @@ Additions to the language must preserve these principles:
 
 New syntax must be documented here before it is considered part of the stable
 language. User-facing examples belong in the
-[language guide](language-reference.md); this specification remains the
+[tour](tour.md); this specification remains the
 authoritative behavioral contract.

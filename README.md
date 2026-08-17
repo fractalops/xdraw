@@ -10,7 +10,7 @@
   <a href="#quick-start">Quick start</a> ·
   <a href="#language">Language</a> ·
   <a href="#hosted-scenes">Hosted scenes</a> ·
-  <a href="docs/language-reference.md">Guide</a> ·
+  <a href="docs/tour.md">Tour</a> ·
   <a href="docs/spec.md">Specification</a>
 </p>
 
@@ -78,9 +78,9 @@ xdraw build examples/readme-cheatsheet.xdraw
 ```
 
 For more examples, see the [full cheatsheet](examples/xdraw-cheatsheet.xdraw)
-and the [`examples/`](examples/) directory. The
-[language guide](docs/language-reference.md) explains how to use the language;
-the [specification](docs/spec.md) defines its syntax and semantics.
+and the [`examples/`](examples/) directory. The [tour](docs/tour.md) explains
+how to use the language; the [specification](docs/spec.md) defines its syntax
+and semantics.
 
 ### Computed layouts
 
@@ -127,9 +127,8 @@ moves the labels with it. Full source in
 
 A declaration can also repeat. `each` names its instances by item and `count`
 names them by position, which is how nine services get placed around a ring
-from one `ellipse`. [Named values](docs/named-values.md),
-[repetition](docs/repetition.md), and
-[measured geometry](docs/geometry-references.md) cover these in full.
+from one `ellipse`. The [tour](docs/tour.md) covers named values, repetition,
+and measured geometry in full.
 
 ### Reusable structure
 
@@ -216,8 +215,8 @@ xdraw build examples/parametric-plots.xdraw -o output/parametric-plots.png
 
 A curve it cannot draw to that accuracy, one with a pole, or one that leaves
 the usable coordinate range, is refused with a diagnostic rather than
-approximated. See [Plotting curves](docs/plotting.md) for the guide and
-[the gallery](docs/curve-gallery.md) for what it manages and where it stops.
+approximated. The [tour](docs/tour.md#plotting-curves) is the guide, and it
+also records what curves reach and where they stop.
 
 Tables have measured columns, wrapped cells, and remain editable in Excalidraw:
 
@@ -267,8 +266,8 @@ Use `apply` to create a hosted scene or update an existing one:
 xdraw apply architecture.scene.xdraw
 ```
 
-The [Excalidraw+ guide](docs/excalidraw-plus-integration.md) covers scene
-documents, targeted updates, permissions, and API configuration.
+The [tour](docs/tour.md#hosted-scenes) covers scene documents, targeted
+updates, and API configuration.
 
 ## CLI
 

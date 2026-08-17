@@ -10,13 +10,7 @@ import { parseSource } from "../src/language/parser.ts";
 
 for (const file of [
   "README.md",
-  "docs/excalidraw-plus-integration.md",
-  "docs/curve-gallery.md",
-  "docs/geometry-references.md",
-  "docs/language-reference.md",
-  "docs/named-values.md",
-  "docs/plotting.md",
-  "docs/repetition.md",
+  "docs/tour.md",
   "docs/spec.md",
 ]) {
   test(`${file} contains parseable XDraw examples`, async () => {
