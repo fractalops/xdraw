@@ -3,7 +3,7 @@ use "xdraw/math" as math
 diagram "Markers placed along a curve" {
   subtitle "Each label sits at a fraction of the curve's own length, not of its parameter"
 
-  let cx = 620
+  let cx = 530
   let cy = 420
   let reach = 260
 

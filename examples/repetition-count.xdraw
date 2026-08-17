@@ -5,7 +5,7 @@ diagram "One declaration, eleven elements" {
 
   step: rectangle "${index}" {
     count 11
-    at = (90 + 92 * step.index, 240)
+    at = (132 + 92 * step.index, 206)
     size (76, 96)
     style palette.success
   }
