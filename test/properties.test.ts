@@ -10,6 +10,7 @@ import { formatSceneResource, parseSceneDocument, parseSceneResource } from "../
 import { parseSource } from "../src/language/parser.ts";
 import { getLibraryManifest } from "../src/language/registry.ts";
 import { tokenize } from "../src/language/tokenizer.ts";
+import { NOT_A_TYPO } from "../src/language/validator.ts";
 import { routeConnection } from "../src/routing/router.ts";
 
 const RUNS = Number.parseInt(process.env.XDRAW_PROPERTY_RUNS ?? "250", 10);
@@ -514,8 +515,10 @@ test("property: a single-keystroke typo of a constructor is corrected", () => {
   });
 
   fc.assert(fc.property(mutated, ({ name, typo }) => {
-    // A mutation that lands on another real name is not a typo any more.
-    if (known.has(typo) || typo.length === 0) return;
+    // A mutation that lands on another real name is not a typo any more, and
+    // one that lands on a word from another diagramming language is a word the
+    // validator stays deliberately silent about.
+    if (known.has(typo) || typo.length === 0 || NOT_A_TYPO.has(typo)) return;
     let message = "";
     try {
       parseSource(`diagram "D" { a: ${typo} "A" }`);

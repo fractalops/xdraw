@@ -336,7 +336,7 @@ function editDistance(left: string, right: string): number {
  * and taking that advice compiles cleanly into a code block. Silence is the
  * only honest answer.
  */
-const NOT_A_TYPO = new Set([
+export const NOT_A_TYPO = new Set([
   "node", "state", "box", "shape", "line", "arrow", "actor", "entity",
   "class", "component", "container", "edge", "link", "label", "cluster",
 ]);
