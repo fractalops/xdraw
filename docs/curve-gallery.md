@@ -59,7 +59,7 @@ the ninth term oscillates 6561 times faster than the first.
 This is the hardest shape to draw accurately: high frequency riding on low, so
 that a sampler judging flatness from a handful of probes will call a span
 straight when it is anything but. Nine terms needs 3917 points and 409 ms, and
-the drawn line stays within 0.484px of the true curve. Source:
+the sampled points stay within 0.484px of the true curve. Source:
 [`examples/fractal-curve.xdraw`](../examples/fractal-curve.xdraw).
 
 ## Fractals: what a closed vocabulary reaches, and what it cannot
@@ -123,8 +123,9 @@ faster harmonic. Source:
 
 ## What held
 
-Sixteen curves at a 0.5px tolerance, with the true worst departure measured
-afterwards by dense probing rather than trusted from the sampler:
+Sixteen curves at a 0.5px tolerance, with the worst departure of the sampled
+points measured afterwards by dense probing rather than trusted from the
+sampler:
 
 | curve | nodes | points | ms | worst | |
 |---|--:|--:|--:|--:|---|

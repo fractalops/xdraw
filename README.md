@@ -205,8 +205,8 @@ diagram "Quadratic formula" {
 XDRAW
 ```
 
-`math.plot` draws a parametric curve from a pair of expressions, and guarantees
-the drawn line stays within a stated distance of the true curve:
+`math.plot` draws a parametric curve from a pair of expressions, sampling it
+until the points provably lie within a stated distance of the true curve:
 
 ![Four parametric curves: a butterfly, a spirograph rosette, a harmonograph, and a Lissajous weave](docs/images/parametric-plots.png)
 

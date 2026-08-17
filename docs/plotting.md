@@ -76,7 +76,7 @@ x = a * t        unknown name 'a'
 
 ## Tolerance is a guarantee, not a target
 
-`tolerance` is the greatest distance the drawn line may fall from the true
+`tolerance` is the greatest distance a sampled point may fall from the true
 curve, in pixels. It defaults to `0.5`.
 
 ![The same rose at tolerance 16, 3, and 0.5. Petals collapse at the coarsest](images/plot-tolerance.png)
@@ -89,6 +89,25 @@ The word *guarantee* is meant literally. The compiler does not sample the curve
 at some points and hope the rest behaves; it bounds each span of the curve and
 subdivides until the bound fits inside the tolerance. A curve of high frequency
 cannot slip between the samples, because there are no samples to slip between.
+
+## The tolerance is about the points, not the ink
+
+A plot becomes a freehand stroke, and both this compiler's preview and
+Excalidraw draw such a stroke with [perfect-freehand](https://github.com/steveruizok/perfect-freehand),
+which streamlines and smooths the points on its way to an outline. That is
+right for a stroke someone drew with a pointer and wrong for one a compiler
+computed: measured against the four curves in `examples/parametric-plots.xdraw`,
+the smoothing moves the drawn centreline up to 1.8px away from the sampled
+polyline, on curves sampled to 0.5px.
+
+So the guarantee below is about where the points are, which is what the sampler
+controls. Getting the ink to match would mean emitting a line element rather
+than a stroke.
+
+The renderer also scales a stroke by 4.25, mirroring Excalidraw, so
+`stroke-width 2` is drawn about eight pixels wide. Fine curves want a fraction:
+the plots in this repository use `stroke-width 0.5`, without which strands
+overlapping at a few pixels' distance merge into a solid block.
 
 ## What it refuses, and why
 
