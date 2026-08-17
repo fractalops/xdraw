@@ -13,7 +13,9 @@
  * the document is read.
  */
 import {
+  CONSTANTS,
   ExpressionError,
+  FUNCTIONS,
   evaluateExpression,
   freeNames,
   parseExpression,
@@ -48,6 +50,17 @@ function parseAll(bindings: readonly SourceBinding[]): Map<string, ParsedBinding
   for (const { name, source } of bindings) {
     if (parsed.has(name)) {
       throw new BindingError(`'${name}' is bound more than once`, name);
+    }
+    // A binding that shadows a constant cannot be resolved in dependency order,
+    // because `freeNames` excludes constants and so never reports one as a
+    // dependency. The result fell back to source order and drew different
+    // geometry depending on which line came first, silently. Refusing the name
+    // is the honest fix; the vocabulary is closed, so it is a small set.
+    if (CONSTANTS.has(name)) {
+      throw new BindingError(`'${name}' is a constant of the expression language and cannot be bound`, name);
+    }
+    if (FUNCTIONS.has(name)) {
+      throw new BindingError(`'${name}' is a function of the expression language and cannot be bound`, name);
     }
     try {
       parsed.set(name, { name, node: parseExpression(source) });

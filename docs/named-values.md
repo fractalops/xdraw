@@ -82,6 +82,8 @@ let a = mystery * 2  unknown name 'mystery', used by 'a'
 let a = 1            'a' is bound more than once
 let a = 2
 let a = 1 / 0        'a' is not a finite number
+let tau = 5          'tau' is a constant of the expression language and cannot be bound
+let sin = 5          'sin' is a function of the expression language and cannot be bound
 ```
 
 A cycle reports the path that closes it rather than looping, and an unbound name

@@ -33,7 +33,7 @@ import {
   resolveTone,
 } from "./registry.ts";
 import { validateLanguageDocument } from "./validator.ts";
-import { CONSTANTS, evaluateExpression, formatExpression, freeNames, parseExpression, substituteNames } from "./expression.ts";
+import { type ExpressionNode, CONSTANTS, evaluateExpression, formatExpression, freeNames, parseExpression, substituteNames } from "./expression.ts";
 import { resolveBindings } from "./bindings.ts";
 
 function located<T extends object>(value: T, start: Token, end: Token): T & SourceNode {
@@ -86,19 +86,23 @@ export function parseSyntax(source: string): SourceDocument {
   interface ParsedValue {
     value: SourcePropertyValue;
     kind: SourceValueKind;
+    elementKinds?: readonly SourceValueKind[];
   }
 
   function tuple(label: string): ParsedValue {
     take("(", undefined, `expected '(' after ${label}`);
     const result: SourcePropertyValue[] = [];
+    const kinds: SourceValueKind[] = [];
     while (!peek(")")) {
       if (peek("eof")) throw new SyntaxError(`unterminated tuple for ${label}`, source, tokens[index].offset);
-      result.push(value(label).value);
+      const element = value(label);
+      result.push(element.value);
+      kinds.push(element.kind);
       if (peek(",")) take(",");
       else if (!peek(")")) throw new SyntaxError(`expected ',' or ')' in ${label}`, source, tokens[index].offset);
     }
     take(")");
-    return { value: result as SourcePropertyValue, kind: "tuple" };
+    return { value: result as SourcePropertyValue, kind: "tuple", elementKinds: kinds };
   }
 
   function selection(label: string): string[] {
@@ -171,6 +175,7 @@ export function parseSyntax(source: string): SourceDocument {
       name,
       value: propertyValue.value,
       valueKind: propertyValue.kind,
+      elementKinds: propertyValue.elementKinds,
     }, start, tokens[index - 1]);
   }
 
@@ -909,12 +914,20 @@ function lowerScope(
  *
  * A document with no bindings takes the early return and is untouched.
  */
+/**
+ * Resolves `let` bindings and evaluates every expression whose names they
+ * supply.
+ *
+ * This runs whether or not a document declares a binding. Returning early when
+ * there are none looks like an optimisation and is a trap: an expression is
+ * folded here, so skipping the pass left `at = (100, 200)` as text in a
+ * document with no `let` and a number in one with an unused binding. A
+ * property's validity must not depend on an unrelated statement elsewhere.
+ */
 function foldBindings(document: SourceDocument): SourceDocument {
   const declared = document.diagram.statements.filter(
     (statement): statement is SourceBindingStatement => statement.type === "binding",
   );
-  if (declared.length === 0) return document;
-
   const values = resolveBindings(declared.map(({ name, expression }) => ({ name, source: expression })));
   const environment = Object.fromEntries(values);
 
@@ -923,10 +936,26 @@ function foldBindings(document: SourceDocument): SourceDocument {
    * has a name this pass cannot supply — `t` in a plotted curve — keeps its
    * expression with the known parts substituted in.
    */
+  /**
+   * Names a function this pass cannot evaluate, because something later
+   * supplies it. `along_x` needs a drawn stroke, which does not exist until
+   * layout has run, so an expression calling one is left as written.
+   */
+  const callsDeferred = (node: ExpressionNode): boolean => {
+    switch (node.kind) {
+      case "call":
+        return node.name.startsWith("along_") || node.args.some(callsDeferred);
+      case "negate": return callsDeferred(node.operand);
+      case "binary": return callsDeferred(node.left) || callsDeferred(node.right);
+      default: return false;
+    }
+  };
+
   const foldExpression = (source: string): number | string => {
     // A template supplies this one; it is not an expression yet.
     if (source.includes("${")) return source;
     const node = parseExpression(source);
+    if (callsDeferred(node)) return source;
     const unbound = [...freeNames(node)].filter((name) => !(name in environment));
     if (unbound.length === 0) return evaluateExpression(node, environment);
     return formatExpression(substituteNames(node, values));
@@ -939,7 +968,16 @@ function foldBindings(document: SourceDocument): SourceDocument {
       // an expression can put a string in a tuple — every kind that accepts one
       // requires numbers — so a string element is one by construction.
       if (statement.type === "property" && statement.valueKind === "tuple" && Array.isArray(statement.value)) {
-        const folded = statement.value.map((item) => (typeof item === "string" ? foldExpression(item) : item));
+        // Only an element written as an expression or a bare name is folded. A
+        // quoted string in a tuple is a string — `domain (0, "1")` must stay a
+        // string so the validator can reject it — and folding by "is it text"
+        // silently turned it into a number.
+        const kinds = statement.elementKinds;
+        const folded = statement.value.map((item, index) => {
+          const kind = kinds?.[index];
+          if (typeof item !== "string" || (kind !== "expression" && kind !== "identifier")) return item;
+          return foldExpression(item);
+        });
         return copySpan({ ...statement, value: folded as SourcePropertyValue }, statement);
       }
       if (statement.type === "property" && statement.valueKind === "expression") {

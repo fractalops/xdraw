@@ -57,7 +57,15 @@ diagram "" {
 **Text and freehand may refer.** They are drawn where they are told and take no
 part in layout.
 
-**A node may not.** A node placed with `at` participates in document layout — the
+**A node may not**, and says so rather than failing later:
+
+```
+node 'tag' at could not be resolved to numbers: 'flow.a.right + 20'.
+A name must be bound with 'let'; only text and freehand may be placed from
+another element's geometry
+```
+
+A node placed with `at` participates in document layout — the
 document grows to contain it and everything else shifts — so resolving its
 position against a box it had already displaced would need resolving again. The
 dependency would be between placement and layout rather than between two names,

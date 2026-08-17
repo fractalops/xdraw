@@ -624,6 +624,32 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
     },
   },
   {
+    family: "deferred-position",
+    apply(statement, _context, state) {
+      // A pair whose parts are still text names something layout has not
+      // produced yet. Only text and freehand may wait for it: they are drawn
+      // where they are told and take no part in layout, so resolving them
+      // afterwards cannot move what they measured. A node placed this way
+      // would displace the very box it referred to, and used to reach the
+      // layout engine and die there with an internal message.
+      const carrier = statement as unknown as { type: string; id?: string; at?: unknown; size?: unknown };
+      if (carrier.type === "text" || carrier.type === "freedraw" || carrier.type === "plot") return;
+      for (const key of ["at", "size"] as const) {
+        if (!isPendingPoint(carrier[key])) continue;
+        const unresolved = (carrier[key] as unknown[])
+          .filter((part): part is string => typeof part === "string")
+          .map((part) => `'${part}'`)
+          .join(" and ");
+        state.diagnostics.push(diagnostic(
+          "XD1272",
+          `${carrier.type} '${carrier.id ?? "?"}' ${key} could not be resolved to numbers: ${unresolved}. `
+          + "A name must be bound with 'let'; only text and freehand may be placed from another element's geometry",
+          statement,
+        ));
+      }
+    },
+  },
+  {
     family: "freedraw",
     apply(statement, _context, state) {
       if (statement.type === "freedraw") {

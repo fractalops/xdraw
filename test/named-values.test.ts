@@ -37,8 +37,25 @@ test("a bound name folds into an expression that keeps its own variable", () => 
   assert.equal(Math.round(Number(mark.height)), 120);
 });
 
-test("a document without bindings is untouched", () => {
-  // The fold pass returns early, so nothing that already worked can change.
+test("an expression works whether or not the document binds anything", () => {
+  // The fold pass used to return early when a document declared no bindings,
+  // which left every `=` expression unfolded — so `at = (100, 200)` failed in a
+  // document with no `let` and succeeded in one with an unused binding. A
+  // property's validity must not depend on an unrelated statement elsewhere.
+  const plain = `diagram "" { a: rectangle "A" { at = (10, 20); stroke-width = 2 + 2 } }`;
+  const bound = `diagram "" {
+    let unused = 1
+    a: rectangle "A" { at = (10, 20); stroke-width = 2 + 2 }
+  }`;
+  for (const source of [plain, bound]) {
+    const box = element(source, "a:frame");
+    assert.equal(box.x, 10);
+    assert.equal(box.y, 20);
+    assert.equal(box.strokeWidth, 4);
+  }
+});
+
+test("a document that uses neither bindings nor expressions is untouched", () => {
   const source = `diagram "" { a: rectangle "A" { at (10, 20); stroke-width 4 } }`;
   assert.equal(element(source, "a:frame").strokeWidth, 4);
 });

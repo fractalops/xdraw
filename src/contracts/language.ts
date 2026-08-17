@@ -33,6 +33,12 @@ export interface SourceProperty extends SourceNode {
   name: string;
   value: SourcePropertyValue;
   valueKind: SourceValueKind;
+  /**
+   * For a tuple, what each element was written as. A tuple may hold a quoted
+   * string, an identifier, or an expression, and only the last two may be
+   * folded — so the kinds cannot be recovered from the values alone.
+   */
+  elementKinds?: readonly SourceValueKind[];
 }
 
 export interface SourceSubtitle extends SourceNode {

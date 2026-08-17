@@ -124,6 +124,22 @@ test("a document that uses no references is untouched", () => {
   assert.deepEqual([a.x, a.y, a.width, a.height], [10, 20, 120, 80]);
 });
 
+test("a node that refers to geometry is refused, not crashed into the layout", () => {
+  // The rule that only detached elements may refer was documented and argued
+  // for, but nothing enforced it: the pair validator accepted any string
+  // element, so an unresolved name reached the layout engine and died there
+  // with an internal message and no source location.
+  assert.throws(
+    () => scene(laidOut(`tag: rectangle "Tag" { at = (flow.ingest.right + 20, flow.ingest.top); size (120, 80) }`)),
+    /'tag'.*only text and freehand/is,
+  );
+  // And a name nothing supplies is a language error rather than a layout one.
+  assert.throws(
+    () => scene(`diagram "" { a: rectangle "A" { at = (mystery, 0); size (120, 80) } }`),
+    /mystery/,
+  );
+});
+
 test("a reference does not disturb the layout it refers to", () => {
   // The feature only holds because the referring element is detached. A node
   // with `at` takes part in document layout, so the document grows to contain

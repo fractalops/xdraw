@@ -275,7 +275,9 @@ binding = "let", identifier, "=", expression
 Bindings resolve by dependency rather than by source order, so a name may be
 used before it is bound. A binding whose expression depends on itself, directly
 or through others, is invalid, as is a name used but never bound, a name bound
-more than once, and a binding that does not evaluate to a finite number.
+more than once, a name that a constant or function of the expression
+sublanguage already defines, and a binding that does not evaluate to a finite
+number.
 
 A bound name may appear in any expression. Where every free name of an
 expression is bound, the expression becomes its value; where a name remains that

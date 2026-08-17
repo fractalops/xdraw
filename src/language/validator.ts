@@ -460,7 +460,15 @@ function matchesKind(
     return (sourceKind === "string" || sourceKind === "raw-string") && typeof value === "string";
   }
   if (expected === "raw-string") return sourceKind === "raw-string" && typeof value === "string";
-  if (expected === "expression") return sourceKind === "expression" && typeof value === "string";
+  if (expected === "expression") {
+    // A number is a constant expression. The binding pass folds an expression
+    // whose names are all known down to its value, so by the time a document is
+    // validated `x = 90 - 30` is the number 60 — and refusing it here would
+    // make an expression valid only while it still had something left to
+    // compute.
+    return (sourceKind === "expression" && typeof value === "string")
+      || (sourceKind === "number" && typeof value === "number");
+  }
   if (expected === "identifier") return sourceKind === "identifier" && typeof value === "string";
   if (expected === "number") return sourceKind === "number" && typeof value === "number";
   if (expected === "boolean") return sourceKind === "boolean" && typeof value === "boolean";

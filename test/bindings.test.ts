@@ -57,6 +57,19 @@ test("an unbound name reports who used it", () => {
   assert.throws(() => values([["a", "mystery * 2"]]), /unknown name 'mystery'.*'a'/);
 });
 
+test("a binding may not shadow a constant or a function", () => {
+  // `freeNames` excludes constants, so a binding named `tau` is never treated
+  // as a dependency and resolution falls back to source order — which made the
+  // same document draw two different sizes depending on which line came first,
+  // silently, against what the specification promises.
+  for (const name of ["pi", "tau", "e"]) {
+    assert.throws(() => values([[name, "5"]]), new RegExp(`'${name}'.*constant`), `${name} must be refused`);
+  }
+  for (const name of ["sin", "hypot", "round"]) {
+    assert.throws(() => values([[name, "5"]]), new RegExp(`'${name}'.*function`), `${name} must be refused`);
+  }
+});
+
 test("a duplicate name is rejected rather than shadowing", () => {
   assert.throws(() => values([["a", "1"], ["a", "2"]]), /'a' is bound more than once/);
 });
