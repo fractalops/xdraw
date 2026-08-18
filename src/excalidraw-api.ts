@@ -242,6 +242,7 @@ function isBinding(value: unknown): boolean {
   if (!isRecord(value) || typeof value.elementId !== "string") return false;
   if (value.focus !== undefined && !isFiniteNumber(value.focus)) return false;
   if (value.gap !== undefined && !isFiniteNumber(value.gap)) return false;
+  if (value.mode !== undefined && !["inside", "orbit", "skip"].includes(String(value.mode))) return false;
   return value.fixedPoint === undefined || value.fixedPoint === null || isPoint(value.fixedPoint);
 }
 

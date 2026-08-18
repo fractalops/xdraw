@@ -285,6 +285,43 @@ test("overlapping horizontal spans connect vertically", () => {
   assert.deepEqual(arrow.endBinding.fixedPoint, [0.5, 0]);
 });
 
+test("a label on a connector inside a group stays beside its arrow", () => {
+  const drawing = compile(parse(`use "xdraw/architecture" as arch
+  diagram "Grouped" {
+    lane: arch.group "Lane" {
+      arrange column { gap 56 }
+      one: arch.container "one" { description "d"; technology "t"; size (420, 130) }
+      two: arch.container "two" { description "d"; technology "t"; size (420, 130) }
+    }
+    lane.one@bottom -> lane.two@top "waits only" { technology "lane order" }
+  }`));
+  const group = drawing.elements.find((item) => item.id === "lane");
+  const label = drawing.elements.find((item) => item.id === "document:connection:0:0:label");
+  // Given a gap that fits it, the label belongs beside its arrow and inside the group.
+  // When the gap is too short for the text the placement falls back to a position outside
+  // the shapes entirely, which is why a column carrying labelled connectors needs a gap
+  // at least as tall as a two-line label.
+  assert.ok(label.x >= group.x, "label escaped its group to the left");
+  assert.ok(label.x + label.width <= group.x + group.width, "label escaped its group to the right");
+  // And it belongs in the gap between the two shapes, not above or below the pair.
+  const one = drawing.elements.find((item) => item.id === "lane.one:frame");
+  const two = drawing.elements.find((item) => item.id === "lane.two:frame");
+  assert.ok(label.y >= one.y + one.height, "label sits over the upper shape");
+  assert.ok(label.y + label.height <= two.y, "label sits over the lower shape");
+});
+
+test("both ends of a connector orbit the shape they attach to", () => {
+  const drawing = compile(parse(`diagram "Attachment" {
+    a: rectangle "A" { at (100, 100); size (200, 80) }
+    b: rectangle "B" { at (500, 100); size (200, 80) }
+    a -> b
+  }`));
+  const arrow = drawing.elements.find((item) => item.id === "document:connection:0:0");
+  // A hosted scene rejects a binding with no mode, so neither end may omit it.
+  assert.equal(arrow.startBinding.mode, "orbit");
+  assert.equal(arrow.endBinding.mode, "orbit");
+});
+
 test("cross-container connectors infer sides from their owning sections", () => {
   const result = compile(parse(`diagram "Containers" {
     arrange grid { columns 2 }

@@ -147,7 +147,9 @@ function clampInside(bounds: Bounds, container: Bounds): Bounds {
 }
 
 function binding(id: string, side: EndpointSide): ElementBinding {
-  return { elementId: id, focus: 0, gap: 8, fixedPoint: FIXED_POINTS[side] };
+  // `orbit` because a connector between two shapes belongs on their borders, and
+  // stays there when someone drags one. Excalidraw+ rejects a binding with no mode.
+  return { elementId: id, focus: 0, gap: 8, fixedPoint: FIXED_POINTS[side], mode: "orbit" };
 }
 
 export function renderConnection(

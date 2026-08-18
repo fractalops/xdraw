@@ -33,11 +33,23 @@ export interface BoundElement {
   type: "arrow" | "line" | "text";
 }
 
+/**
+ * How a bound connector end follows the shape it is attached to.
+ *
+ * `orbit` keeps the end on the shape's outside boundary, which is what a
+ * connector drawn between two shapes wants: the endpoint stays on the border as
+ * the shape is dragged. `inside` lets the end sit within the shape and `skip`
+ * leaves it unbound. Excalidraw+ validates this field and rejects a scene whose
+ * bindings omit it, so it is not optional in practice.
+ */
+export type BindingMode = "inside" | "orbit" | "skip";
+
 export interface ElementBinding {
   elementId: string;
   focus?: number;
   gap?: number;
   fixedPoint?: Point | null;
+  mode?: BindingMode;
 }
 
 export interface ElementCustomData {
