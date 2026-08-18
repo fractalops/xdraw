@@ -8,6 +8,8 @@ diagram "Network hub" {
   let wide = 420
   let tall = 245
   let slot = tau / 6
+  let icon = 72
+  let half = 36
 
   router: asset "assets/network/router.svg"
   cloud: asset "assets/network/cloud.svg"
@@ -31,12 +33,12 @@ diagram "Network hub" {
   }
 
   cloud_north: rectangle "" {
-    at = (cx + wide * cos(4 * slot) - 36, cy + tall * sin(4 * slot) - 36); size (72, 72)
+    at = (cx + wide * cos(4 * slot) - half, cy + tall * sin(4 * slot) - half); size = (icon, icon)
     background "transparent"; stroke "transparent"
   }
   cloud_north_mark: assets.icon(cloud) {
-    at = (cx + wide * cos(4 * slot) - 36, cy + tall * sin(4 * slot) - 36)
-    size (72, 72); alt "An attached cloud network"
+    at = (cx + wide * cos(4 * slot) - half, cy + tall * sin(4 * slot) - half)
+    size = (icon, icon); alt "An attached cloud network"
   }
   cloud_north_name: text "Cloud network" {
     at = (cloud_north.center_x - 65, cloud_north.top - 54)
@@ -44,12 +46,12 @@ diagram "Network hub" {
   }
 
   edge: rectangle "" {
-    at = (cx + wide * cos(5 * slot) - 36, cy + tall * sin(5 * slot) - 36); size (72, 72)
+    at = (cx + wide * cos(5 * slot) - half, cy + tall * sin(5 * slot) - half); size = (icon, icon)
     background "transparent"; stroke "transparent"
   }
   edge_mark: assets.icon(firewall) {
-    at = (cx + wide * cos(5 * slot) - 36, cy + tall * sin(5 * slot) - 36)
-    size (72, 72); alt "A perimeter firewall"
+    at = (cx + wide * cos(5 * slot) - half, cy + tall * sin(5 * slot) - half)
+    size = (icon, icon); alt "A perimeter firewall"
   }
   edge_name: text "Perimeter firewall" {
     at = (edge.center_x - 65, edge.top - 54)
@@ -57,12 +59,12 @@ diagram "Network hub" {
   }
 
   site: rectangle "" {
-    at = (cx + wide * cos(3 * slot) - 36, cy + tall * sin(3 * slot) - 36); size (72, 72)
+    at = (cx + wide * cos(3 * slot) - half, cy + tall * sin(3 * slot) - half); size = (icon, icon)
     background "transparent"; stroke "transparent"
   }
   site_mark: assets.icon(datacenter) {
-    at = (cx + wide * cos(3 * slot) - 36, cy + tall * sin(3 * slot) - 36)
-    size (72, 72); alt "An on-premises data centre"
+    at = (cx + wide * cos(3 * slot) - half, cy + tall * sin(3 * slot) - half)
+    size = (icon, icon); alt "An on-premises data centre"
   }
   site_name: text "On-premises site" {
     at = (site.center_x - 65, site.bottom + 20)
@@ -70,12 +72,12 @@ diagram "Network hub" {
   }
 
   archive: rectangle "" {
-    at = (cx + wide * cos(0 * slot) - 36, cy + tall * sin(0 * slot) - 36); size (72, 72)
+    at = (cx + wide * cos(0 * slot) - half, cy + tall * sin(0 * slot) - half); size = (icon, icon)
     background "transparent"; stroke "transparent"
   }
   archive_mark: assets.icon(storage) {
-    at = (cx + wide * cos(0 * slot) - 36, cy + tall * sin(0 * slot) - 36)
-    size (72, 72); alt "A storage tier"
+    at = (cx + wide * cos(0 * slot) - half, cy + tall * sin(0 * slot) - half)
+    size = (icon, icon); alt "A storage tier"
   }
   archive_name: text "Storage tier" {
     at = (archive.center_x - 65, archive.bottom + 20)
@@ -83,12 +85,12 @@ diagram "Network hub" {
   }
 
   cloud_south: rectangle "" {
-    at = (cx + wide * cos(2 * slot) - 36, cy + tall * sin(2 * slot) - 36); size (72, 72)
+    at = (cx + wide * cos(2 * slot) - half, cy + tall * sin(2 * slot) - half); size = (icon, icon)
     background "transparent"; stroke "transparent"
   }
   cloud_south_mark: assets.icon(cloud) {
-    at = (cx + wide * cos(2 * slot) - 36, cy + tall * sin(2 * slot) - 36)
-    size (72, 72); alt "A second cloud network"
+    at = (cx + wide * cos(2 * slot) - half, cy + tall * sin(2 * slot) - half)
+    size = (icon, icon); alt "A second cloud network"
   }
   cloud_south_name: text "Cloud network" {
     at = (cloud_south.center_x - 65, cloud_south.bottom + 20)
@@ -96,12 +98,12 @@ diagram "Network hub" {
   }
 
   exchange: rectangle "" {
-    at = (cx + wide * cos(1 * slot) - 36, cy + tall * sin(1 * slot) - 36); size (72, 72)
+    at = (cx + wide * cos(1 * slot) - half, cy + tall * sin(1 * slot) - half); size = (icon, icon)
     background "transparent"; stroke "transparent"
   }
   exchange_mark: assets.icon(internet) {
-    at = (cx + wide * cos(1 * slot) - 36, cy + tall * sin(1 * slot) - 36)
-    size (72, 72); alt "A public internet exchange"
+    at = (cx + wide * cos(1 * slot) - half, cy + tall * sin(1 * slot) - half)
+    size = (icon, icon); alt "A public internet exchange"
   }
   exchange_name: text "Internet exchange" {
     at = (exchange.center_x - 65, exchange.bottom + 20)

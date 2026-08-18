@@ -14,8 +14,8 @@
   <a href="docs/spec.md">Specification</a>
 </p>
 
-XDraw is a small DSL for describing diagrams and drawings. It compiles to
-editable Excalidraw scenes and can also render PNG and SVG previews.
+XDraw compiles a small DSL into native Excalidraw elements, so a diagram is
+written as text and finished by hand. It also renders PNG and SVG previews.
 
 ## Quick start
 
@@ -69,9 +69,6 @@ cat compiler-flow.xdraw | xdraw build -o output/compiler-flow.excalidraw
 
 ## Language
 
-The reference below covers a declaration's anatomy, the primitives, composition,
-and the build:
-
 ![XDraw quick reference](docs/images/readme-cheatsheet.png)
 
 ```bash
@@ -90,8 +87,8 @@ written as that rule. Here a core router and its six links sit on one ring:
 
 ![A core router with six links placed around a computed ring](docs/images/network-hub.png)
 
-Not one coordinate is typed. The ring is stated once, and a link names only
-which of the six slots it occupies:
+The ring is stated once. After that a link says only which of the six slots it
+occupies, so these two differ by one digit and an icon:
 
 ```xdraw
 use "xdraw/assets" as assets
@@ -102,28 +99,35 @@ diagram "Network hub" {
   let wide = 420
   let tall = 245
   let slot = tau / 6
+  let icon = 72
+  let half = 36
 
   cloud: asset "examples/assets/network/cloud.svg"
+  firewall: asset "examples/assets/network/firewall.svg"
 
-  cloud_north: rectangle "" {
-    at = (cx + wide * cos(4 * slot) - 36, cy + tall * sin(4 * slot) - 36); size (72, 72)
-    background "transparent"; stroke "transparent"
+  cloud_north: assets.icon(cloud) {
+    at = (cx + wide * cos(4 * slot) - half, cy + tall * sin(4 * slot) - half)
+    size = (icon, icon); alt "An attached cloud network"
   }
-  cloud_north_mark: assets.icon(cloud) {
-    at = (cx + wide * cos(4 * slot) - 36, cy + tall * sin(4 * slot) - 36)
-    size (72, 72); alt "An attached cloud network"
-  }
-  cloud_north_name: text "Cloud network" {
-    at = (cloud_north.center_x - 65, cloud_north.top - 54)
-    size (130, 48); wrap-width 130; auto-size false; align center; font-size 14
+
+  edge: assets.icon(firewall) {
+    at = (cx + wide * cos(5 * slot) - half, cy + tall * sin(5 * slot) - half)
+    size = (icon, icon); alt "A perimeter firewall"
   }
 }
 ```
 
-The other five links differ only in their slot number and their icon. The label
-is placed from `cloud_north.center_x` and `cloud_north.top`, geometry the
-compiler measured rather than anything the document stated, so moving the ring
-moves the labels with it. Full source in
+Change `wide` and every link moves with it. The labels move too, because each one
+is placed from the geometry the compiler measured rather than from a number the
+document stated:
+
+```text
+cloud_north_name: text "Cloud network" {
+  at = (cloud_north.center_x - 65, cloud_north.top - 54)
+}
+```
+
+Full source, with all six links and the connectors between them, in
 [`examples/network-hub.xdraw`](examples/network-hub.xdraw).
 
 A declaration can also repeat. `each` names its instances by item and `count`
@@ -227,18 +231,24 @@ The frame is built from ordinary pieces. A row of ticks and its labels are one
 declaration each, placed from the instance's own index, so the whole figure moves
 by editing `unit`:
 
-```text
-xtick: freedraw {
-  count 6
-  at = (x0 + unit * xtick.index, y0)
-  points ((0, 0), (0, 8))
-  stroke "#475569"
-  stroke-width 0.4
-}
-xlabel: text "${index}" {
-  count 6
-  at = (x0 + unit * xlabel.index - 4, y0 + 18)
-  font-size 15
+```xdraw
+diagram "Axes" {
+  let x0 = 200
+  let y0 = 500
+  let unit = 88
+
+  xtick: freedraw {
+    count 6
+    at = (x0 + unit * xtick.index, y0)
+    points ((0, 0), (0, 8))
+    stroke "#475569"
+    stroke-width 0.4
+  }
+  xlabel: text "${index}" {
+    count 6
+    at = (x0 + unit * xlabel.index - 4, y0 + 18)
+    font-size 15
+  }
 }
 ```
 
@@ -324,7 +334,6 @@ XD2101: architecture element 'flow.api' should describe its responsibility at 7:
 XD2101: architecture element 'flow.store' should describe its responsibility at 8:5
 XD2104: relationships between architecture containers should name their technology or protocol at 10:5
 XD2001: layout gap 40 was raised to 98 so connector labels fit at 5:5
-XD2006: 'flow.api' and 'flow.store' share a row but differ in height, so their connector will not be level; match-size (flow.api, flow.store) height levels them at 10:5
 ```
 
 Advisories like these do not stop a build. Errors do, and each one names the
