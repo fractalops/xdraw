@@ -7,14 +7,6 @@
       "count": 1
     }
   },
-  "src/compile/measurement.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
   "src/compile/render.ts": {
     "complexity": {
       "count": 1
@@ -124,11 +116,6 @@
     "complexity": {
       "count": 2
     },
-    "sonarjs/cognitive-complexity": {
-      "count": 1
-    }
-  },
-  "src/routing/router.ts": {
     "sonarjs/cognitive-complexity": {
       "count": 1
     }

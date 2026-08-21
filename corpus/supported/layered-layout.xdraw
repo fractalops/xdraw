@@ -1,7 +1,7 @@
 use "xdraw/architecture" as arch
 
 diagram "Layered layout pass" {
-  arrange layered { gap 40 }
+  arrange layered { gap = 40 }
 
   request: arch.person "Semantic input"
   api: arch.system "Rank nodes"

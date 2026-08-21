@@ -3,13 +3,13 @@ use "xdraw/palette" as palette
 diagram "Language design" {
   map: section "XDraw" {
     arrange tree {
-      root root
-      direction right
-      level-gap 90
-      sibling-gap 28
+      root = root
+      direction = right
+      level-gap = 90
+      sibling-gap = 28
     }
 
-    root: rectangle "XDraw" { style palette.accent }
+    root: rectangle "XDraw" { style = palette.accent }
     syntax: rectangle "Syntax"
     layout: rectangle "Layout"
     output: rectangle "Output"

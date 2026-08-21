@@ -4,15 +4,27 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 
-import { compileAsync } from "../src/compile/pipeline.ts";
+import { compile as compileAsync } from "../src/compile/pipeline.ts";
 import { resolveAssets } from "../src/io/assets.ts";
 import { RootedFileSystem } from "../src/io/filesystem.ts";
 import { parseSource } from "../src/language/parser.ts";
 import { measureTextWidth } from "../src/text/metrics.ts";
+import type { DrawingJson, TextElement } from "../src/contracts/render.ts";
+
+interface CorpusEntry {
+  id: string;
+  file: string;
+  tests: string[];
+}
+
+interface CorpusExpected {
+  algorithm: string;
+  diagrams: Record<string, string>;
+}
 
 const root = path.resolve("corpus");
-const entries = JSON.parse(await readFile(path.join(root, "corpus.json"), "utf8"));
-const expected = JSON.parse(await readFile(path.join(root, "expected-output.json"), "utf8"));
+const entries = JSON.parse(await readFile(path.join(root, "corpus.json"), "utf8")) as CorpusEntry[];
+const expected = JSON.parse(await readFile(path.join(root, "expected-output.json"), "utf8")) as CorpusExpected;
 
 test("corpus contains distinct representative diagrams", () => {
   assert.ok(entries.length > 0);
@@ -34,9 +46,11 @@ for (const entry of entries) {
     const first = JSON.stringify((await compileAsync(document)).toJSON());
     const second = JSON.stringify((await compileAsync(document)).toJSON());
     assert.equal(first, second);
-    const scene = JSON.parse(first);
+    const scene = JSON.parse(first) as DrawingJson;
     assert.ok(scene.elements.length > 0);
-    for (const element of scene.elements.filter((item) => item.type === "text" && item.autoResize === false)) {
+    for (const element of scene.elements.filter((item): item is TextElement => (
+      item.type === "text" && item.autoResize === false
+    ))) {
       const measured = Math.max(...element.text.split("\n").map((line) => (
         measureTextWidth(line, element.fontSize, element.fontFamily)
       )), 0);

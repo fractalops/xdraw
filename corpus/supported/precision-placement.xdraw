@@ -1,10 +1,10 @@
 diagram "Precision placement" {
   source: rectangle "Explicit source" {
-    at (80, 120); size (220, 100)
+    at = (80, 120); size = (220, 100)
   }
   target: rectangle "Explicit target" {
-    at (420, 120); size (220, 100)
+    at = (500, 120); size = (220, 100)
   }
 
-  connector: source@right -> target@left "anchored connector"
+  connector: source@east -> target@west "anchored connector"
 }

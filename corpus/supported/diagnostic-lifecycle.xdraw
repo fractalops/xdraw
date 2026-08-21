@@ -3,15 +3,15 @@ use "xdraw/process" as process
 
 diagram "Diagnostic lifecycle" {
   response: process.lane "Compiler diagnostics" {
-    arrange row { gap 180 }
+    arrange row { gap = 180 }
 
-    alert: rectangle "Detect" { style palette.danger }
-    triage: rectangle "Locate" { style palette.warning }
-    contain: rectangle "Explain" { style palette.info }
-    recover: rectangle "Report" { style palette.success }
+    alert: rectangle "Detect" { style = palette.danger }
+    triage: rectangle "Locate" { style = palette.warning }
+    contain: rectangle "Explain" { style = palette.info }
+    recover: rectangle "Report" { style = palette.success }
 
-    detected: alert -> triage "source span" { style palette.danger }
-    investigate: triage -> contain "diagnostic code" { stroke-style dashed }
-    restored: contain -> recover "CLI output" { style palette.success }
+    detected: alert -> triage "source span" { style = palette.danger }
+    investigate: triage -> contain "diagnostic code" { stroke-style = dashed }
+    restored: contain -> recover "CLI output" { style = palette.success }
   }
 }

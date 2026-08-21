@@ -7,12 +7,12 @@ import { downloadDrawing, openDiagram, paintedPixels } from "./helpers";
 test("restores freedraw as an editable native Excalidraw element", async ({ page }) => {
   const source = `diagram "" {
     mark: freedraw {
-      at (160, 120)
-      points ((0, 30), (35, 0), (75, 55), (115, 10))
-      pressures (0.2, 0.5, 0.9, 0.3)
-      simulate-pressure false
-      stroke "#7c3aed"
-      stroke-width 8
+      at = (160, 120)
+      points = ((0, 30), (35, 0), (75, 55), (115, 10))
+      pressures = (0.2, 0.5, 0.9, 0.3)
+      simulate-pressure = false
+      stroke = "#7c3aed"
+      stroke-width = 8
     }
   }`;
   const app = await openDiagram(page, source);

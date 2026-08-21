@@ -20,5 +20,8 @@
   { "id": "syntax-highlighting", "file": "supported/syntax-highlighting.xdraw", "tests": ["highlighting pipeline", "code block", "syntax highlighting", "editable source metadata"] },
   { "id": "freehand-output", "file": "supported/freehand-output.xdraw", "tests": ["freehand emission", "native freehand", "pressure samples", "stroke styling"] },
   { "id": "math-formulas", "file": "supported/math-formulas.xdraw", "tests": ["TeX input", "deterministic SVG", "embedded formula metadata", "formula connectors"] },
-  { "id": "parametric-plots", "file": "supported/parametric-plots.xdraw", "tests": ["expression plotting", "bounded sampling tolerance", "absolute placement", "freehand emission"] }
+  { "id": "parametric-plots", "file": "supported/parametric-plots.xdraw", "tests": ["expression plotting", "bounded sampling tolerance", "absolute placement", "freehand emission"] },
+  { "id": "final-geometry-reference", "file": "supported/final-geometry-reference.xdraw", "tests": ["geometry statement before reference resolution", "final placed bounds", "detached text"] },
+  { "id": "relative-placement", "file": "supported/relative-placement.xdraw", "tests": ["backward relative node placement", "stable measured gaps", "constraint composition"] },
+  { "id": "coordinate-plane", "file": "supported/coordinate-plane.xdraw", "tests": ["mathematical plotting", "independent-variable inference", "measured ticks", "axis labels", "viewport clipping", "native line emission"] }
 ]

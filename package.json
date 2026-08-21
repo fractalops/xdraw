@@ -17,8 +17,6 @@
   },
   "files": [
     "lib/",
-    "examples/",
-    "docs/",
     "README.md"
   ],
   "bin": {
@@ -47,6 +45,7 @@
     "example:compiler": "node src/xdraw.ts build examples/compiler-flow.xdraw -o output/compiler-flow.excalidraw",
     "example:architecture": "node src/xdraw.ts build examples/xdraw-architecture.xdraw -o output/xdraw-architecture.excalidraw",
     "docs:images": "node src/xdraw.ts build examples/xdraw-logo.xdraw -o docs/images/xdraw-logo.png --background transparent && node src/xdraw.ts build examples/readme-cheatsheet.xdraw -o docs/images/readme-cheatsheet.png && node src/xdraw.ts build examples/formulas.xdraw -o docs/images/formulas.png && node src/xdraw.ts build examples/tables.xdraw -o docs/images/tables.png && node src/xdraw.ts build examples/architecture-cheatsheet.xdraw -o docs/images/architecture-cheatsheet.png && node src/xdraw.ts build examples/compilation-pipeline.xdraw -o docs/images/compilation-pipeline.png && node src/xdraw.ts build examples/module-layers.xdraw -o docs/images/module-layers.png && node src/xdraw.ts build examples/extension-seams.xdraw -o docs/images/extension-seams.png && node src/xdraw.ts build examples/parametric-plots.xdraw -o docs/images/parametric-plots.png && node src/xdraw.ts build examples/plot-tolerance.xdraw -o docs/images/plot-tolerance.png && node src/xdraw.ts build examples/curve-gallery.xdraw -o docs/images/curve-gallery.png && node src/xdraw.ts build examples/fractal-curve.xdraw -o docs/images/fractal-curve.png && node src/xdraw.ts build examples/plot-flow.xdraw -o docs/images/plot-flow.png && node src/xdraw.ts build examples/fractal-series.xdraw -o docs/images/fractal-series.png && node src/xdraw.ts build examples/named-values.xdraw -o docs/images/named-values.png && node src/xdraw.ts build examples/templated-curves.xdraw -o docs/images/templated-curves.png && node src/xdraw.ts build examples/measured-annotations.xdraw -o docs/images/measured-annotations.png && node src/xdraw.ts build examples/curve-markers.xdraw -o docs/images/curve-markers.png && node src/xdraw.ts build examples/repetition.xdraw -o docs/images/repetition.png && node src/xdraw.ts build examples/repetition-count.xdraw -o docs/images/repetition-count.png && node src/xdraw.ts build examples/network-hub.xdraw -o docs/images/network-hub.png && node src/xdraw.ts build examples/labelled-axes.xdraw -o docs/images/labelled-axes.png && node src/xdraw.ts build examples/deployment-environments.xdraw -o docs/images/deployment-environments.png && node src/xdraw.ts build examples/code-blocks.xdraw -o docs/images/code-blocks.png",
+    "docs:readme-images": "node src/xdraw.ts build examples/readme-architecture.xdraw -o docs/images/readme-architecture.png && node src/xdraw.ts build examples/readme-plane.xdraw -o docs/images/readme-plane.png && node src/xdraw.ts build examples/formulas.xdraw -o docs/images/formulas.png && node src/xdraw.ts build examples/readme-flower.xdraw -o docs/images/readme-flower.png",
     "generate:font-metrics": "node scripts/generate-font-metrics.ts",
     "check:font-metrics": "node scripts/generate-font-metrics.ts --check",
     "check:sources": "node scripts/check-production-sources.ts",
@@ -58,11 +57,11 @@
     "typecheck:tests": "tsc -p tsconfig.tests.json",
     "test:types": "npm run build && tsc -p type-tests/tsconfig.json",
     "test": "node --test",
-    "test:properties": "node --test test/properties.test.ts",
+    "test:properties": "node --test test/along.test.ts test/bindings.test.ts test/cartesian.test.ts test/curve-sampler.test.ts test/deferred.test.ts test/expression.test.ts test/interval.test.ts test/properties.test.ts test/repetition.test.ts",
     "test:corpus": "node --test test/corpus.test.ts",
     "test:browser": "npm run build && playwright test",
     "build:acceptance-host": "vite build --config acceptance/vite.config.ts",
-    "prepack": "npm run build"
+    "prepack": "node scripts/build.ts"
   },
   "devDependencies": {
     "@excalidraw/excalidraw": "^0.18.1",
@@ -75,7 +74,6 @@
     "eslint-plugin-sonarjs": "^4.2.0",
     "fast-check": "^4.9.0",
     "fontkit": "^2.0.4",
-    "jiti": "^2.7.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "typescript": "^5.9.3",

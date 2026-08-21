@@ -7,12 +7,12 @@ diagram "Hosted scene workflow" {
   }
 
   reviewer: process.lane "Excalidraw+" {
-    arrange row { gap 100 }
+    arrange row { gap = 100 }
 
     assess: diamond "Scene exists?"
-    approve: rectangle "Apply edit" { style palette.success }
+    approve: rectangle "Apply edit" { style = palette.success }
     accepted: assess -> approve "yes"
   }
 
-  review_request: owner.submit@bottom -> reviewer.assess@top "REST request"
+  review_request: owner.submit@south -> reviewer.assess@north "REST request"
 }

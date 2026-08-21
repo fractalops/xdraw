@@ -5,18 +5,18 @@ diagram "Asset pipeline" {
   subtitle "Local files are resolved before scene compilation"
 
   ingest: process.lane "Resolution" {
-    arrange row { gap 150 }
+    arrange row { gap = 150 }
 
-    source: rectangle "Asset path" { style palette.info }
-    raw: rectangle "Validated bytes" { style palette.neutral }
+    source: rectangle "Asset path" { style = palette.info }
+    raw: rectangle "Validated bytes" { style = palette.neutral }
     load: source -> raw "read safely"
   }
 
   transform: process.lane "Emission" {
-    arrange row { gap 110 }
+    arrange row { gap = 110 }
 
-    enriched: rectangle "Embedded file" { style palette.warning }
-    curated: rectangle "Image element" { style palette.success }
+    enriched: rectangle "Embedded file" { style = palette.warning }
+    curated: rectangle "Image element" { style = palette.success }
     publish: enriched -> curated "attach"
   }
 }

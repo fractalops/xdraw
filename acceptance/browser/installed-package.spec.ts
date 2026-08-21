@@ -88,11 +88,11 @@ test("packed package renders a formula through a browser bundler", async ({ page
       "}",
     ].join("\n");
     await writeFile(join(consumer, "main.js"), `
-      import { compileAsync, parse } from "xdraw";
+      import { compile, parse } from "xdraw";
 
       const status = document.querySelector("#status");
       try {
-        const drawing = (await compileAsync(parse(${JSON.stringify(source)}))).toJSON();
+        const drawing = (await compile(parse(${JSON.stringify(source)}))).toJSON();
         window.__xdrawInstalledDrawing = drawing;
         status.dataset.phase = "ready";
         status.textContent = "Ready";

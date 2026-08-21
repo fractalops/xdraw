@@ -56,7 +56,7 @@ test("packed package installs a working xdraw executable", async () => {
   )).stdout) as PackedPackage[];
   assert.ok(packed, "npm pack returned no package metadata");
   const packedPaths = new Set(packed.files.map((file) => file.path));
-  assert.ok(packed.files.every((file) => ["LICENSE", "README.md", "package.json", "bin/", "lib/", "examples/", "docs/"]
+  assert.ok(packed.files.every((file) => ["LICENSE", "README.md", "package.json", "lib/"]
     .some((prefix) => file.path === prefix || file.path.startsWith(prefix))));
   assert.ok(packed.files.every((file) => !/(?:^|\/)(?:\.env|\.DS_Store)|\.(?:key|log|pem|tmp)$/i.test(file.path)));
   assert.ok(packed.files.some((file) => file.path === "LICENSE"));
@@ -68,7 +68,7 @@ test("packed package installs a working xdraw executable", async () => {
     ...publicationTargets(packageJson.exports)]) {
     assert.ok(packedPaths.has(target.replace(/^\.\//, "")), `published target is missing: ${target}`);
   }
-  assert.ok(packed.unpackedSize < 12_000_000, `package is unexpectedly large: ${packed.unpackedSize}`);
+  assert.ok(packed.unpackedSize < 1_250_000, `package is unexpectedly large: ${packed.unpackedSize}`);
   for (const output of await filesBelow(join(root, "lib"))) {
     if (!output.endsWith(".js") && !output.endsWith(".d.ts")) continue;
     const source = await readFile(output, "utf8");
@@ -90,20 +90,18 @@ test("packed package installs a working xdraw executable", async () => {
   await execute(process.execPath, [
     "--input-type=module",
     "--eval",
-    "const xdraw = await import('xdraw'); if (xdraw.compile(xdraw.parse('diagram \\\"Sync\\\" { a: rectangle \\\"A\\\" }')) instanceof Promise) throw new Error('compile must stay synchronous'); await xdraw.compileAsync(xdraw.parse('diagram \\\"Async\\\" { arrange layered {}; a: rectangle \\\"A\\\"; b: rectangle \\\"B\\\"; a -> b }')); await xdraw.compileAsync(xdraw.parse('use \\\"xdraw/math\\\" as math; diagram \\\"Formula\\\" { value: math.formula \\\"\\\"\\\"x^2\\\"\\\"\\\" }')); if (!xdraw.getLibraryManifest('xdraw/core')) throw new Error('core manifest missing'); if (!xdraw.listLibraryManifests().length) throw new Error('library catalog empty'); await import('xdraw/excalidraw-api');",
+    "const xdraw = await import('xdraw'); await xdraw.compile(xdraw.parse('diagram \\\"Simple\\\" { a: rectangle \\\"A\\\" }')); await xdraw.compile(xdraw.parse('diagram \\\"Layered\\\" { arrange layered {}; a: rectangle \\\"A\\\"; b: rectangle \\\"B\\\"; a -> b }')); await xdraw.compile(xdraw.parse('use \\\"xdraw/math\\\" as math; diagram \\\"Formula\\\" { value: math.formula \\\"\\\"\\\"x^2\\\"\\\"\\\" }')); for (const name of ['compileAsync', 'buildSemanticIR', 'createSceneGraph', 'createLayoutAdapter', 'createMeasurer', 'createStyleResolver']) if (name in xdraw) throw new Error('internal compiler export: ' + name); if (!xdraw.getLibraryManifest('xdraw/core')) throw new Error('core manifest missing'); if (!xdraw.listLibraryManifests().length) throw new Error('library catalog empty'); await import('xdraw/excalidraw-api');",
   ], { cwd: prefix });
 
   const consumer = join(prefix, "consumer");
   await mkdir(consumer);
   await writeFile(join(consumer, "index.ts"), [
-    'import { compile, compileAsync, getLibraryManifest, listLibraryManifests, parse, type Drawing, type LibraryManifest } from "xdraw";',
+    'import { compile, getLibraryManifest, listLibraryManifests, parse, type Drawing, type LibraryManifest } from "xdraw";',
     'import { ExcalidrawApiClient } from "xdraw/excalidraw-api";',
     'const source = parse(\'diagram "Typed" { item: rectangle "Item" }\');',
-    "const synchronous: Drawing = compile(source);",
-    "const asynchronous: Promise<Drawing> = compileAsync(source);",
+    "const asynchronous: Promise<Drawing> = compile(source);",
     'const manifests: readonly LibraryManifest[] = listLibraryManifests();',
     'const core: LibraryManifest | undefined = getLibraryManifest("xdraw/core");',
-    "void synchronous;",
     "void asynchronous;",
     "void manifests;",
     "void core;",
@@ -130,7 +128,7 @@ test("packed package installs a working xdraw executable", async () => {
   assert.equal(JSON.parse(await readFile(join(dirname(source), "installed-example.excalidraw"), "utf8")).type, "excalidraw");
 
   const highlighted = join(directory, "installed-highlighted.xdraw");
-  await writeFile(highlighted, 'diagram "Installed" { source: code "const value = 42" { language typescript; highlight true } }');
+  await writeFile(highlighted, 'diagram "Installed" { source: code "const value = 42" { language = typescript; highlight = true } }');
   await execute(executable, ["build", highlighted]);
   const highlightedDrawing = JSON.parse(
     await readFile(join(dirname(highlighted), "installed-highlighted.excalidraw"), "utf8"),

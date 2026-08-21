@@ -4,7 +4,7 @@ diagram "XDraw package context" {
   analyst: arch.person "Author"
 
   platform: section "XDraw" {
-    arrange row { gap 100 }
+    arrange row { gap = 100 }
 
     ingest: arch.system "Compiler"
     warehouse: arch.database "Scene JSON"

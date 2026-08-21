@@ -3,12 +3,12 @@ use "xdraw/process" as process
 
 diagram "Package verification" {
   gates: process.lane "Before publishing XDraw" {
-    arrange row { gap 30 }
+    arrange row { gap = 30 }
 
-    build: rectangle "Typecheck" { style palette.accent }
-    unit: rectangle "Unit tests" { style palette.info }
-    acceptance: rectangle "Browser tests" { style palette.warning }
-    deploy: rectangle "Pack" { style palette.success }
+    build: rectangle "Typecheck" { style = palette.accent }
+    unit: rectangle "Unit tests" { style = palette.info }
+    acceptance: rectangle "Browser tests" { style = palette.warning }
+    deploy: rectangle "Pack" { style = palette.success }
     build -> unit -> acceptance -> deploy
   }
 }

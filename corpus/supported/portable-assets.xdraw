@@ -4,12 +4,12 @@ diagram "Portable assets" {
   logo: asset "portable-assets-mark.svg"
 
   hero: image(logo) {
-    at (100, 100); size (320, 160); fit contain
-    alt "XDraw mark"
+    at = (100, 100); size = (320, 160); fit = contain
+    alt = "XDraw mark"
   }
 
   mark: assets.icon(logo) {
-    at (470, 120); size (80, 80)
-    fit contain
+    at = (470, 120); size = (80, 80)
+    fit = contain
   }
 }

@@ -3,22 +3,22 @@ use "xdraw/process" as process
 
 diagram "Document states" {
   state: process.lane "XDraw document" {
-    arrange row { gap 120 }
+    arrange row { gap = 120 }
 
     source: rectangle "Parsed" {
-      body "Syntax and source spans"
-      style palette.info
+      body = "Syntax and source spans"
+      style = palette.info
     }
     validated: rectangle "Validated" {
-      body "References and properties checked"
-      style palette.warning
+      body = "References and properties checked"
+      style = palette.warning
     }
     compiled: rectangle "Compiled" {
-      body "Editable elements emitted"
-      style palette.success
+      body = "Editable elements emitted"
+      style = palette.success
     }
 
     validate: source -> validated "validate"
-    compile: validated -> compiled "compile" { style palette.success }
+    compile: validated -> compiled "compile" { style = palette.success }
   }
 }

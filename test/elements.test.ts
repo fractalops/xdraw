@@ -59,6 +59,7 @@ test("image factory records portable image metadata", () => {
   assert.equal(element.fileId, "file-1");
   assert.equal(element.status, "saved");
   assert.deepEqual(element.scale, [-1, 1]);
+  assert.ok(element.crop);
   assert.equal(element.crop.naturalWidth, 80);
   assert.deepEqual(element.customData, { description: "Product mark" });
 });

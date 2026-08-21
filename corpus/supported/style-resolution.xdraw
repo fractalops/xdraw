@@ -3,30 +3,30 @@ use "xdraw/process" as process
 
 diagram "Style resolution" {
   default: theme {
-    font-family normal
+    font-family = normal
   }
 
   focus: style {
-    stroke "#059669"
-    background "#ecfdf5"
-    text-color "#065f46"
-    title-size 21
+    stroke = "#059669"
+    background = "#ecfdf5"
+    text-color = "#065f46"
+    title-size = 21
   }
 
   examples: process.lane "Examples" {
-    arrange row { gap 200 }
+    arrange row { gap = 200 }
 
     source: arch.system "Theme defaults"
     target: ellipse "Local override" {
-      style focus
-      link "https://example.com"
-      locked true
+      style = focus
+      link = "https://example.com"
+      locked = true
     }
     verified: source -> target "higher precedence"
   }
 
   caption: text "Named styles and local controls share one precedence model." {
-    at (110, 360); font-family normal; font-size 16
-    wrap-width 520; auto-size false
+    at = (110, 360); font-family = normal; font-size = 16
+    wrap-width = 520; auto-size = false
   }
 }

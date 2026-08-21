@@ -2,7 +2,7 @@ use "xdraw/architecture" as arch
 
 diagram "Frame emission" {
   workspace: frame "Compiled document" {
-    locked true
+    locked = true
 
     request: arch.person "Source node"
     service: arch.system "Scene element"

@@ -5,11 +5,11 @@ diagram "Compilation pipeline" {
   subtitle "XDraw turns source text into editable scene elements"
 
   flow: process.lane "Compiler" {
-    arrange row { gap 55 }
+    arrange row { gap = 55 }
 
-    source: rectangle "Source" { style palette.info }
-    semantic: rectangle "Semantic IR" { style palette.warning }
-    scene: rectangle "Scene" { style palette.success }
+    source: rectangle "Source" { style = palette.info }
+    semantic: rectangle "Semantic IR" { style = palette.warning }
+    scene: rectangle "Scene" { style = palette.success }
     source -> semantic -> scene
   }
 }

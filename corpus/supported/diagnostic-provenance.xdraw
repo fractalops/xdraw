@@ -6,7 +6,7 @@ diagram "Diagnostic provenance" {
   compare: source -> target "retains span"
 
   mismatch: annotations.note "XD1004 at line 8, column 5" {
-    attach target@bottom
+    attach = target@south
   }
   owner: annotations.callout "Show one actionable explanation"
   assignment: owner -> mismatch

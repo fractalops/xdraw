@@ -6,8 +6,8 @@ diagram "Syntax highlighting" {
     FROM xdraw_code_blocks
     GROUP BY language
   """ {
-    title "Highlighting input"
-    language sql
-    highlight true
+    title = "Highlighting input"
+    language = sql
+    highlight = true
   }
 }
