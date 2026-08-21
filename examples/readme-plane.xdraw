@@ -1,0 +1,26 @@
+use "xdraw/math" as math
+
+diagram "Two waves" {
+  waves: math.plane "Sine and cosine" {
+    size = (1040, 500)
+    x in [-pi, pi]
+    x-label = "x"
+    y-label = "amplitude"
+    grid = true
+    cross-zero = true
+    tick-count = 7
+
+    sine: math.plot "sin(x)" {
+      y = sin(x)
+      stroke = "#2563eb"
+      stroke-width = 2.5
+    }
+
+    cosine: math.plot "cos(x)" {
+      y = cos(x)
+      stroke = "#e11d48"
+      stroke-width = 2.5
+      stroke-style = dashed
+    }
+  }
+}

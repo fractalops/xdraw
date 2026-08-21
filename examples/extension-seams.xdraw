@@ -3,76 +3,76 @@ use "xdraw/palette" as palette
 diagram "Where to extend XDraw" {
   subtitle "Four seams. Each already has two or more adapters, which is what makes it real"
 
-  default: theme { font-family normal; title-size 22; body-size 19 }
-  arrange grid { columns 2; gap 30; width 2000 }
+  default: theme { font-family = normal; title-size = 22; body-size = 19 }
+  arrange grid { columns = 2; gap = 30; width = 2000 }
 
   layout_seam: section "1. Layout adapter" {
-    arrange column { gap 26 }
+    arrange column { gap = 26 }
 
     interface: rectangle "LayoutAdapter" {
-      body "compile/scene.ts declares it; layoutWithAdapter dispatches"
-      size (905, 120)
-      style palette.accent
+      body = "compile/scene.ts declares it; layoutWithAdapter dispatches"
+      size = (905, 120)
+      style = palette.accent
     }
     adapters: group {
-      arrange row { gap 26 }
-      builtin: rectangle "BUILTIN_LAYOUT" { body "rows, columns, grids, trees"; size (380, 110); style palette.info }
-      layered: rectangle "LAYERED_LAYOUT" { body "ELK, for flat graphs"; size (380, 110); style palette.info }
+      arrange row { gap = 26 }
+      builtin: rectangle "BUILTIN_LAYOUT" { body = "rows, columns, grids, trees"; size = (380, 110); style = palette.info }
+      layered: rectangle "LAYERED_LAYOUT" { body = "ELK, for flat graphs"; size = (380, 110); style = palette.info }
     }
-    interface@bottom -> adapters.builtin@top
-    interface@bottom -> adapters.layered@top
+    interface@south -> adapters.builtin@north
+    interface@south -> adapters.layered@north
   }
 
   node_seam: section "2. Rich node family" {
-    arrange column { gap 26 }
+    arrange column { gap = 26 }
 
     interface: rectangle "RichNodeFamily" {
-      body "nodes/rich-nodes.ts, a frozen array dispatched by node kind"
-      size (905, 120)
-      style palette.accent
+      body = "nodes/rich-nodes.ts, a frozen array dispatched by node kind"
+      size = (905, 120)
+      style = palette.accent
     }
     families: group {
-      arrange row { gap 20 }
-      formula: rectangle "formula" { body "MathJax to SVG"; size (260, 110); style palette.info }
-      table: rectangle "table" { body "measured columns"; size (260, 110); style palette.info }
-      architecture: rectangle "architecture" { body "C4 notation"; size (260, 110); style palette.info }
+      arrange row { gap = 20 }
+      formula: rectangle "formula" { body = "MathJax to SVG"; size = (260, 110); style = palette.info }
+      table: rectangle "table" { body = "measured columns"; size = (260, 110); style = palette.info }
+      architecture: rectangle "architecture" { body = "C4 notation"; size = (260, 110); style = palette.info }
     }
-    interface@bottom -> families.formula@top
-    interface@bottom -> families.table@top
-    interface@bottom -> families.architecture@top
+    interface@south -> families.formula@north
+    interface@south -> families.table@north
+    interface@south -> families.architecture@north
   }
 
   worker_seam: section "3. Worker host" {
-    arrange column { gap 26 }
+    arrange column { gap = 26 }
 
     interface: rectangle "WorkerHost" {
-      body "platform/worker-host.ts; ELK and MathJax both use it"
-      size (905, 120)
-      style palette.accent
+      body = "platform/worker-host.ts; ELK and MathJax both use it"
+      size = (905, 120)
+      style = palette.accent
     }
     hosts: group {
-      arrange row { gap 26 }
-      node_host: rectangle "node" { body "worker_threads"; size (380, 110); style palette.info }
-      browser_host: rectangle "browser" { body "Worker, constructed at the call site"; size (380, 110); style palette.info }
+      arrange row { gap = 26 }
+      node_host: rectangle "node" { body = "worker_threads"; size = (380, 110); style = palette.info }
+      browser_host: rectangle "browser" { body = "Worker, constructed at the call site"; size = (380, 110); style = palette.info }
     }
-    interface@bottom -> hosts.node_host@top
-    interface@bottom -> hosts.browser_host@top
+    interface@south -> hosts.node_host@north
+    interface@south -> hosts.browser_host@north
   }
 
   filesystem_seam: section "4. File system" {
-    arrange column { gap 26 }
+    arrange column { gap = 26 }
 
     interface: rectangle "FileSystem" {
-      body "io/filesystem.ts; asset resolution never touches disk directly"
-      size (905, 120)
-      style palette.accent
+      body = "io/filesystem.ts; asset = resolution never touches disk directly"
+      size = (905, 120)
+      style = palette.accent
     }
     implementations: group {
-      arrange row { gap 26 }
-      rooted: rectangle "RootedFileSystem" { body "jailed to one directory"; size (380, 110); style palette.info }
-      memory: rectangle "MemoryFileSystem" { body "for tests and the browser"; size (380, 110); style palette.info }
+      arrange row { gap = 26 }
+      rooted: rectangle "RootedFileSystem" { body = "jailed to one directory"; size = (380, 110); style = palette.info }
+      memory: rectangle "MemoryFileSystem" { body = "for tests and the browser"; size = (380, 110); style = palette.info }
     }
-    interface@bottom -> implementations.rooted@top
-    interface@bottom -> implementations.memory@top
+    interface@south -> implementations.rooted@north
+    interface@south -> implementations.memory@north
   }
 }

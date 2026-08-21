@@ -1,0 +1,29 @@
+use "xdraw/math" as math
+
+diagram "Damped oscillation" {
+  response: math.plane "Response over time" {
+    size = (760, 460)
+    x in [0, tau]
+    y in [-1.2, 1.2]
+    x-label = "time (t)"
+    y-label = "amplitude"
+    grid = true
+    cross-zero = true
+    tick-count = 7
+
+    carrier: math.plot "sin(x)" {
+      y = sin(x)
+      x in [0, tau]
+      stroke = "#2563eb"
+      stroke-width = 2.5
+    }
+
+    damped: math.plot "exp(-t/3) sin(4t)" {
+      x = t
+      y = exp(-t / 3) * sin(4 * t)
+      t in [0, tau]
+      stroke = "#dc2626"
+      stroke-width = 2
+    }
+  }
+}

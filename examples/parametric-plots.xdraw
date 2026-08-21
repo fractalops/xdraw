@@ -1,45 +1,44 @@
 use "xdraw/math" as math
 
 diagram "Parametric plots" {
-  subtitle "Four curves, each written as a pair of equations and drawn to a stated tolerance"
 
   butterfly: math.plot {
-    at (300, 360)
+    at = (300, 360)
     x = 72 * sin(t) * (exp(cos(t)) - 2 * cos(4 * t) - (sin(t / 12)) ^ 5)
     y = 72 * cos(t) * (exp(cos(t)) - 2 * cos(4 * t) - (sin(t / 12)) ^ 5)
-    domain = (0, 6 * tau)
-    tolerance 0.5
-    stroke "#7c3aed"
-    stroke-width 0.5
+    t in [0, 6 * tau]
+    tolerance = 0.5
+    stroke = "#7c3aed"
+    stroke-width = 0.5
   }
 
   spirograph: math.plot {
-    at (800, 360)
+    at = (800, 360)
     x = 150 * (cos(t) + 0.55 * cos(7.5 * t))
     y = 150 * (sin(t) - 0.55 * sin(7.5 * t))
-    domain = (0, 2 * tau)
-    tolerance 0.5
-    stroke "#ea580c"
-    stroke-width 0.5
+    t in [0, 2 * tau]
+    tolerance = 0.5
+    stroke = "#ea580c"
+    stroke-width = 0.5
   }
 
   harmonograph: math.plot {
-    at (300, 900)
+    at = (300, 900)
     x = 105 * sin(2 * t + 1) * exp(0 - t / 90) + 105 * sin(2.02 * t) * exp(0 - t / 90)
     y = 105 * sin(3 * t) * exp(0 - t / 90) + 105 * sin(3.03 * t + 1.5) * exp(0 - t / 90)
-    domain (0, 90)
-    tolerance 0.5
-    stroke "#0891b2"
-    stroke-width 0.5
+    t in [0, 90]
+    tolerance = 0.5
+    stroke = "#0891b2"
+    stroke-width = 0.5
   }
 
   lissajous: math.plot {
-    at (800, 900)
+    at = (800, 900)
     x = 210 * sin(9 * t)
     y = 210 * sin(8 * t + pi / 2)
-    domain (0, tau)
-    tolerance 0.5
-    stroke "#16a34a"
-    stroke-width 0.5
+    t in [0, tau]
+    tolerance = 0.5
+    stroke = "#16a34a"
+    stroke-width = 0.5
   }
 }

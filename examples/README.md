@@ -10,6 +10,15 @@ Build any diagram with:
 xdraw build examples/compiler-flow.xdraw
 ```
 
+## README examples
+
+| Example | What it explains |
+|---|---|
+| `readme-architecture.xdraw` | Architecture notation and relationship-driven layout |
+| `readme-plane.xdraw` | Two functions sharing a mathematical coordinate plane |
+| `formulas.xdraw` | TeX rendered as portable SVG with its source retained |
+| `readme-flower.xdraw` | Curves attached to measured points on another curve |
+
 ## Learning the language
 
 | Example | What it explains |

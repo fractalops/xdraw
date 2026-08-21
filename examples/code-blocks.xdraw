@@ -1,6 +1,5 @@
 diagram "How code blocks render" {
-  subtitle "XDraw preserves editable source, indentation and token-level color"
-  arrange grid { columns 2; gap 32 }
+  arrange grid { columns = 2; gap = 32 }
 
   typescript: code """
     type Stage = "syntax" | "semantic" | "scene"
@@ -9,8 +8,8 @@ diagram "How code blocks render" {
       return `Compiling: ${stage}`
     }
   """ {
-    language typescript
-    highlight true
+    language = typescript
+    highlight = true
   }
 
   sql: code """
@@ -20,8 +19,8 @@ diagram "How code blocks render" {
     FROM xdraw_examples
     GROUP BY language
   """ {
-    language sql
-    line-numbers false
-    highlight true
+    language = sql
+    line-numbers = false
+    highlight = true
   }
 }

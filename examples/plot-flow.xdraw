@@ -3,34 +3,34 @@ use "xdraw/palette" as palette
 
 diagram "Building a signal" {
   subtitle "Each stage names what it adds, and draws the signal it produces"
+  arrange compact { gap = 60 }
 
   carrier: rectangle "Carrier" {
-    at (80, 200)
-    size (200, 280)
-    body "sin(2.5t)"
-    style palette.info
-    vertical-align top
+    size = (200, 280)
+    body = "sin(2.5t)"
+    style = palette.info
+    vertical-align = top
   }
   envelope: rectangle "Envelope" {
-    at (340, 200)
-    size (200, 280)
-    body "exp(-t/9)"
-    style palette.warning
-    vertical-align top
+    at = (carrier.bounds.right + 60, carrier.bounds.top)
+    size = (200, 280)
+    body = "exp(-t/9)"
+    style = palette.warning
+    vertical-align = top
   }
   damped: rectangle "Damped" {
-    at (600, 200)
-    size (200, 280)
-    body "their product"
-    style palette.success
-    vertical-align top
+    at = (envelope.bounds.right + 60, envelope.bounds.top)
+    size = (200, 280)
+    body = "their product"
+    style = palette.success
+    vertical-align = top
   }
   summed: rectangle "Summed" {
-    at (860, 200)
-    size (200, 280)
-    body "plus a harmonic"
-    style palette.accent
-    vertical-align top
+    at = (damped.bounds.right + 60, damped.bounds.top)
+    size = (200, 280)
+    body = "plus a harmonic"
+    style = palette.accent
+    vertical-align = top
   }
 
   carrier -> envelope
@@ -38,38 +38,38 @@ diagram "Building a signal" {
   damped -> summed
 
   carrier-curve: math.plot {
-    at (95, 390)
+    at = (carrier.bounds.left + 15, carrier.bounds.top + 190)
     x = 9.5 * t
     y = 50 * sin(2.5*t)
-    domain (0, 18)
-    stroke "#1d4ed8"
-    stroke-width 1
+    t in [0, 18]
+    stroke = "#1d4ed8"
+    stroke-width = 1
   }
 
   envelope-curve: math.plot {
-    at (355, 440)
+    at = (envelope.bounds.left + 15, envelope.bounds.top + 240)
     x = 9.5 * t
     y = 0 - 95 * exp(0 - t / 9)
-    domain (0, 18)
-    stroke "#b45309"
-    stroke-width 1
+    t in [0, 18]
+    stroke = "#b45309"
+    stroke-width = 1
   }
 
   damped-curve: math.plot {
-    at (615, 390)
+    at = (damped.bounds.left + 15, damped.bounds.top + 190)
     x = 9.5 * t
     y = 50 * sin(2.5*t) * exp(0 - t / 9)
-    domain (0, 18)
-    stroke "#15803d"
-    stroke-width 1
+    t in [0, 18]
+    stroke = "#15803d"
+    stroke-width = 1
   }
 
   summed-curve: math.plot {
-    at (875, 390)
+    at = (summed.bounds.left + 15, summed.bounds.top + 190)
     x = 9.5 * t
     y = 50 * sin(2.5*t) * exp(0 - t / 9) + 20 * sin(7.5*t) * exp(0 - t / 5)
-    domain (0, 18)
-    stroke "#7c3aed"
-    stroke-width 1
+    t in [0, 18]
+    stroke = "#7c3aed"
+    stroke-width = 1
   }
 }

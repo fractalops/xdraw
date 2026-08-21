@@ -4,25 +4,25 @@ diagram "How XDraw lays out text" {
   subtitle "Measurement drives bound labels, rich cards, wrapping and alignment"
 
   bound: section "Bound text strategies" {
-    arrange row { gap 36 }
-    top_left: rectangle "Left and top" { style palette.info; align left; vertical-align top }
-    centered: rectangle "Native center" { style palette.success }
-    bottom_right: rectangle "Right and bottom" { style palette.warning; align right; vertical-align bottom }
+    arrange row { gap = 36 }
+    top_left: rectangle "Left and top" { style = palette.info; align = left; vertical-align = top }
+    centered: rectangle "Native center" { style = palette.success }
+    bottom_right: rectangle "Right and bottom" { style = palette.warning; align = right; vertical-align = bottom }
     rich: rectangle "Measured card" {
-      style palette.accent
-      body "The title and body retain separate typography and move as one grouped component."
-      align left
-      vertical-align middle
+      style = palette.accent
+      body = "The title and body retain separate typography and move as one grouped component."
+      align = left
+      vertical-align = middle
     }
   }
 
   free: section "Independent text strategies" {
-    automatic: text "Auto width follows measured content" { at (110, 570); font-size 18 }
+    automatic: text "Auto width follows measured content" { at = (110, 570); font-size = 18 }
     bounded: text "A declared width wraps text without binding it to a shape." {
-      at (500, 560); wrap-width 260; align center; font-size 18
+      at = (500, 560); wrap-width = 260; align = center; font-size = 18
     }
     right_aligned: text "Right-aligned\nfree text" {
-      at (920, 565); wrap-width 220; align right; font-size 18
+      at = (920, 565); wrap-width = 220; align = right; font-size = 18
     }
   }
 }

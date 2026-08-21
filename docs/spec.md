@@ -113,7 +113,7 @@ diagram "Strings" {
   source: code """
     SELECT id
     FROM orders
-  """ { language sql }
+  """ { language = sql }
 }
 ```
 
@@ -172,17 +172,18 @@ Scene operations are specified in section 17.
 ## 6. Values
 
 ```text
-value       = string | number | identifier | pair | interval | expression
-pair        = "(", number, ",", number, ")"
+value       = string | number | boolean | identifier | point | interval | expression
+point       = "(", expression, ",", expression, ")"
 interval    = "(", interval-end, ",", interval-end, ")"
 interval-end = number | "pi" | "tau" | "e"
-point-list  = "(", pair, { ",", pair }, ")"
+point-list  = "(", point, { ",", point }, ")"
 number-list = "(", number, { ",", number }, ")"
 selection   = "(", identifier, { ",", identifier }, ")"
 ```
 
-The identifiers `true` and `false` become Boolean values where a property
-accepts a Boolean.
+`true` and `false` are Boolean values. Points are expression values: they may
+be bound with `let`, added or subtracted, scaled by a number, and projected with
+`x(point)` or `y(point)`.
 
 ## 7. Declarations and Constructors
 
@@ -222,7 +223,7 @@ the regular `id: constructor` form.
 | `code` | Editable code block | Exactly one string argument |
 | `freedraw` | Native freehand stroke | No arguments; `at` and `points` required |
 | `style` | Named style | Property block; document scope only |
-| `theme` | Document defaults | Property block; at most one per document |
+| `theme` | Document defaults | Property block; at = most one per document |
 | `asset` | Embedded asset declaration | Exactly one source string |
 | `image` | Asset instance | Asset reference; `at` and `size` required |
 | `template` | Reusable definition | Parameter identifiers; document scope only |
@@ -232,33 +233,31 @@ visible element.
 
 ### 7.2 Property statements
 
-Within a declaration or property block, a property is written as its name
-followed by the value required by that property:
+Within a declaration or property block, every property uses assignment syntax:
 
 ```text
-property = identifier, property-value
-         | identifier, "=", expression
+property = identifier, "=", property-value
 ```
 
-The second form introduces an expression, and is required wherever a property
-declares the expression value kind. An expression is not delimited: it ends
-where the grammar ends it, because after a complete term only an operator can
-continue one, so the next property name or closing brace terminates it. Line
-breaks remain insignificant. Section 15.5 defines the expression grammar.
+The value's expected kind comes from the constructor manifest. An expression
+is not delimited: after a complete term, only an operator can continue it, so
+the next property name or closing brace terminates it. Line breaks remain
+insignificant. Section 15.5 defines the expression grammar.
 
 Unknown properties are invalid. A property is also invalid when it does not
 apply to its enclosing constructor.
 
 | Value shape | Properties |
 |---|---|
-| Coordinate pair | `at`, `size` |
+| Point | `at`, `size` |
 | String | `body`, `description`, `technology`, `stroke`, `background`, `text-color`, `start-label`, `end-label`, `alt`, `link`, `title` |
-| Number | `gap`, `columns`, `width`, `stroke-width`, `roughness`, `opacity`, `padding`, `font-size`, `line-height`, `title-size`, `body-size`, `wrap-width`, `level-gap`, `sibling-gap` |
+| Number | `gap`, `columns`, `width`, `stroke-width`, `roughness`, `opacity`, `padding`, `font-size`, `line-height`, `title-size`, `body-size`, `wrap-width`, `level-gap`, `sibling-gap`, `display-scale`, `tolerance` |
 | Identifier | `style`, `spacing`, `direction`, `root`, `route`, `stroke-style`, `fill-style`, `font-family`, `align`, `vertical-align`, `fit`, `head`, `language` |
 | Boolean | `auto-size`, `locked`, `simulate-pressure`, `line-numbers`, `highlight` |
 | Point list | `via`, `points` |
 | Number list | `pressures` |
 | Element endpoint | `attach` |
+| Expression | `x`, `y`, `equation` |
 
 Node content may use `body` or `description`, but not both. `description` is
 the architecture-oriented spelling of the same content role. Architecture
@@ -266,32 +265,32 @@ elements and relationships may also declare `technology`.
 
 ### 7.3 Named values
 
-A `let` statement binds a name to a number for the document:
+A `let` statement binds a scalar, Boolean, point, or symbolic geometry value:
 
 ```text
 binding = "let", identifier, "=", expression
 ```
 
-Bindings resolve by dependency rather than by source order, so a name may be
-used before it is bound. A binding whose expression depends on itself, directly
-or through others, is invalid, as is a name used but never bound, a name bound
-more than once, a name that a constant or function of the expression
-sublanguage already defines, and a binding that does not evaluate to a finite
-number.
+Bindings resolve by dependency rather than source order, so a name may be used
+before it is bound. Cycles, duplicate bindings, shadowing an expression constant
+or function, and non-finite constant values are invalid. A symbolic path or
+geometry name may remain unresolved until the compilation stage that produces
+it; it becomes an error if no stage can supply it when it is used.
 
 A bound name may appear in any expression. Where every free name of an
 expression is bound, the expression becomes its value; where a name remains that
 another binder supplies, `t` in a plotted curve, the bound parts are
 substituted and the expression is preserved.
 
-Within an expression, a name is a number that some part of compilation supplies
-later: a `let` binding, a repeat's `index` or `count`, a template parameter, or
-a placed element's geometry. A name no stage supplies is invalid, and is
-reported against the property that used it. A document cannot observe whether a
-value has been supplied yet.
+Within an expression, a name is a value that some part of compilation supplies:
+a binding, repeat index, template parameter, point anchor, scalar bound, path,
+or plot variable. A name no stage supplies is invalid and is reported against
+the statement that uses it.
 
-String interpolation is a separate mechanism: `${name}` in a string is text
-somebody supplies, not arithmetic, and the two do not mix.
+String interpolation is a separate mechanism: `${name}` in ordinary text is
+text somebody supplies, not arithmetic. Inside a template definition the same
+marked spelling may stand where an expression expects a numeric parameter; the
+template expander substitutes it before the expression is evaluated.
 
 ### 7.4 Repetition
 
@@ -315,6 +314,8 @@ available in two forms: bare inside an expression, and wrapped in `${...}`
 inside a string. A `${...}` name the repeat does not supply is left untouched,
 because template expansion uses the same marker and runs afterwards. A repeated
 declaration inside a container expands before its container does.
+A geometry selection that names the repeated declaration selects all of its
+instances, so `align bottom (item)` applies to `item.0`, `item.1`, and so on.
 
 ## 8. Imports and Standard Libraries
 
@@ -356,7 +357,7 @@ The standard libraries are:
 | `xdraw/process` | `lane` |
 | `xdraw/sequence` | `sequence`, `participant` |
 | `xdraw/table` | `table`, `header`, `row` |
-| `xdraw/math` | `formula`, `plot` |
+| `xdraw/math` | `plane`, `formula`, `plot` |
 | `xdraw/annotations` | `note`, `callout` |
 | `xdraw/connectors` | `junction` |
 | `xdraw/assets` | `icon` |
@@ -400,6 +401,11 @@ and 8,192 pixels per dimension; all generated formula SVGs are limited to 5 MiB
 per document. Empty input, unsupported commands, unsafe SVG, and exceeded
 limits are errors.
 
+Formula sizing has one source of truth: `size = (width, height)` fixes the display
+box, while positive `display-scale` multiplies the natural automatic display
+size. They may not appear together. Formulas also accept repetition, named
+styles, opacity, links, and locking like other visual declarations.
+
 ```xdraw
 use "xdraw/math" as math
 
@@ -434,11 +440,12 @@ invalid.
 
 ```text
 endpoint = identifier, [ "@", anchor ]
-anchor   = "top" | "right" | "bottom" | "left" | "center"
+anchor   = "north" | "east" | "south" | "west" | "center"
 ```
 
-The synonyms `north`, `east`, `south`, and `west` are accepted by the semantic
-model. Authors should prefer the five canonical spellings above.
+Connector anchors use compass names. This is separate from the point-anchor
+syntax in §15.4a: `source@east` selects a connector endpoint, while
+`source.east` is a point expression.
 
 An anchor selects the attachment side and is not part of the referenced
 element's source ID. A written anchor attaches at that side's midpoint. When
@@ -471,11 +478,11 @@ source ID.
 diagram "Connections" {
   source: rectangle "Source"
   target: rectangle "Target"
-  request: source@right -> target@left "request" {
-    route elbow
-    head triangle
-    start-label "caller"
-    end-label "callee"
+  request: source@east -> target@west "request" {
+    route = elbow
+    head = triangle
+    start-label = "caller"
+    end-label = "callee"
   }
 }
 ```
@@ -500,9 +507,9 @@ arrangement = "arrange", identifier, property-block
 An arrangement owns the direct visual children of its enclosing scope.
 
 At diagram scope, supported arrangements are `compact`, `grid`, and `layered`.
-Within a lane, group, frame, or section, supported arrangements are `row` and
-`column`.
-`columns` applies only to document-level `grid`.
+Within a lane, group, frame, or section, supported arrangements are `row`,
+`column`, and `grid`. `columns` applies to either document or nested grids and
+defaults to two.
 
 Layout may use one of:
 
@@ -518,6 +525,9 @@ starting width inside a row: it determines how many children fit on one line,
 and differences between sibling widths are preserved, but the widths themselves
 are not. A `column`, and a scope with no arrangement, use a declared `size`
 width exactly, even where that overflows the enclosing scope.
+A `grid` divides the available content width into equal columns, assigns every
+direct visual child to one cell in source order, and gives a row the height of
+its tallest cell.
 
 ### 11.1 Tree arrangement
 
@@ -528,10 +538,10 @@ arrows among that declaration's direct node children.
 diagram "Tree" {
   hierarchy: frame "Hierarchy" {
     arrange tree {
-      root parent
-      direction down
-      level-gap 72
-      sibling-gap 28
+      root = parent
+      direction = down
+      level-gap = 72
+      sibling-gap = 28
     }
     parent: rectangle "Parent"
     first: rectangle "First"
@@ -553,7 +563,7 @@ geometry-operation = alignment | distribution | offset | match-size
                    | rotation | snap | layer
 alignment    = "align", alignment-mode, selection
 distribution = "distribute", ( "x" | "y" ), selection
-offset       = "offset", selection, "by", pair
+offset       = "offset", selection, "by", point
 match-size   = "match-size", selection, [ "width" | "height" | "both" ]
 rotation     = "rotate", selection, number
 snap         = "snap", selection, "to", number
@@ -570,12 +580,20 @@ Geometry operations apply after automatic layout. Nodes and sequence
 participants support all operations. Code supports `align`, `distribute`,
 `offset`, and `snap`. Freehand supports `align`, `distribute`, `offset`,
 `rotate`, and `snap`. Neither supports `match-size`.
+A repeated declaration is a collection selector for these operations; the
+operation receives the expanded stable identities before validation and solving.
+
+Freehand is detached from automatic layout. A geometry relation containing both
+freehand and laid-out targets therefore treats the laid-out geometry as fixed
+and moves the freehand target; detached geometry never displaces a box that
+layout or a geometry reference has already consumed. If the fixed targets make
+the requested relation impossible, compilation fails explicitly.
 
 `bring-to-front` and `send-to-back` are the exception to the paragraph above:
 they accept any drawn element, including text, images, and icons, because they
 change the order things are drawn in rather than where anything sits. A scene has
 no depth other than that order, so these move the named elements, and everything
-each of them owns, to the end or the beginning of it. They are applied after
+each = of them owns, to the end or the beginning of it. They are applied after
 every element exists, which means after connectors, so an element may be lifted
 above a connector that joins others.
 
@@ -585,9 +603,9 @@ A document may define named styles and at most one theme:
 
 ```xdraw
 diagram "Style precedence" {
-  defaults: theme { font-family normal }
-  important: style { stroke "#b91c1c"; background "#fee2e2" }
-  alert: rectangle "Alert" { style important; stroke-width 3 }
+  defaults: theme { font-family = normal }
+  important: style { stroke = "#b91c1c"; background = "#fee2e2" }
+  alert: rectangle "Alert" { style = important; stroke-width = 3 }
 }
 ```
 
@@ -607,7 +625,8 @@ Applicable free-text style properties are `text-color`, `font-family`,
 `font-size`, `line-height`, `link`, `locked`, `auto-size`, and `wrap-width`.
 
 Applicable freehand style properties are `stroke`, `background`,
-`stroke-width`, `fill-style`, `roughness`, `opacity`, `link`, and `locked`.
+`stroke-width`, `stroke-style`, `fill-style`, `roughness`, `opacity`, `link`,
+and `locked`.
 
 `font-family` accepts `hand`, `handwritten`, `normal`, or `code`.
 `stroke-style` accepts `solid`, `dashed`, or `dotted`. `fill-style` accepts
@@ -694,25 +713,83 @@ dimension.
 
 ### 15.4a Geometry references
 
-Within an expression, `element.part` is a placed element's measured geometry.
-The parts are `left`, `right`, `top`, `bottom`, `width`, `height`, `center_x`
-and `center_y`. An element's own identifier may contain dots, so the last
-segment is the part and everything before it is the element.
+Every placed element exposes point anchors: `center`, `north`, `north-east`,
+`east`, `south-east`, `south`, `south-west`, `west`, and `north-west`. For
+example, `card.east + (24, 0)` is a point 24 units beyond the right edge.
 
-`along_x(stroke, u)` and `along_y(stroke, u)` give a point at fraction `u` of a
-drawn stroke's length, measured by arc length rather than by parameter. `u` is
-clamped to the range 0 to 1. Only a freehand stroke may be walked this way.
+Scalar measurements are explicitly namespaced below `bounds`: `bounds.left`,
+`bounds.right`, `bounds.top`, `bounds.bottom`, `bounds.width`, and
+`bounds.height`. Thus `card.bounds.width` is a number, while `card.center`
+is a point. Use `x(card.center)` or `y(card.center)` when one centre coordinate
+is required. The element identifier is everything before the
+recognized suffix, so qualified element names remain unambiguous.
 
-These names exist only after measurement and layout, so they may be used only
-where resolution can wait that long: the `at` property of `text` and `freedraw`.
-A node placed with `at` takes part in layout and so may not refer to a box that
-layout has yet to place; a document that tries is invalid. Only elements that
-layout places have geometry, so `text` and `freedraw` are not themselves
-addressable.
+A plotted or freehand stroke is a path. The path functions are:
 
-Underscored names, `center_x`, `along_x`, are expression-level names, where a
-hyphen would read as subtraction. Document-level property names remain
-hyphenated.
+| Function | Result |
+|---|---|
+| `start(path)`, `end(path)`, `midpoint(path)` | Point |
+| `along(path, u)` | Point at arc-length fraction `u` |
+| `tangent(path, u)` | Unit direction vector at fraction `u` |
+| `length(path)` | Number |
+
+Fractions must be finite and belong to the closed interval 0 to 1. `x(point)` and `y(point)` project a
+point when a scalar coordinate is required. A path may be named with `let`, so
+`let contour = curve` followed by `end(contour)` is equivalent to `end(curve)`.
+
+These names exist only after measurement and layout. The `at` property of
+`text`, `freedraw`, and plots may read final geometry because those elements are
+detached from automatic layout.
+
+A node's `at` may also be relative to a node, frame, section, or group:
+
+```xdraw
+diagram "Relative" {
+  first: rectangle "First"
+  second: rectangle "Second" {
+    at = first.north-east + (24, 0)
+  }
+}
+```
+
+The point must be affine over anchors or bounds: addition, subtraction,
+and multiplication or division by constants are permitted. A node
+may not refer to itself, a detached element, or a rotated box. Declarations may
+refer forward; the compiler builds a dependency graph and reports any cycle
+with its explicit chain. The relations remain in the linear geometry solve.
+The node still participates in
+automatic layout, whose measured bounds are strong preferences. The linear solve
+enlarges containing regions as necessary, propagates that growth through
+ancestor regions, and preserves the gaps between following layout groups. A
+cross-container relation is valid when those requirements can hold together;
+otherwise compilation fails because the geometry constraints are contradictory.
+
+Only elements that layout places have addressable anchors and bounds. Drawn
+freehand and plot geometry is instead addressable as a path.
+
+A directed attachment moves one anchor to a point expression:
+
+```text
+attachment = "attach", element-anchor, "to", point-expression
+```
+
+```xdraw
+use "xdraw/math" as math
+
+diagram "Attached" {
+  stem: math.plot { x = 40 * sin(t); y = 100 * t; t in [0, 1] }
+  leaf: math.plot { x = 30 * cos(t); y = 18 * sin(t); t in [0, tau] }
+  attach leaf.center to along(stem, 0.5)
+}
+```
+
+The left side moves and the right side is read. Nodes and freehand paths may be
+movers, with one attachment per mover. `origin` addresses only the authored
+origin of a freehand or standalone plot; compass anchors address visible
+bounds. A path read by an attachment must have a finite numeric position and
+must not itself be transformed or attached. A node-to-path attachment is solved
+with ordinary layout constraints, so its container may grow and later layout
+groups may reflow. Cycles and unstable path reads are errors.
 
 ### 15.5 Expressions and plotted curves
 
@@ -720,17 +797,23 @@ An expression is a closed sublanguage:
 
 ```text
 expression = term, { operator, term }
-term       = number | constant | name | call | "-", term | "(", expression, ")"
+term       = number | boolean | constant | name | call | point | "-", term | "(", expression, ")"
+point      = "(", expression, ",", expression, ")"
 call       = function-name, "(", expression, { ",", expression }, ")"
 operator   = "+" | "-" | "*" | "/" | "^"
 constant   = "pi" | "tau" | "e"
-name       = identifier, { ".", identifier }
+name       = identifier, { ".", ( identifier | diagonal-anchor ) }
+diagonal-anchor = "north-east" | "south-east" | "south-west" | "north-west"
 ```
 
 A `name` is resolved by whichever part of compilation supplies it, per §7.3: a
 `let` binding, a repeat's `index` or `count`, a template parameter, a placed
-element's geometry, or, within `xdraw/math.plot`, the curve parameter `t`. A
+element's geometry, or, within `xdraw/math.plot`, the independent variable
+declared by an interval-membership statement. A
 name no stage supplies is invalid.
+
+Point arithmetic permits point addition and subtraction, point scaling and
+division by a number, and point negation. Other combinations are invalid.
 
 `^` is right-associative and binds more tightly than unary minus; the other
 operators are left-associative. Function names are `sin`, `cos`, `tan`, `asin`,
@@ -741,13 +824,60 @@ function, or a wrong argument count is invalid.
 
 An expression may contain at most 512 terms and nest at most 64 levels deep.
 
-`xdraw/math.plot` requires `at`, `x`, `y`, and `domain`, where `x` and `y` are
-expressions and `domain` is an interval. Optional `tolerance` is the greatest
+An explicit or parametric `xdraw/math.plot` accepts one closed interval
+membership such as `x in [-pi, pi]` or `t in [0, tau]`. The member is the
+independent variable.
+The `x` and `y` coordinate expressions are required unless the matching
+coordinate is itself independent, in which case that expression is implicit.
+Inside a plane, a function may omit that membership when it supplies exactly
+one of `x` or `y`: the missing coordinate is the independent variable and its
+interval is inherited from the matching plane coordinate. A standalone plot
+requires its membership, defaults `at` to `(0, 0)`, and compiles to a
+drawing-space freehand stroke. A plot nested directly in
+`xdraw/math.plane` must omit `at`; its coordinates are data values owned by
+that plane. Optional `tolerance` is the greatest
 distance the emitted polyline may lie from the curve, in pixels, and defaults
 to 0.5. A conforming compiler bounds each span of the curve rather than
 sampling it, and invalidates a curve it cannot draw within that tolerance, 
-including one whose value is unbounded on the domain, or whose coordinates
+including one whose value is unbounded on the declared interval, or whose coordinates
 exceed the freehand magnitude limit.
+
+An implicit plot writes `equation = expression`; it denotes the zero set of the
+expression in `x` and `y`, accepts neither coordinate expressions nor an
+independent-variable interval, and is valid only inside a plane with explicit
+`x` and `y` intervals. The Cartesian planner traces the zero set with
+deterministic marching squares at a resolution derived from the viewport and
+plot tolerance. The tolerance guarantee in the preceding paragraph applies to
+explicit and parametric sampling, not to implicit tracing.
+
+### 15.6 Linear scales and axes
+
+The programmatic math interface can plan a linear scale from a two-value data
+domain and a two-value physical range. Tick selection jointly considers
+numeric simplicity, coverage, requested density, and measured label width. It
+may choose additional nice steps such as 2.5 times a power of ten, and may place
+the first or last label inside the data domain. If the winning ticks cover the
+data domain, the effective mapping domain expands so the ticks remain within
+the physical range.
+
+A linear axis plan derives its line, tick marks, label anchors, and text
+alignment from a scale plan and an orientation. Scale and axis plans contain
+only plain data, are deterministic for equal inputs, and must survive
+`structuredClone`. Rendering does not alter tick selection or placement.
+
+`xdraw/math.plane` requires one or more nested plots. It accepts optional
+`x in [a, b]` and `y in [c, d]` intervals plus `size`, `x-label`, `y-label`,
+`grid`, `cross-zero`, and `tick-count`. A missing coordinate interval is inferred
+from the finite interval enclosures of the nested explicit or parametric plots;
+if it cannot be inferred, compilation asks for that interval explicitly. An
+implicit plot requires both intervals to be explicit. Every declared coordinate
+interval contains two distinct finite values; `tick-count` is
+an integer from 2 through 100. Its planner samples each nested plot so the
+requested tolerance remains a pixel-space guarantee after scaling, maps the
+samples through the effective scale domains, and clips every emitted segment to
+the plot viewport. Axes, ticks, grids, labels, and curves emit as editable native
+elements. A renderer consumes the plan and must not resample curves or revise
+the scale.
 
 ## 16. Sequences and Annotations
 
@@ -765,7 +895,7 @@ diagram "Interaction" {
     user -> api "Submit"
     api -> user "Accepted"
   }
-  note: annotations.note "Review response" { attach flow.api@bottom }
+  note: annotations.note "Review response" { attach = flow.api@south }
 }
 ```
 
@@ -822,9 +952,9 @@ Patch tones are `neutral`, `success`, `danger`, `warning`, `info`, and
 ```xdraw
 scene excalidraw::default::architecture::overview {
   patch {
-    update api { tone warning; title "API v2" }
+    update api { tone = warning; title = "API v2" }
     delete legacy
-    add { review: rectangle "Requires review" { at (80, 80) } }
+    add { review: rectangle "Requires review" { at = (80, 80) } }
   }
 }
 ```
@@ -840,7 +970,7 @@ A conforming compiler processes a diagram in this order:
 5. validate semantic constraints and assets;
 6. prepare generated assets such as highlighted code and formula SVG;
 7. measure content and apply automatic layout;
-8. apply precision geometry and route connections; and
+8. solve precision geometry constraints and route connections; and
 9. emit native editable Excalidraw elements.
 
 The same valid source, compiler version, fonts, assets, and compilation options
@@ -850,7 +980,32 @@ must remain stable enough for source-addressed scene patching.
 A compiler must not publish a partial hosted replacement or patch after a
 validation failure.
 
-## 19. Diagnostics
+## 19. Compilation Measurements
+
+A successful diagram compilation produces a structured measurement record from
+the final scene, after layout, geometry solving, routing, label placement, and
+native-element emission. It records:
+
+- canvas bounds and semantic/rendered element counts;
+- semantic element bounds and centers;
+- freehand and curve bounds, endpoints, length, point count, and closure;
+- connector routes, length, bends, obstacle intersections, crossings, and
+  shared segments;
+- connector-label bounds, owning connector, route segment, and side;
+- container bounds, content bounds, capacity, required extent, and slack;
+- rendered text bounds and metrics, resolved geometry constraints, and embedded
+  asset = sizes and uses.
+
+Measurements are compilation metadata, not Excalidraw scene content. They must
+not appear in serialized `.excalidraw` output. The `check` command writes the
+measurement report to standard output as text by default or as one JSON document
+with `--format json`. Diagnostic presentation remains independent and is written
+to standard error.
+
+A scene patch with no replacement or additions has no diagram to measure. Its
+JSON check result therefore reports `measurements: null`.
+
+## 20. Diagnostics
 
 Syntax diagnostics should identify the unexpected token and its source
 location. Semantic diagnostics should identify the violated invariant and,
@@ -859,7 +1014,7 @@ when available, the originating declaration.
 Errors prevent successful compilation. Warnings communicate modelling quality
 or portability concerns without changing the validity of the document.
 
-## 20. Language Evolution
+## 21. Language Evolution
 
 Additions to the language must preserve these principles:
 

@@ -4,32 +4,32 @@ diagram "A curve with no tangent anywhere" {
   subtitle "Weierstrass sums, truncated at three, six, and nine terms"
 
   three: math.plot {
-    at (140, 260)
+    at = (140, 260)
     x = 380 * t
     y = 70 * (cos(pi*t) + 0.5 * cos(3*pi*t) + 0.25 * cos(9*pi*t))
-    domain (0, 2)
-    stroke "#94a3b8"
-    stroke-width 0.5
+    t in [0, 2]
+    stroke = "#94a3b8"
+    stroke-width = 0.5
   }
-  three-label: text "3 terms" { at (60, 250); font-size 18 }
+  three-label: text "3 terms" { at = (60, 250); font-size = 18 }
 
   six: math.plot {
-    at (140, 480)
+    at = (140, 480)
     x = 380 * t
     y = 70 * (cos(pi*t) + 0.5 * cos(3*pi*t) + 0.25 * cos(9*pi*t) + 0.125 * cos(27*pi*t) + 0.0625 * cos(81*pi*t) + 0.03125 * cos(243*pi*t))
-    domain (0, 2)
-    stroke "#475569"
-    stroke-width 0.5
+    t in [0, 2]
+    stroke = "#475569"
+    stroke-width = 0.5
   }
-  six-label: text "6 terms" { at (60, 470); font-size 18 }
+  six-label: text "6 terms" { at = (60, 470); font-size = 18 }
 
   nine: math.plot {
-    at (140, 700)
+    at = (140, 700)
     x = 380 * t
     y = 70 * (cos(pi*t) + 0.5 * cos(3*pi*t) + 0.25 * cos(9*pi*t) + 0.125 * cos(27*pi*t) + 0.0625 * cos(81*pi*t) + 0.03125 * cos(243*pi*t) + 0.015625 * cos(729*pi*t) + 0.0078125 * cos(2187*pi*t) + 0.00390625 * cos(6561*pi*t))
-    domain (0, 2)
-    stroke "#0f172a"
-    stroke-width 0.5
+    t in [0, 2]
+    stroke = "#0f172a"
+    stroke-width = 0.5
   }
-  nine-label: text "9 terms" { at (60, 690); font-size 18 }
+  nine-label: text "9 terms" { at = (60, 690); font-size = 18 }
 }

@@ -1,0 +1,46 @@
+use "xdraw/math" as math
+
+diagram "A single flower" {
+  stem: math.plot {
+    at = (260, 450)
+    x = 10 * sin(t / 2)
+    y = -250 * t / tau
+    t in [0, tau]
+    stroke = "#4d7c0f"
+    stroke-width = 0.7
+  }
+
+  leaf: math.plot {
+    x = 48 * sin(2 * t) * cos(t - 0.55)
+    y = -48 * sin(2 * t) * sin(t - 0.55)
+    t in [0, pi / 2]
+    stroke = "#4d7c0f"
+    stroke-width = 0.5
+    background = "#84cc16"
+    fill-style = solid
+  }
+
+  petals: math.plot {
+    x = 82 * cos(7 * t) * cos(t)
+    y = 82 * cos(7 * t) * sin(t)
+    t in [0, tau]
+    stroke = "#c026d3"
+    stroke-width = 0.5
+    background = "#e879f9"
+    fill-style = solid
+  }
+
+  centre: math.plot {
+    x = 15 * cos(t)
+    y = 15 * sin(t)
+    t in [0, tau]
+    stroke = "#92400e"
+    stroke-width = 0.5
+    background = "#f59e0b"
+    fill-style = solid
+  }
+
+  attach leaf.origin to along(stem, 0.5)
+  attach petals.center to end(stem)
+  attach centre.center to end(stem)
+}

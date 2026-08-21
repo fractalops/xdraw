@@ -4,32 +4,32 @@ diagram "One curve, three tolerances" {
   subtitle "Tolerance is the greatest distance the drawn line may fall from the true curve"
 
   coarse: math.plot {
-    at (180, 290)
+    at = (180, 290)
     x = 95 * cos(3*t) * cos(t)
     y = 95 * cos(3*t) * sin(t)
-    domain (0, tau)
-    tolerance 16
-    stroke "#dc2626"
-    stroke-width 2
+    t in [0, tau]
+    tolerance = 16
+    stroke = "#dc2626"
+    stroke-width = 2
   }
 
   middle: math.plot {
-    at (480, 290)
+    at = (480, 290)
     x = 95 * cos(3*t) * cos(t)
     y = 95 * cos(3*t) * sin(t)
-    domain (0, tau)
-    tolerance 3
-    stroke "#d97706"
-    stroke-width 2
+    t in [0, tau]
+    tolerance = 3
+    stroke = "#d97706"
+    stroke-width = 2
   }
 
   fine: math.plot {
-    at (780, 290)
+    at = (780, 290)
     x = 95 * cos(3*t) * cos(t)
     y = 95 * cos(3*t) * sin(t)
-    domain (0, tau)
-    tolerance 0.5
-    stroke "#16a34a"
-    stroke-width 2
+    t in [0, tau]
+    tolerance = 0.5
+    stroke = "#16a34a"
+    stroke-width = 2
   }
 }

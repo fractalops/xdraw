@@ -1,13 +1,13 @@
 diagram "How XDraw resolves styles" {
   subtitle "Theme defaults, named styles and local properties form one precedence chain"
-  base: theme { font-family normal }
-  focus: style { stroke "#059669"; background "#ecfdf5"; text-color "#065f46"; title-size 21 }
+  base: theme { font-family = normal }
+  focus: style { stroke = "#059669"; background = "#ecfdf5"; text-color = "#065f46"; title-size = 21 }
   examples: section "Style layers" {
     source: rectangle "Theme default"
-    target: ellipse "Named override" { style focus; link "https://example.com"; locked true }
+    target: ellipse "Named override" { style = focus; link = "https://example.com"; locked = true }
     source -> target "higher precedence"
   }
   caption: text "Local properties override named styles while the output remains editable." {
-    at (100, 350); font-family normal; font-size 18; wrap-width 300; auto-size false
+    at = (100, 350); font-family = normal; font-size = 18; wrap-width = 300; auto-size = false
   }
 }

@@ -57,20 +57,20 @@ Properties live inside an element block:
 use "xdraw/palette" as palette
 
 diagram "Styled cards" {
-  default: theme { font-family normal }
+  default: theme { font-family = normal }
   emphasis: style {
-    stroke "#0f766e"
-    background "#ccfbf1"
+    stroke = "#0f766e"
+    background = "#ccfbf1"
   }
 
   request: rectangle "Request" {
-    body "Ready for review"
-    style emphasis
-    size (260, 120)
-    align left
-    vertical-align top
+    body = "Ready for review"
+    style = emphasis
+    size = (260, 120)
+    align = left
+    vertical-align = top
   }
-  approved: rectangle "Approved" { style palette.success }
+  approved: rectangle "Approved" { style = palette.success }
   request -> approved
 }
 ```
@@ -89,7 +89,7 @@ At diagram scope the layouts are `compact`, `grid`, and `layered`:
 
 ```xdraw
 diagram "Service flow" {
-  arrange layered { spacing airy }
+  arrange layered { spacing = airy }
   client: rectangle "Client"
   api: rectangle "API"
   store: ellipse "Store"
@@ -98,15 +98,29 @@ diagram "Service flow" {
 }
 ```
 
-Inside a frame, group, section, or lane, they are `row` and `column`:
+Inside a frame, group, section, or lane, they are `row`, `column`, and `grid`:
 
 ```xdraw
 diagram "Grouped work" {
   delivery: frame "Delivery" {
-    arrange row { gap 56 }
+    arrange row { gap = 56 }
     build: rectangle "Build"
     verify: rectangle "Verify"
     build -> verify
+  }
+}
+```
+
+Nested grids use fixed columns and source-order cells:
+
+```xdraw
+diagram "Matrix" {
+  panel: frame "Four results" {
+    arrange grid { columns = 2; spacing = normal }
+    a: rectangle "A"
+    b: rectangle "B"
+    c: rectangle "C"
+    d: rectangle "D"
   }
 }
 ```
@@ -121,7 +135,7 @@ between the container's own children:
 ```xdraw
 diagram "Outcomes" {
   outcomes: frame "Outcomes" {
-    arrange tree { root result; direction right }
+    arrange tree { root = result; direction = right }
     result: rectangle "Result"
     accepted: rectangle "Accepted"
     rejected: rectangle "Rejected"
@@ -141,15 +155,15 @@ attachment side matters:
 
 ```xdraw
 diagram "Request path" {
-  arrange grid { columns 2; gap 90 }
+  arrange grid { columns = 2; gap = 90 }
 
   source: frame "Source" { api: rectangle "API" }
   target: frame "Target" { worker: rectangle "Worker" }
 
-  request: source.api@right -> target.worker@left "submit" {
-    route elbow
-    stroke-style dashed
-    head triangle
+  request: source.api@east -> target.worker@west "submit" {
+    route = elbow
+    stroke-style = dashed
+    head = triangle
   }
 }
 ```
@@ -189,21 +203,21 @@ diagram "One number, named once" {
   let card = unit * 5
   let radius = unit * 2.4
 
-  first: rectangle "Ingest" { at (100, 220); size = (card, unit * 1.6) }
+  first: rectangle "Ingest" { at = (100, 220); size = (card, unit * 1.6) }
 
   rose: math.plot {
-    at (720, 400)
+    at = (720, 400)
     x = radius * cos(5 * t) * cos(t)
     y = radius * cos(5 * t) * sin(t)
-    domain (0, tau)
+    t in [0, tau]
   }
 }
 ```
 
 ![Three cards and a rose, every dimension derived from four named values](images/named-values.png)
 
-Change `unit` and the cards, the gaps, and the flower all move together. Full
-source in [`examples/named-values.xdraw`](../examples/named-values.xdraw).
+Change `unit` and the cards, the gaps, and the flower all move together. The
+full source is in [`examples/named-values.xdraw`](../examples/named-values.xdraw).
 
 The reason this exists is dull and convincing: the most duplicated construct in
 this repository's own diagrams was a number. One file repeated `size (390, 96)`
@@ -219,7 +233,7 @@ where they appear**, so a document may read in whatever order suits it:
 diagram "" {
   let gap = card / 4
   let card = 260
-  a: rectangle "A" { at (0, 0); stroke-width = gap / 32 }
+  a: rectangle "A" { at = (0, 0); stroke-width = gap / 32 }
 }
 ```
 
@@ -227,7 +241,7 @@ A bound name may be used anywhere a number is written, after an `=`:
 
 ```
 stroke-width = base            a single number
-size = (card, card / 2)        a pair
+size = (card, card / 2)        a point
 x = radius * cos(t)            an expression that keeps its own variable
 ```
 
@@ -259,7 +273,7 @@ after it:
 ```text
 diagram "" {
   let a = 1 +
-  x: rectangle "X" { at (0, 0) }
+  x: rectangle "X" { at = (0, 0) }
 }
 ```
 
@@ -285,15 +299,15 @@ diagram "Ring" {
 
   gateway: ellipse "gateway" {
     at = (cx - 70, cy - 45)
-    size (140, 90)
-    style palette.accent
+    size = (140, 90)
+    style = palette.accent
   }
 
   spoke: ellipse "${each}" {
-    each ("auth", "billing", "search", "audit", "email", "queue", "cache", "report", "admin")
+    each = ("auth", "billing", "search", "audit", "email", "queue", "cache", "report", "admin")
     at = (cx - 60 + wide * cos(tau * spoke.index / spoke.count), cy - 36 + tall * sin(tau * spoke.index / spoke.count))
-    size (120, 72)
-    style palette.info
+    size = (120, 72)
+    style = palette.info
   }
 }
 ```
@@ -308,8 +322,8 @@ address the instances by name, in
 ### `each` names by item, `count` names by position
 
 ```
-each ("Ingest", "Parse")   ->   stage.Ingest, stage.Parse
-count 3                    ->   spoke.0, spoke.1, spoke.2
+each = ("Ingest", "Parse")   ->   stage.Ingest, stage.Parse
+count = 3                    ->   spoke.0, spoke.1, spoke.2
 ```
 
 That difference is the reason both exist. A key describes identity and an index
@@ -317,8 +331,8 @@ describes position, so **inserting an item into an `each` leaves every other
 instance named exactly as it was**:
 
 ```
-each ("a", "c")        ->   s.a, s.c
-each ("a", "b", "c")   ->   s.a, s.b, s.c        a and c keep their names
+each = ("a", "c")        ->   s.a, s.c
+each = ("a", "b", "c")   ->   s.a, s.b, s.c        a and c keep their names
 ```
 
 Inserting into a `count` renumbers everything after the insertion, and an edit
@@ -335,12 +349,12 @@ whenever the instances have names worth using.
 | `name.count` | how many there are |
 
 Each of those reaches a string as well, wrapped in `${...}`, so a repeat can
-label its own instances:
+label = its own instances:
 
 ```xdraw
 diagram "" {
   step: text "${index} of ${count}" {
-    count 4
+    count = 4
     at = (120 + 150 * step.index, 200)
   }
 }
@@ -356,9 +370,9 @@ expressions:
 ```xdraw
 diagram "" {
   tick: rectangle "·" {
-    count 11
+    count = 11
     at = (90 + 92 * tick.index, 300 - 14 * tick.index)
-    size (76, 130)
+    size = (76, 130)
   }
 }
 ```
@@ -371,6 +385,8 @@ awkward to repeat.
 A repeated declaration nests. Its instances are named under their container,
 `panel.cell.0`, and children expand before their parent, so an inner repeat's
 index is resolved before the outer one folds anything.
+The declaration name also denotes the collection in precision geometry:
+`align bottom (cell)` aligns every expanded `cell.*` instance.
 
 What gets rejected:
 
@@ -400,13 +416,13 @@ use "xdraw/palette" as palette
 
 diagram "Measured" {
   flow: frame "Laid out automatically" {
-    arrange row { gap 90 }
-    ingest: rectangle "Ingest" { style palette.info }
-    emit: rectangle "Emit" { style palette.success }
+    arrange row { gap = 90 }
+    ingest: rectangle "Ingest" { style = palette.info }
+    emit: rectangle "Emit" { style = palette.success }
   }
 
   label: text "beside the last box" {
-    at = (flow.emit.right + 24, flow.emit.center_y)
+    at = flow.emit.east + (24, 0)
   }
 }
 ```
@@ -418,18 +434,28 @@ of those numbers appears in the source, and none could be written down: they
 depend on the text inside each box and the gap the layout chose. Full source in
 [`examples/measured-annotations.xdraw`](../examples/measured-annotations.xdraw).
 
-### The parts of a box
+### Points, anchors, and bounds
 
-| | |
-|---|---|
-| edges | `left` `right` `top` `bottom` |
-| size | `width` `height` |
-| centre | `center_x` `center_y` |
+A point is an ordinary expression value. It can be named, added, subtracted,
+scaled, or projected with `x(point)` and `y(point)`:
 
-A reference is written `element.part`, and a nested element keeps its qualified
-name: `flow.ingest.right`. The parts are a closed set and none contains a dot,
-so the last segment is always the part, which is what makes `flow.ingest.right`
-unambiguous even though `flow.ingest` is itself a name.
+```xdraw
+diagram "Points" {
+  let offset = (32, -12)
+  card: rectangle "Card"
+  note: text "north-east" { at = card.north-east + offset }
+}
+```
+
+Every placed element exposes point anchors: `center`, `north`, `north-east`,
+`east`, `south-east`, `south`, `south-west`, `west`, and `north-west`. A nested
+element keeps its qualified name, as in `flow.ingest.east`.
+
+Scalar measurements live explicitly below `bounds`: `bounds.left`,
+`bounds.right`, `bounds.top`, `bounds.bottom`, `bounds.width`, `bounds.height`,
+and `bounds.height`. Most placement reads better with an anchor; use
+`x(element.center)` or `y(element.center)` when a formula genuinely needs one
+centre coordinate.
 
 References compose with arithmetic and with `let`:
 
@@ -437,33 +463,48 @@ References compose with arithmetic and with `let`:
 diagram "" {
   let margin = 40
   flow: frame "F" {
-    arrange row { gap 70 }
+    arrange row { gap = 70 }
     a: rectangle "A"
     b: rectangle "B"
   }
-  note: text "note" { at = (flow.b.right + margin, flow.a.top - margin) }
+  note: text "note" { at = flow.b.north-east + (margin, -margin) }
 }
 ```
 
 ### What may refer, and what may be referred to
 
-Text and freehand may refer. They are drawn where they are told and take no part
-in layout.
+Text, freehand, and plots may read final geometry. They are drawn where they are
+told and take no part in layout.
 
-A node may not, and says so rather than failing later:
+Nodes may use another box to state a relationship instead of guessing both
+coordinates:
 
+```xdraw
+diagram "Pipeline" {
+  source: rectangle "Source" { size = (140, 90) }
+  transform: rectangle "Transform" {
+    at = source.north-east + (24, 0)
+    size = (180, 90)
+  }
+  result: rectangle "Result" {
+    at = transform.north-east + (24, 0)
+    size = (150, 90)
+  }
+}
 ```
-node 'tag' at could not be resolved to numbers: 'flow.a.right + 20'.
-A name must be bound with 'let'; only text and freehand may be placed from
-another element's geometry
-```
 
-A node placed with `at` participates in document layout: the document grows to
-contain it and everything else shifts, so resolving its position against a box
-it had already displaced would need resolving again. The dependency would be
-between placement and layout rather than between two names, which no amount of
-cycle detection can see. Measured: adding one absolutely placed rectangle moved
-the frame it would have referenced from y=118 to y=731.
+Changing `source` or `transform` width keeps the 24-pixel gaps. References form
+a dependency graph, so a declaration may refer forward when that reads more
+naturally; a self-reference or cycle is reported with the chain that closes it.
+Each coordinate must remain linear: box parts may be added or
+subtracted and scaled by constants, but two measured values may not be
+multiplied together. A relative node still participates in automatic layout;
+the compiler enlarges its containing region when the requested relation needs
+more space, enlarges ancestor regions in turn, and moves following layout groups
+to retain their gaps. Cross-container relations work when they agree with the
+containing arrangements. A relation that puts an element in the first row while
+its container is required to follow that row is contradictory and fails
+explicitly.
 
 Only laid-out elements may be referred to. Nodes, frames, sections, and
 groups have boxes. Text and freehand do not, because the layout never placed
@@ -473,27 +514,29 @@ them, so they are not addressable:
 text 'b': no element 'a' to take 'right' from
 ```
 
-That also disposes of mutual reference: two elements pointing at each other
-cannot both be detached and both be measurable.
+Detached elements cannot be box-reference targets. Mutual node references are
+rejected as dependency cycles.
 
-### A point along a curve
+### Points on paths
 
-`along_x(curve, u)` and `along_y(curve, u)` give a point on a drawn stroke.
-`u = 0` is its start and `u = 1` its end.
+A plotted or freehand stroke is a path. `along(path, u)` returns a point at
+fraction `u` of its visible arc length. `start(path)`, `end(path)`, and
+`midpoint(path)` name common points directly. `tangent(path, u)` returns a unit
+direction vector, and `length(path)` returns a scalar.
 
 ```xdraw
 use "xdraw/math" as math
 
 diagram "Markers" {
   spiral: math.plot {
-    at (620, 340)
+    at = (620, 340)
     x = 13 * t * cos(t)
     y = 13 * t * sin(t)
-    domain (0, 20)
-    stroke "#0891b2"
+    t in [0, 20]
+    stroke = "#0891b2"
   }
   half: text "halfway" {
-    at = (along_x(spiral, 0.5) + 14, along_y(spiral, 0.5))
+    at = along(spiral, 0.5) + (14, 0)
   }
 }
 ```
@@ -503,28 +546,50 @@ diagram "Markers" {
 The fraction is **arc length, not parameter**. Halfway along a spiral is halfway
 along the line you can see, not halfway through the range of `t`, which is why
 the markers above crowd near the centre where the same length of line covers
-much less ground. A fraction outside 0…1 is clamped to the ends.
+much less ground. A fraction must be finite and belong to the closed interval
+0…1; an out-of-domain value is an error rather than an implicit clamp.
 
-Only strokes can be walked, since only they have points:
+Only drawn paths can be queried:
 
 ```
-along expects a stroke, and 'box' is not one
-along_x takes a stroke and a fraction from 0 to 1
+path functions require a drawn path, and 'box' is not one
+along takes a path and a fraction from 0 to 1
 ```
 
 An unresolvable reference is a diagnostic naming what was missing, never a
 silent zero:
 
 ```
-no element 'mystery' to take 'right' from      the element does not exist
-unknown name 'flow.ingest.middle'              'middle' is not a part of a box
+no element 'mystery' for 'mystery.east'        the element does not exist
+unknown name 'flow.ingest.middle'              'middle' is not an anchor or bound
 ```
 
-This runs after layout, in
-[`src/compile/geometry-references.ts`](../src/compile/geometry-references.ts). A
-`let` binding is a constant and is folded while the document is read; these
-numbers do not exist until measurement and layout have produced them, so they
-get their own pass over the boxes the compiler actually placed.
+### Directed attachment
+
+Use `attach` when the relationship matters more than the current coordinates:
+
+```xdraw
+use "xdraw/math" as math
+
+diagram "Attached" {
+  stem: math.plot { x = 40 * sin(t); y = 100 * t; t in [0, 1] }
+  leaf: math.plot { x = 30 * cos(t); y = 18 * sin(t); t in [0, tau] }
+  flower: math.plot { x = 24 * cos(t); y = 24 * sin(t); t in [0, tau] }
+  attach leaf.center to along(stem, 0.5)
+  attach flower.center to end(stem)
+}
+```
+
+The left side is what moves; the right side is read. Moving or reshaping
+`stem` therefore keeps both elements attached. This direction also prevents a
+constraint cycle from being hidden behind symmetric-looking syntax.
+
+Detached references resolve after layout in
+[`src/compile/geometry-references.ts`](../src/compile/geometry-references.ts).
+Relative node positions and node attachments become required relations in the
+simultaneous geometry solve. Scalar and point constants fold while the document
+is read; anchors, bounds, and path values remain symbolic until compilation has
+produced the geometry they need.
 
 ## Reusing a pattern
 
@@ -535,22 +600,22 @@ use "xdraw/architecture" as arch
 use "xdraw/palette" as palette
 
 diagram "Services" {
-  arrange grid { columns 1; gap 40 }
+  arrange grid { columns = 1; gap = 40 }
 
   service: template(name, visual_style) {
     unit: section "${name}" {
-      arrange row { gap 185 }
+      arrange row { gap = 185 }
 
       api: arch.container "${name} API" {
-        description "Serves ${name} over HTTP"
-        technology "Go"
-        style $visual_style
+        description = "Serves ${name} over HTTP"
+        technology = "Go"
+        style = $visual_style
       }
       data: arch.database "${name} data" {
-        description "Stores ${name} records"
-        technology "Postgres"
+        description = "Stores ${name} records"
+        technology = "Postgres"
       }
-      api -> data "reads and writes" { technology "SQL" }
+      api -> data "reads and writes" { technology = "SQL" }
     }
   }
 
@@ -577,12 +642,12 @@ use "xdraw/architecture" as arch
 
 diagram "Order context" {
   customer: arch.person "Customer" {
-    description "Places and tracks orders"
+    description = "Places and tracks orders"
   }
   platform: arch.system "Order platform" {
-    description "Coordinates order processing"
+    description = "Coordinates order processing"
   }
-  customer -> platform "places order" { technology "HTTPS" }
+  customer -> platform "places order" { technology = "HTTPS" }
 }
 ```
 
@@ -592,7 +657,7 @@ diagram "Order context" {
 | `xdraw/process` | `lane` |
 | `xdraw/sequence` | `sequence`, `participant` |
 | `xdraw/table` | `table`, `header`, `row` |
-| `xdraw/math` | `formula`, `plot` |
+| `xdraw/math` | `plane`, `formula`, `plot` |
 | `xdraw/annotations` | `note`, `callout` |
 | `xdraw/connectors` | `junction` |
 | `xdraw/assets` | `icon` |
@@ -662,25 +727,30 @@ Use triple quotes for every formula so backslashes stay literal. Common
 indentation is ignored when rendering. The supported TeX packages are `base` and
 `ams`, and commands that would load remote or executable content are rejected.
 Formula count, source length, output size, and image dimensions are all bounded.
-A programmatic consumer must use `compileAsync()` for a document containing
+A formula may use `display-scale = 0.8` for a smaller automatic display or an
+explicit `size`, but not both. It also shares opacity, links, locking, named
+styles, and repetition with ordinary visual declarations.
+A programmatic consumer uses the asynchronous `compile()` API for every document, including one containing
 `math.formula`; the CLI selects it automatically.
 
 ## Plotting curves
 
-`math.plot` draws a parametric curve from a pair of expressions in `t`. The
-result is an ordinary freehand stroke: movable, resizable, and editable point by
-point like anything else on the canvas.
+`math.plot` draws a function graph or parametric curve over one declared
+independent variable. On its
+own, the result is an ordinary freehand stroke: movable, resizable, and editable
+point by point like anything else on the canvas. Nested in `math.plane`, the
+same description becomes a data-space series rendered as a native line.
 
 ```xdraw
 use "xdraw/math" as math
 
 diagram "Plot" {
   mark: math.plot {
-    at (200, 200)
+    at = (200, 200)
     x = 120 * sin(2*t)
     y = 110 * sin(3*t)
-    domain (0, tau)
-    stroke "#4d7c0f"
+    t in [0, tau]
+    stroke = "#4d7c0f"
   }
 }
 ```
@@ -691,9 +761,9 @@ Nothing above is a special case in the compiler. Each is the same constructor
 with different expressions, and the source is in
 [`examples/parametric-plots.xdraw`](../examples/parametric-plots.xdraw).
 
-Plots are placed with `at` rather than by layout, because a curve's position is
-part of what its expressions mean. Everything else in the document arranges
-around them.
+Standalone plots are placed with `at` rather than by layout, because their
+position is part of what their expressions mean. A coordinate plane instead owns
+the physical placement and its nested plots omit `at`.
 
 ### The expression sublanguage
 
@@ -702,7 +772,7 @@ assignment, no control flow, no property access, and one variable.
 
 | | |
 |---|---|
-| variable | `t` |
+| variable | the name declared by `in`, commonly `x` or `t` |
 | operators | `+` `-` `*` `/` `^`, and parentheses |
 | constants | `pi`, `tau`, `e` |
 | functions | `sin` `cos` `tan` `asin` `acos` `atan` `atan2` `sqrt` `abs` `sign` `floor` `ceil` `round` `min` `max` `exp` `log` `hypot` |
@@ -762,8 +832,8 @@ controls. Getting the ink to match would mean emitting a line element rather
 than a stroke.
 
 The renderer also scales a stroke by 4.25, mirroring Excalidraw, so
-`stroke-width 2` is drawn about eight pixels wide. Fine curves want a fraction:
-the plots in this repository use `stroke-width 0.5`, without which strands
+`stroke-width = 2` is drawn about eight pixels wide. Fine curves want a fraction:
+the plots in this repository use `stroke-width = 0.5`, without which strands
 overlapping at a few pixels' distance merge into a solid block.
 
 ### What it refuses, and why
@@ -798,43 +868,62 @@ consequence of the arithmetic rather than something to be detected.
 
 ### Giving a curve a reference frame
 
-There is no `axes` construct. A frame is built from the pieces already described:
-a stroke for each axis, a repeated stroke for the ticks, and a repeated text for
-the labels, each placed from its own index.
-
-![Two curves on labelled axes, one filled and one open](images/labelled-axes.png)
+`math.plane` owns a reference frame and the plots inside it. Coordinate
+intervals are mathematical values; size = is drawing space. The compiler chooses readable ticks from both,
+maps every series, clips it at the viewport, and emits editable native lines.
 
 ```xdraw
-diagram "Axes" {
-  let x0 = 200
-  let y0 = 500
-  let unit = 88
+use "xdraw/math" as math
 
-  xaxis: freedraw { at = (x0, y0); points ((-26, 0), (566, 0)); stroke-width 0.4 }
+diagram "Damped oscillation" {
+  response: math.plane "Response over time" {
+    size = (760, 460)
+    x in [0, tau]
+    x-label = "time (t)"
+    y-label = "amplitude"
+    grid = true
+    cross-zero = true
 
-  xtick: freedraw {
-    count 6
-    at = (x0 + unit * xtick.index, y0)
-    points ((0, 0), (0, 8))
-    stroke-width 0.4
-  }
-  xlabel: text "${index}" {
-    count 6
-    at = (x0 + unit * xlabel.index - 4, y0 + 18)
-    font-size 15
+    carrier: math.plot "sin(x)" {
+      y = sin(x)
+      stroke = "#2563eb"
+    }
+
+    damped: math.plot "exp(-t/3) sin(4t)" {
+      x = t
+      y = exp(-t / 3) * sin(4 * t)
+      t in [0, tau]
+      stroke = "#dc2626"
+    }
   }
 }
 ```
 
-Because the frame is arithmetic over `unit`, changing that one binding rescales
-the whole figure. Full source, with both axes and two curves, in
-[`examples/labelled-axes.xdraw`](../examples/labelled-axes.xdraw).
+Inside the plane, plot coordinates are data coordinates and `at` is neither
+needed nor allowed. Outside it, `math.plot` keeps the drawing-space form shown
+earlier and defaults its origin to `(0, 0)`. `tick-count` is a target rather than a command:
+the scale planner may use fewer labels when the physical width cannot fit them.
+`cross-zero = true` moves each axis to zero only when zero is visible; otherwise it
+stays on the viewport edge. Full source is in
+[`examples/coordinate-plane.xdraw`](../examples/coordinate-plane.xdraw).
 
-Two limits are worth knowing before building one. A label can show its index but
-not a value computed from it, so ticks read `0` to `5` rather than `-3` to `3` or
-`pi/4`; interpolating an expression into a string is not yet possible. And a
-`background` fills a curve only when the stroke closes, within 8 units, so the
-region under an open curve cannot be shaded.
+Here the carrier inherits `x in [0, tau]` from the plane, and the omitted `y`
+interval is inferred from finite interval enclosures of both curves. Parametric
+plots can infer both plane intervals when they retain their own parameter range.
+
+An implicit curve gives its zero set and an explicit viewport:
+
+```xdraw
+use "xdraw/math" as math
+
+diagram "Implicit circle" {
+  circle: math.plane {
+    x in [-1.5, 1.5]
+    y in [-1.5, 1.5]
+    unit: math.plot { equation = x^2 + y^2 - 1; stroke-style = dotted }
+  }
+}
+```
 
 ### Curves from a template
 
@@ -852,8 +941,8 @@ diagram "One template, six curves" {
       at = (${x0}, ${y0})
       x = ${amp} * cos(${freq} * t) * cos(t)
       y = ${amp} * cos(${freq} * t) * sin(t)
-      domain (0, tau)
-      stroke "${hue}"
+      t in [0, tau]
+      stroke = "${hue}"
     }
   }
 
@@ -899,11 +988,11 @@ use "xdraw/math" as math
 
 diagram "Superformula" {
   shape: math.plot {
-    at (200, 200)
+    at = (200, 200)
     x = 110 * ((abs(cos(3*t/4))) ^ 8 + (abs(sin(3*t/4))) ^ 8) ^ -0.125 * cos(t)
     y = 110 * ((abs(cos(3*t/4))) ^ 8 + (abs(sin(3*t/4))) ^ 8) ^ -0.125 * sin(t)
-    domain (0, tau)
-    stroke "#16a34a"
+    t in [0, tau]
+    stroke = "#16a34a"
   }
 }
 ```
@@ -922,7 +1011,7 @@ y = 70·( cos πt + ½cos 3πt + ¼cos 9πt + … + 2⁻ᵏ⁻¹cos 3ᵏ⁻¹πt
 ```
 
 Three rows, at three, six, and nine terms. The self-similarity is the point:
-each row is the one above it with finer detail on the same skeleton, and the
+each = row is the one above it with finer detail on the same skeleton, and the
 ninth term oscillates 6561 times faster than the first.
 
 This is the hardest shape to draw accurately, high frequency riding on low, so
@@ -958,7 +1047,7 @@ lacunary loop  x + iy = Σ aⁿ · e^(i·bⁿt)   drawn as two real series
 ```
 
 The lacunary loops are the pretty ones, and they are genuinely self-similar:
-each lobe carries a smaller copy of the whole figure. They are also the most
+each = lobe carries a smaller copy of the whole figure. They are also the most
 expensive thing here, with the ratio-4 loop taking 2,049 points at a 1px
 tolerance.
 
@@ -991,7 +1080,7 @@ faster harmonic. Source:
 ### What held
 
 Sixteen curves at a 0.5px tolerance, with the worst departure of the sampled
-points measured afterwards by dense probing rather than trusted from the
+points = measured afterwards by dense probing rather than trusted from the
 sampler:
 
 | curve | nodes | points | ms | worst | |
@@ -1041,10 +1130,9 @@ expression holds more than 512 terms
 
 The magnitude limit is a million pixels, which `exp(t)` crosses around t = 14.
 
-The domain itself is unlimited, and accepts any expression once it is written as
-an equation: the twelve turns a butterfly curve needs are
-`domain = (0, 6 * tau)`. Without the `=` the interval takes plain numbers only,
-so `domain (0, 6 * tau)` is a syntax error rather than a slower path.
+An interval bound accepts the same bounded expression language as a coordinate
+equation. The twelve turns a butterfly curve needs are written directly as
+`t in [0, 6 * tau]`; no second tuple syntax or special `domain` property exists.
 
 Two smaller things worth knowing. A closed curve shows a faint seam where its
 start and end meet, because the stroke has ends even when the curve does not.
@@ -1075,15 +1163,15 @@ Triple-quoted strings are useful for multiline code:
 
 ```xdraw
 diagram "Example source" {
-  heading: text "Validation" { font-size 24 }
+  heading: text "Validation" { font-size = 24 }
   sample: code """
     diagram "Hello" {
       message: rectangle "Hello, Excalidraw"
     }
   """ {
-    title "XDraw"
-    language xdraw
-    highlight true
+    title = "XDraw"
+    language = xdraw
+    highlight = true
   }
 }
 ```
@@ -1098,10 +1186,10 @@ file:
 diagram "Assets" {
   logo: asset "corpus/assets/xdraw-mark.svg"
   preview: image(logo) {
-    at (80, 80)
-    size (320, 160)
-    fit contain
-    alt "Project logo"
+    at = (80, 80)
+    size = (320, 160)
+    fit = contain
+    alt = "Project logo"
   }
 }
 ```
@@ -1119,17 +1207,24 @@ diagram "Aligned" {
   first: rectangle "First"
   second: rectangle "Second"
   third: rectangle "Third"
+  offset-example: rectangle "Offset"
+  snap-example: rectangle "Snapped"
 
   align top (first, second, third)
   distribute x (first, second, third)
   match-size (first, second, third) both
-  offset (third) by (0, 24)
-  snap (first, second, third) to 8
+  offset (offset-example) by (0, 24)
+  snap (snap-example) to 8
 }
 ```
 
 The alignment modes are `left`, `center-x`, `right`, `top`, `center-y`, and
 `bottom`. `match-size` accepts `width`, `height`, or `both`.
+
+These operations are solved before anything is emitted. Rotation contributes
+its final axis-aligned bounds to later geometry references and connector
+routing. Freehand remains detached: aligning a stroke with a laid-out node moves
+the stroke, never the node.
 
 A scene has no depth beyond the order its elements are drawn in, which is what
 Excalidraw's own front-and-back commands change, so `bring-to-front` and
@@ -1137,10 +1232,10 @@ Excalidraw's own front-and-back commands change, so `bring-to-front` and
 
 ```xdraw
 diagram "Badge on a line" {
-  left: rectangle "Left" { at (100, 300); size (140, 90) }
-  right: rectangle "Right" { at (500, 300); size (140, 90) }
+  left: rectangle "Left" { at = (100, 300); size = (140, 90) }
+  right: rectangle "Right" { at = (500, 300); size = (140, 90) }
   left -- right
-  badge: text "on the line" { at (300, 330) }
+  badge: text "on the line" { at = (300, 330) }
   bring-to-front (badge)
 }
 ```
@@ -1226,10 +1321,10 @@ unrelated elements and manual canvas edits alone:
 ```xdraw
 scene excalidraw::default::architecture::overview {
   patch {
-    update api { tone warning; title "API v2" }
+    update api { tone = warning; title = "API v2" }
     delete legacy
     add {
-      review: rectangle "Review" { at (80, 80) }
+      review: rectangle "Review" { at = (80, 80) }
     }
   }
 }

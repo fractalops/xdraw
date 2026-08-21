@@ -4,11 +4,11 @@ use "xdraw/palette" as palette
 diagram "XDraw cheatsheet" {
   subtitle "A compact reference for drawing, arranging and editing Excalidraw scenes"
 
-  default: theme { font-family normal }
-  arrange grid { columns 4; gap 28; width 3300 }
+  default: theme { font-family = normal }
+  arrange grid { columns = 4; gap = 28; width = 3300 }
 
   read: section "Read XDraw" {
-    arrange column { gap 18 }
+    arrange column { gap = 18 }
 
     anatomy: code """
       request: rectangle "Request" {
@@ -21,10 +21,10 @@ diagram "XDraw cheatsheet" {
       # "Request" = visible label
       # { ... }   = properties and children
     """ {
-      title "Declaration anatomy"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Declaration anatomy"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     primitives: code """
@@ -33,24 +33,24 @@ diagram "XDraw cheatsheet" {
       # Content: freedraw, text, code, asset, image
       # Definitions: template, style, theme
     """ {
-      title "Primitive constructors"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Primitive constructors"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     forms: code """
       # Structure: diagram, use, arrange
-      # Edges: ->, --, @top, @right, @bottom, @left
+      # Edges: ->, --, @north, @east, @south, @west
       # Geometry: align, distribute, match-size,
       #           offset, rotate, snap
       # Scenes: scene, replace, patch, update,
       #         delete, add
     """ {
-      title "Language forms and operators"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Language forms and operators"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     libraries: code """
@@ -62,10 +62,10 @@ diagram "XDraw cheatsheet" {
       # Qualified constructors come from imports.
       # They add semantic vocabulary over the core.
     """ {
-      title "Core primitives vs libraries"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Core primitives vs libraries"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     document: code """
@@ -76,10 +76,10 @@ diagram "XDraw cheatsheet" {
         source -> target "compiles"
       }
     """ {
-      title "Document"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Document"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     shortcuts: code """
@@ -89,15 +89,15 @@ diagram "XDraw cheatsheet" {
       # Statements use newlines or semicolons
       # IDs remain stable in the output scene
     """ {
-      title "Syntax reminders"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Syntax reminders"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
   }
 
   draw: section "Draw" {
-    arrange column { gap 18 }
+    arrange column { gap = 18 }
 
     shapes: code """
       task: rectangle "Task"
@@ -106,10 +106,10 @@ diagram "XDraw cheatsheet" {
       system: arch.system "API"
       data: arch.database "Records"
     """ {
-      title "Shapes and libraries"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Shapes and libraries"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     freehand: code """
@@ -120,10 +120,10 @@ diagram "XDraw cheatsheet" {
         stroke-width 6
       }
     """ {
-      title "Freehand stroke"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Freehand stroke"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     properties: code """
@@ -134,10 +134,10 @@ diagram "XDraw cheatsheet" {
         locked true
       }
     """ {
-      title "Properties"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Properties"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     text_and_code: code """
@@ -153,14 +153,14 @@ diagram "XDraw cheatsheet" {
         highlight true
       }
     """ {
-      title "Text and code"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Text and code"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     connections: code """
-      request: client@right -> api@left "calls" {
+      request: client@east -> api@west "calls" {
         route elbow
         stroke-style dashed
         head triangle
@@ -168,10 +168,10 @@ diagram "XDraw cheatsheet" {
 
       service -- database "related"
     """ {
-      title "Connections and anchors"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Connections and anchors"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     assets: code """
@@ -183,10 +183,10 @@ diagram "XDraw cheatsheet" {
         alt "Product logo"
       }
     """ {
-      title "Assets and images"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Assets and images"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     sequence_and_notes: code """
@@ -201,18 +201,18 @@ diagram "XDraw cheatsheet" {
       }
 
       note: annotations.note "Review" {
-        attach interaction.api@bottom
+        attach = interaction.api@south
       }
     """ {
-      title "Sequences and annotations"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Sequences and annotations"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
   }
 
   arrange_and_reuse: section "Arrange and reuse" {
-    arrange column { gap 18 }
+    arrange column { gap = 18 }
 
     layouts: code """
       arrange row { gap 80 }
@@ -220,10 +220,10 @@ diagram "XDraw cheatsheet" {
       arrange grid { columns 3; gap 30 }
       arrange layered { direction right }
     """ {
-      title "Automatic layouts"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Automatic layouts"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     containment: code """
@@ -235,10 +235,10 @@ diagram "XDraw cheatsheet" {
 
       platform.api -> platform.store
     """ {
-      title "Containment and namespaces"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Containment and namespaces"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     tree: code """
@@ -250,10 +250,10 @@ diagram "XDraw cheatsheet" {
       decision -> yes
       decision -> no
     """ {
-      title "Tree layout"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Tree layout"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     geometry: code """
@@ -264,10 +264,10 @@ diagram "XDraw cheatsheet" {
       rotate (third) 5
       snap (first, second) to 10
     """ {
-      title "Precision geometry"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Precision geometry"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     templates: code """
@@ -281,16 +281,16 @@ diagram "XDraw cheatsheet" {
 
       orders: service("Orders", palette.info)
     """ {
-      title "Reusable templates"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Reusable templates"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
   }
 
   operate: section "Build and edit" {
-    arrange column { gap 18 }
+    arrange column { gap = 18 }
 
     cli: code """
       xdraw check diagram.xdraw
@@ -300,9 +300,9 @@ diagram "XDraw cheatsheet" {
       cat diagram.xdraw | xdraw build -o output.excalidraw
       xdraw build < diagram.xdraw > output.excalidraw
     """ {
-      title "CLI"
-      language shell
-      line-numbers false
+      title = "CLI"
+      language = shell
+      line-numbers = false
     }
 
     address: code """
@@ -310,10 +310,10 @@ diagram "XDraw cheatsheet" {
         # replace or patch
       }
     """ {
-      title "Hosted scene address"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Hosted scene address"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     replace: code """
@@ -325,25 +325,25 @@ diagram "XDraw cheatsheet" {
         }
       }
     """ {
-      title "Replace the owned scene"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Replace the owned scene"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     patch: code """
       scene excalidraw::default::examples::overview {
         patch {
-          update api { title "API v2" }
+          update api { title = "API v2" }
           delete legacy
           add { review: rectangle "Review" }
         }
       }
     """ {
-      title "Patch known source IDs"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Patch known source IDs"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     hosted_cli: code """
@@ -354,9 +354,9 @@ diagram "XDraw cheatsheet" {
       xdraw pull "excalidraw::default::Examples::Overview"
       xdraw pull <scene-id> -o overview.png
     """ {
-      title "Excalidraw+ commands"
-      language shell
-      line-numbers false
+      title = "Excalidraw+ commands"
+      language = shell
+      line-numbers = false
     }
 
   }

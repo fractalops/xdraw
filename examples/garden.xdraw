@@ -1,0 +1,159 @@
+use "xdraw/math" as math
+
+diagram "A garden" {
+  subtitle "One flower written once and planted six times, with a bee hovering over it"
+
+  let ground = 720
+  let hive = 690
+
+  bloom: template(x, base, stalk, petals, reach, hue, core, leaf) {
+    stem: math.plot {
+      at = (${x}, ${base})
+      x = 13 * sin(t / 2)
+      y = 0 - ${stalk} * t / tau
+      t in [0, tau]
+      stroke = "#4d7c0f"
+      stroke-width = 0.7
+    }
+    leafL: math.plot {
+      at = (${x} + 11, ${base} - ${stalk} * 0.42)
+      x = ${leaf} * sin(2 * t) * cos(t + 2.5)
+      y = 0 - ${leaf} * sin(2 * t) * sin(t + 2.5)
+      t in [0, 1.5708]
+      stroke = "#4d7c0f"
+      stroke-width = 0.5
+      background = "#65a30d"
+      fill-style = solid
+    }
+    leafR: math.plot {
+      at = (${x} + 13, ${base} - ${stalk} * 0.66)
+      x = ${leaf} * sin(2 * t) * cos(t - 0.6)
+      y = 0 - ${leaf} * sin(2 * t) * sin(t - 0.6)
+      t in [0, 1.5708]
+      stroke = "#4d7c0f"
+      stroke-width = 0.5
+      background = "#65a30d"
+      fill-style = solid
+    }
+    flower: math.plot {
+      at = (${x} + 13 * sin(tau / 2), ${base} - ${stalk})
+      x = ${reach} * cos(${petals} * t) * cos(t)
+      y = ${reach} * cos(${petals} * t) * sin(t)
+      t in [0, tau]
+      tolerance = 0.4
+      stroke = "${hue}"
+      stroke-width = 0.5
+      background = "${hue}"
+      fill-style = solid
+    }
+    eye: math.plot {
+      at = (${x} + 13 * sin(tau / 2), ${base} - ${stalk})
+      x = 13 * cos(t)
+      y = 13 * sin(t)
+      t in [0, tau]
+      stroke = "${core}"
+      stroke-width = 0.5
+      background = "${core}"
+      fill-style = solid
+    }
+  }
+
+  soil: freedraw {
+    at = (90, 720)
+    points = ((0,0),(1010,0))
+    stroke = "#4d7c0f"
+    stroke-width = 0.8
+  }
+
+  grass: freedraw {
+    count = 38
+    at = (100 + 27 * grass.index, ground - 2 * sin(grass.index * 2))
+    points = ((0,0),(4,-19),(8,0))
+    stroke = "#65a30d"
+    stroke-width = 0.4
+  }
+
+  a: bloom (170, 720, 268, 5, 70, "#e879f9", "#a16207", 34)
+  b: bloom (330, 720, 208, 6, 54, "#d946ef", "#ca8a04", 28)
+  c: bloom (500, 720, 316, 5, 78, "#f0abfc", "#a16207", 38)
+  d: bloom (680, 720, 238, 8, 58, "#e879f9", "#ca8a04", 30)
+  e: bloom (860, 720, 288, 6, 66, "#d946ef", "#a16207", 34)
+  f: bloom (1020, 720, 214, 5, 50, "#f0abfc", "#ca8a04", 26)
+
+  # A trail of dots, one declaration, each placed from its own index.
+  trail: freedraw {
+    count = 15
+    at = (398 + 24 * trail.index, 262 - 24 * sin(trail.index / 2.3))
+    points = ((0,0),(5,0))
+    stroke = "#a16207"
+    stroke-width = 0.35
+    opacity = 45
+  }
+
+  # The bee. Its wings sit behind the body, its stripes and head in front, and
+  # the whole insect above the flowers it is visiting.
+  wingBack: math.plot {
+    at = (804, 276)
+    x = 29 * cos(t)
+    y = 17 * sin(t)
+    t in [0, tau]
+    stroke = "#93c5fd"
+    stroke-width = 0.4
+    background = "#dbeafe"
+    fill-style = solid
+    opacity = 70
+  }
+  wingFront: math.plot {
+    at = (836, 274)
+    x = 27 * cos(t)
+    y = 16 * sin(t)
+    t in [0, tau]
+    stroke = "#93c5fd"
+    stroke-width = 0.4
+    background = "#dbeafe"
+    fill-style = solid
+    opacity = 70
+  }
+  body: math.plot {
+    at = (820, 298)
+    x = 34 * cos(t)
+    y = 21 * sin(t)
+    t in [0, tau]
+    stroke = "#a16207"
+    stroke-width = 0.6
+    background = "#facc15"
+    fill-style = solid
+  }
+  stripe1: freedraw {
+    at = (806, 281); points = ((0,0),(4,11),(0,23),(4,34))
+    stroke = "#78350f"; stroke-width = 0.6
+  }
+  stripe2: freedraw {
+    at = (822, 279); points = ((0,0),(4,12),(0,24),(4,36))
+    stroke = "#78350f"; stroke-width = 0.6
+  }
+  stripe3: freedraw {
+    at = (838, 283); points = ((0,0),(4,10),(0,20),(4,30))
+    stroke = "#78350f"; stroke-width = 0.6
+  }
+  head: math.plot {
+    at = (782, 301)
+    x = 13 * cos(t)
+    y = 13 * sin(t)
+    t in [0, tau]
+    stroke = "#78350f"
+    stroke-width = 0.5
+    background = "#78350f"
+    fill-style = solid
+  }
+  feeler1: freedraw {
+    at = (774, 293); points = ((0,0),(-10,-8),(-17,-15))
+    stroke = "#78350f"; stroke-width = 0.4
+  }
+  feeler2: freedraw {
+    at = (772, 303); points = ((0,0),(-12,-3),(-20,-5))
+    stroke = "#78350f"; stroke-width = 0.4
+  }
+
+  bring-to-front (wingBack, wingFront, body, stripe1, stripe2, stripe3, head, feeler1, feeler2)
+}

@@ -1,0 +1,29 @@
+use "xdraw/architecture" as arch
+
+diagram "Checkout architecture" {
+  subtitle "A small path from customer to payment and storage"
+  arrange layered { gap = 96; width = 1320 }
+
+  customer: arch.person "Customer" {
+    description = "Places an order"
+  }
+
+  checkout: arch.container "Checkout" {
+    description = "Validates the basket and coordinates the purchase"
+    technology = "TypeScript"
+  }
+
+  payments: arch.system "Payments" {
+    description = "Authorizes the charge"
+    technology = "External API"
+  }
+
+  orders: arch.database "Orders" {
+    description = "Stores completed orders"
+    technology = "PostgreSQL"
+  }
+
+  customer -> checkout "submits" { technology = "HTTPS" }
+  checkout -> payments "authorizes" { technology = "JSON/HTTPS" }
+  checkout -> orders "records" { technology = "SQL" }
+}

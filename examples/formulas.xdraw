@@ -1,8 +1,7 @@
 use "xdraw/math" as math
 
 diagram "Mathematical formulas" {
-  subtitle "TeX source becomes a portable vector image with inspectable metadata"
-  arrange grid { columns 2; gap 48 }
+  arrange grid { columns = 2; gap = 48 }
 
   gaussian: math.formula """
 \int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}

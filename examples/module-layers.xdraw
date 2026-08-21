@@ -3,47 +3,47 @@ use "xdraw/palette" as palette
 diagram "Why the module graph has no cycles" {
   subtitle "69 modules, zero runtime cycles; the contract layer is what buys it"
 
-  default: theme { font-family normal; title-size 22; body-size 19 }
-  arrange grid { columns 1; gap 34; width 2000 }
+  default: theme { font-family = normal; title-size = 22; body-size = 19 }
+  arrange grid { columns = 1; gap = 34; width = 2000 }
 
   entries: frame "Published entry points, at src/ root" {
-    arrange row { gap 34 }
-    xdraw_bin: rectangle "xdraw.ts" { body "the executable"; size (330, 96); style palette.neutral }
-    index: rectangle "index.ts" { body "the Node package"; size (330, 96); style palette.neutral }
-    browser: rectangle "browser.ts" { body "the browser package"; size (330, 96); style palette.neutral }
-    api: rectangle "excalidraw-api.ts" { body "the hosted-scene client"; size (330, 96); style palette.neutral }
+    arrange row { gap = 34 }
+    xdraw_bin: rectangle "xdraw.ts" { body = "the executable"; size = (330, 96); style = palette.neutral }
+    index: rectangle "index.ts" { body = "the Node package"; size = (330, 96); style = palette.neutral }
+    browser: rectangle "browser.ts" { body = "the browser package"; size = (330, 96); style = palette.neutral }
+    api: rectangle "excalidraw-api.ts" { body = "the hosted-scene client"; size = (330, 96); style = palette.neutral }
   }
 
   orchestration: frame "Sequencing" {
-    arrange row { gap 34 }
-    cli_mod: rectangle "cli.ts" { body "argument parsing, command dispatch"; size (500, 96); style palette.info }
-    pipeline: rectangle "compile/pipeline.ts" { body "runs the stages in order"; size (500, 96); style palette.info }
+    arrange row { gap = 34 }
+    cli_mod: rectangle "cli.ts" { body = "argument parsing, command dispatch"; size = (500, 96); style = palette.info }
+    pipeline: rectangle "compile/pipeline.ts" { body = "runs the stages in order"; size = (500, 96); style = palette.info }
   }
 
   subsystems: frame "Subsystems: each owns one job and never reaches sideways for another" {
-    arrange row { gap 26 }
-    language: rectangle "language/" { body "text to IR"; size (255, 92); style palette.accent }
-    compile_mod: rectangle "compile/" { body "IR to Drawing"; size (255, 92); style palette.accent }
-    nodes: rectangle "nodes/" { body "rich families"; size (255, 92); style palette.accent }
-    layout: rectangle "layout/" { body "placement"; size (255, 92); style palette.accent }
-    routing: rectangle "routing/" { body "connectors"; size (255, 92); style palette.accent }
-    excalidraw_mod: rectangle "excalidraw/" { body "target format"; size (255, 92); style palette.accent }
+    arrange row { gap = 26 }
+    language: rectangle "language/" { body = "text to IR"; size = (255, 92); style = palette.accent }
+    compile_mod: rectangle "compile/" { body = "IR to Drawing"; size = (255, 92); style = palette.accent }
+    nodes: rectangle "nodes/" { body = "rich families"; size = (255, 92); style = palette.accent }
+    layout: rectangle "layout/" { body = "placement"; size = (255, 92); style = palette.accent }
+    routing: rectangle "routing/" { body = "connectors"; size = (255, 92); style = palette.accent }
+    excalidraw_mod: rectangle "excalidraw/" { body = "target format"; size = (255, 92); style = palette.accent }
   }
 
   shared: frame "Shared, depended on by many" {
-    arrange row { gap 34 }
-    text_mod: rectangle "text/" { body "measurement and highlighting"; size (390, 96); style palette.success }
-    geometry: rectangle "geometry.ts" { body "box, row, align, distribute"; size (390, 96); style palette.success }
-    io_mod: rectangle "io/" { body "filesystem, assets, diagnostics"; size (390, 96); style palette.success }
-    platform: rectangle "platform/" { body "one worker host"; size (390, 96); style palette.success }
+    arrange row { gap = 34 }
+    text_mod: rectangle "text/" { body = "measurement and highlighting"; size = (390, 96); style = palette.success }
+    geometry: rectangle "geometry.ts" { body = "box, row, align, distribute"; size = (390, 96); style = palette.success }
+    io_mod: rectangle "io/" { body = "filesystem, assets, diagnostics"; size = (390, 96); style = palette.success }
+    platform: rectangle "platform/" { body = "one worker host"; size = (390, 96); style = palette.success }
   }
 
   base: frame "contracts/ holds types only, so every arrow into it disappears at runtime" {
-    arrange row { gap 34 }
-    foundation: rectangle "contracts/foundation.ts" { body "41 modules import it"; size (390, 96); style palette.warning }
-    semantic: rectangle "contracts/semantic.ts" { body "26 modules import it"; size (390, 96); style palette.warning }
-    render_c: rectangle "contracts/render.ts" { body "17 modules import it"; size (390, 96); style palette.warning }
-    layout_c: rectangle "contracts/layout.ts" { body "14 modules import it"; size (390, 96); style palette.warning }
+    arrange row { gap = 34 }
+    foundation: rectangle "contracts/foundation.ts" { body = "41 modules import it"; size = (390, 96); style = palette.warning }
+    semantic: rectangle "contracts/semantic.ts" { body = "26 modules import it"; size = (390, 96); style = palette.warning }
+    render_c: rectangle "contracts/render.ts" { body = "17 modules import it"; size = (390, 96); style = palette.warning }
+    layout_c: rectangle "contracts/layout.ts" { body = "14 modules import it"; size = (390, 96); style = palette.warning }
   }
 
   reading: code """
@@ -55,9 +55,9 @@ diagram "Why the module graph has no cycles" {
     one of those erased edges into a real one, and the graph would knot
     immediately. That is the reason contracts/ exists, not tidiness.
   """ {
-    title "How to read it"
-    language xdraw
-    line-numbers false
-    highlight false
+    title = "How to read it"
+    language = xdraw
+    line-numbers = false
+    highlight = false
   }
 }

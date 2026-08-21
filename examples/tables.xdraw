@@ -1,7 +1,6 @@
 use "xdraw/table" as table
 
 diagram "Editable tables" {
-  subtitle "Column widths follow the content; narrow cells wrap automatically."
 
   orders: table.table "Orders" {
     table.header "Order" "Customer" "Status" "Total"

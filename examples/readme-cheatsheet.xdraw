@@ -1,13 +1,12 @@
 use "xdraw/palette" as palette
 
 diagram "XDraw quick reference" {
-  subtitle "From concise source to an editable Excalidraw scene"
 
-  default: theme { font-family normal; title-size 22; body-size 19 }
-  arrange grid { columns 2; gap 28; width 2000 }
+  default: theme { font-family = normal; title-size = 22; body-size = 19 }
+  arrange grid { columns = 2; gap = 24; width = 2000 }
 
   anatomy: section "1. Declare" {
-    arrange column { gap 18 }
+    arrange column { gap = 18 }
 
     declaration: code """
       request: rectangle "Request" {
@@ -15,82 +14,82 @@ diagram "XDraw quick reference" {
         style palette.info
       }
     """ {
-      title "id: constructor \"label\" { properties and children }"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "id: constructor \"label\" { properties and children }"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     parts: group {
-      arrange row { gap 18 }
-      id: rectangle "request" { body "Stable ID"; style palette.neutral }
-      constructor: rectangle "rectangle" { body "Primitive"; style palette.accent }
-      label: rectangle "Request" { body "Visible label"; style palette.info }
-      block: rectangle "{ ... }" { body "Details"; style palette.success }
+      arrange row { gap = 18 }
+      id: rectangle "request" { body = "Stable ID"; style = palette.neutral }
+      constructor: rectangle "rectangle" { body = "Primitive"; style = palette.accent }
+      label: rectangle "Request" { body = "Visible label"; style = palette.info }
+      block: rectangle "{ ... }" { body = "Details"; style = palette.success }
     }
   }
 
   vocabulary: section "2. Choose primitives" {
-    arrange column { gap 18 }
+    arrange column { gap = 18 }
 
     primitives: code """
       Shapes       rectangle  ellipse  diamond  freedraw
-      Containers   frame      section  group
-      Content      text       code     asset    image
-      Reuse        template   style    theme
+      Containers   frame  section  group
+      Content      text  code  asset  image
+      Reuse        template  style  theme
     """ {
-      title "Core constructors"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Core constructors"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     forms: code """
       Document     diagram  use  subtitle
       Layout       arrange row | column | grid | layered
-      Connections  source -> target   source -- target
-      Anchors      node@top | @right | @bottom | @left
+      Connections  a -> b    a -- b
+      Anchors      a@north  a@east  a@south  a@west
     """ {
-      title "Forms and operators"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Forms and operators"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
   }
 
   compose: section "3. Compose" {
-    arrange column { gap 18 }
+    arrange column { gap = 18 }
 
     composition: code """
       platform: frame "Platform" {
         arrange row { gap 100 }
         api: rectangle "API"
         store: rectangle "Data"
-        api@right -> store@left "writes"
+        api@east -> store@west "writes"
       }
 
       platform.api
     """ {
-      title "Nest, arrange, connect and address"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Nest, arrange, connect and address"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     guidance: group {
-      arrange row { gap 18 }
-      nest: rectangle "Nest" { body "Braces create hierarchy"; style palette.neutral }
-      layout_card: rectangle "Arrange" { body "Layouts place siblings"; style palette.accent }
-      connect: rectangle "Connect" { body "Arrows remain editable"; style palette.info }
+      arrange row { gap = 18 }
+      nest: rectangle "Nest" { body = "Braces create hierarchy"; style = palette.neutral }
+      layout_card: rectangle "Arrange" { body = "Layouts place siblings"; style = palette.accent }
+      connect: rectangle "Connect" { body = "Arrows remain editable"; style = palette.info }
     }
   }
 
   example: section "4. Build an editable scene" {
-    arrange column { gap 18 }
+    arrange column { gap = 18 }
 
     source: code """
       diagram "Compiler flow" {
-        arrange row { gap 160 }
+        arrange grid { columns 3; gap 160 }
         author: ellipse "Author"
         compiler: rectangle "Compiler"
         scene: rectangle "Scene JSON"
@@ -98,17 +97,17 @@ diagram "XDraw quick reference" {
         compiler -> scene "emits"
       }
     """ {
-      title "xdraw build compiler-flow.xdraw"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "xdraw build compiler-flow.xdraw"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     result: frame "Editable .excalidraw output" {
-      arrange row { gap 160 }
-      author: ellipse "Author" { style palette.accent }
-      compiler: rectangle "Compiler" { style palette.info }
-      scene: rectangle "Scene JSON" { style palette.success }
+      arrange row { gap = 160 }
+      author: ellipse "Author" { style = palette.accent }
+      compiler: rectangle "Compiler" { style = palette.info }
+      scene: rectangle "Scene JSON" { style = palette.success }
       author -> compiler "writes source"
       compiler -> scene "emits"
     }

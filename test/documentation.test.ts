@@ -3,13 +3,14 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { resolveAssets } from "../src/io/assets.ts";
-import { compileAsync } from "../src/compile/pipeline.ts";
+import { compile as compileAsync } from "../src/compile/pipeline.ts";
 import { RootedFileSystem } from "../src/io/filesystem.ts";
 import { parseSceneDocument } from "../src/io/scene-document.ts";
 import { parseSource } from "../src/language/parser.ts";
 
 for (const file of [
   "README.md",
+  "docs/language.md",
   "docs/tour.md",
   "docs/spec.md",
 ]) {

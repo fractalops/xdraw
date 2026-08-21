@@ -6,18 +6,18 @@ diagram "How XDraw works" {
   subtitle "Describe the drawing in a small language, compile it, then keep editing in Excalidraw"
 
   default: theme {
-    font-family normal
+    font-family = normal
   }
 
-  arrange grid { columns 1; gap 38; width 2200 }
+  arrange grid { columns = 1; gap = 38; width = 2200 }
 
   journey: process.lane "One idea, left to right" {
-    arrange row { gap 145 }
+    arrange row { gap = 145 }
 
     intent: rectangle "Describe the intent" {
-      body "Name the things people should see and how they relate."
-      style palette.info
-      size (240, 135)
+      body = "Name the things people should see and how they relate."
+      style = palette.info
+      size = (240, 135)
     }
 
     source: code """
@@ -29,47 +29,47 @@ diagram "How XDraw works" {
         author -> compiler "source"
       }
     """ {
-      language xdraw
-      line-numbers false
-      highlight true
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     compiler: arch.system "XDraw compiler" {
-      body "1. Parse + validate\n2. Measure + arrange\n3. Emit editable elements"
-      style palette.accent
-      size (290, 175)
+      body = "1. Parse + validate\n2. Measure + arrange\n3. Emit editable elements"
+      style = palette.accent
+      size = (290, 175)
     }
 
     scene: rectangle "Editable scene" {
-      body "A portable .excalidraw file with shapes, text, frames and connectors."
-      style palette.success
-      size (250, 150)
+      body = "A portable .excalidraw file with shapes, text, frames and connectors."
+      style = palette.success
+      size = (250, 150)
     }
 
     canvas: arch.system "Excalidraw" {
-      body "Open the scene, move things by hand and continue collaborating visually."
-      size (250, 150)
+      body = "Open the scene, move things by hand and continue collaborating visually."
+      size = (250, 150)
     }
 
     align center-y (intent, source, compiler, scene, canvas)
 
-    express: intent@right -> source@left "express"
-    build: source@right -> compiler@left "xdraw build"
-    generate: compiler@right -> scene@left ".excalidraw"
-    edit: scene@right -> canvas@left "open + edit"
+    express: intent@east -> source@west "express"
+    build: source@east -> compiler@west "xdraw build"
+    generate: compiler@east -> scene@west ".excalidraw"
+    edit: scene@east -> canvas@west "open + edit"
   }
 
   reading: section "How to read an XDraw source file" {
-    arrange row { gap 26 }
+    arrange row { gap = 26 }
 
     declarations: code """
       # 1. Declare elements
       api: rectangle "API"
       store: arch.database "Data"
     """ {
-      language xdraw
-      line-numbers false
-      highlight true
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
     containment: code """
       # 2. Create structure
@@ -77,145 +77,145 @@ diagram "How XDraw works" {
         api: arch.system "API"
       }
     """ {
-      language xdraw
-      line-numbers false
-      highlight true
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
     arrangement: code """
       # 3. Arrange automatically
       arrange row { gap 80 }
     """ {
-      language xdraw
-      line-numbers false
-      highlight true
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
     references: code """
       # 4. Address precisely
-      platform.api@right
+      platform.api@east
       namespace.child@anchor
     """ {
-      language xdraw
-      line-numbers false
-      highlight true
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
     relationships: code """
       # 5. Connect relationships
-      api@right -> store@left "writes"
+      api@east -> store@west "writes"
       a -- b "related"
     """ {
-      language xdraw
-      line-numbers false
-      highlight true
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
   }
 
   scale: section "The same model scales to richer diagrams" {
-    arrange row { gap 26 }
+    arrange row { gap = 26 }
 
     templates: rectangle "Reuse templates" {
-      body "Define a parameterized structure once, then create isolated instances."
-      style palette.accent
-      size (255, 125)
+      body = "Define a parameterized structure once, then create isolated instances."
+      style = palette.accent
+      size = (255, 125)
     }
     layouts: rectangle "Choose a layout" {
-      body "Use rows and grids for structure, trees for hierarchy and layered for graphs."
-      style palette.info
-      size (255, 125)
+      body = "Use rows and grids for structure, trees for hierarchy and layered for graphs."
+      style = palette.info
+      size = (255, 125)
     }
     sequences: rectangle "Model interactions" {
-      body "Sequence participants and messages use the same declarations and arrows."
-      style palette.neutral
-      size (255, 125)
+      body = "Sequence participants and messages use the same declarations and arrows."
+      style = palette.neutral
+      size = (255, 125)
     }
     annotations: rectangle "Add evidence" {
-      body "Attach notes and callouts; embed safe images and reusable icons."
-      style palette.warning
-      size (255, 125)
+      body = "Attach notes and callouts; embed safe images and reusable icons."
+      style = palette.warning
+      size = (255, 125)
     }
     precision: rectangle "Refine deliberately" {
-      body "Align, distribute, resize, offset, rotate, snap or guide a connector via points."
-      style palette.success
-      size (255, 125)
+      body = "Align, distribute, resize, offset, rotate, snap or guide a connector via points."
+      style = palette.success
+      size = (255, 125)
     }
     patching: rectangle "Patch hosted scenes" {
-      body "Replace a whole drawing or update known source IDs without erasing manual edits."
-      style palette.accent
-      size (255, 125)
+      body = "Replace a whole drawing or update known source IDs without erasing manual edits."
+      style = palette.accent
+      size = (255, 125)
     }
   }
 
   editing: process.lane "Edit an existing Excalidraw+ scene" {
-    arrange row { gap 160 }
+    arrange row { gap = 160 }
 
     address: rectangle "Address the scene" {
-      body "Use provider::workspace::collection::scene to identify the hosted drawing."
-      style palette.info
-      size (230, 150)
+      body = "Use provider::workspace::collection::scene to identify the hosted drawing."
+      style = palette.info
+      size = (230, 150)
     }
 
     ownership: rectangle "Choose ownership" {
-      body "replace owns the whole scene. patch changes known source IDs and leaves unrelated elements alone."
-      style palette.warning
-      size (260, 150)
+      body = "replace owns the whole scene. patch changes known source IDs and leaves unrelated elements alone."
+      style = palette.warning
+      size = (260, 150)
     }
 
     change: code """
       # Patch known XDraw IDs
       scene excalidraw::default::examples::overview {
         patch {
-          update api { title "API v2" }
+          update api { title = "API v2" }
           delete legacy
           add { review: rectangle "Review" }
         }
       }
     """ {
-      language xdraw
-      line-numbers false
-      highlight true
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     apply: rectangle "Apply the scene document" {
-      body "xdraw apply edit.scene.xdraw"
-      style palette.accent
-      size (230, 120)
+      body = "xdraw apply edit.scene.xdraw"
+      style = palette.accent
+      size = (230, 120)
     }
 
     continue: rectangle "Continue visually" {
-      body "The hosted scene stays editable. A patch preserves manual work outside the addressed IDs."
-      style palette.success
-      size (240, 150)
+      body = "The hosted scene stays editable. A patch preserves manual work outside the addressed IDs."
+      style = palette.success
+      size = (240, 150)
     }
 
-    align center-y (address, ownership, change, apply, continue)
+    align center-y (address, ownership, change, apply)
 
-    address@right -> ownership@left "select mode"
-    ownership@right -> change@left "describe edit"
-    change@right -> apply@left "apply"
-    apply@right -> continue@left "preserve"
+    address@east -> ownership@west "select mode"
+    ownership@east -> change@west "describe edit"
+    change@east -> apply@west "apply"
+    apply@east -> continue@west "preserve"
   }
 
   workflow: process.lane "A predictable workflow" {
-    arrange row { gap 170 }
+    arrange row { gap = 170 }
 
     author: rectangle "Author" {
-      body "diagram.xdraw"
-      style palette.info
-      size (240, 105)
+      body = "diagram.xdraw"
+      style = palette.info
+      size = (240, 105)
     }
     check: rectangle "Validate" {
-      body "xdraw check diagram.xdraw"
-      style palette.warning
-      size (280, 105)
+      body = "xdraw check diagram.xdraw"
+      style = palette.warning
+      size = (280, 105)
     }
     local: rectangle "Build locally" {
-      body "xdraw build diagram.xdraw"
-      style palette.success
-      size (280, 105)
+      body = "xdraw build diagram.xdraw"
+      style = palette.success
+      size = (280, 105)
     }
     hosted: rectangle "Update Excalidraw+" {
-      body "xdraw apply diagram.scene.xdraw"
-      style palette.accent
-      size (300, 105)
+      body = "xdraw apply diagram.scene.xdraw"
+      style = palette.accent
+      size = (300, 105)
     }
 
     author -> check "check"

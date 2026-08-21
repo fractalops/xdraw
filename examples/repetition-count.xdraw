@@ -4,9 +4,9 @@ diagram "One declaration, eleven elements" {
   subtitle "count identifies an instance by position, and the position is what places it"
 
   step: rectangle "${index}" {
-    count 11
+    count = 11
     at = (132 + 92 * step.index, 206)
-    size (76, 96)
-    style palette.success
+    size = (76, 96)
+    style = palette.success
   }
 }

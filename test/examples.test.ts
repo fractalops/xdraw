@@ -17,6 +17,6 @@ for (const entry of await readdir(examples, { withFileTypes: true })) {
       assert.equal(parseSceneDocument(source).operation.type, "replace");
       return;
     }
-    assert.equal(await run(["check", file]), `OK ${file}`);
+    assert.match(await run(["check", file]), new RegExp(`^OK ${file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\n`));
   });
 }

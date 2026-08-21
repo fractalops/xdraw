@@ -1,59 +1,58 @@
 use "xdraw/math" as math
 
 diagram "A curve on labelled axes" {
-  subtitle "Each tick row and each label row is one declaration, and the region is the curve's own fill"
 
   let x0 = 200
   let y0 = 500
   let unit = 88
 
-  xaxis: freedraw { at = (x0, y0); points ((-26, 0), (500, 0)); stroke "#475569"; stroke-width 0.4 }
-  yaxis: freedraw { at = (x0, y0); points ((0, 26), (0, -380)); stroke "#475569"; stroke-width 0.4 }
+  xaxis: freedraw { at = (x0, y0); points = ((-26, 0), (500, 0)); stroke = "#475569"; stroke-width = 0.4 }
+  yaxis: freedraw { at = (x0, y0); points = ((0, 26), (0, -380)); stroke = "#475569"; stroke-width = 0.4 }
 
   xtick: freedraw {
-    count 6
+    count = 6
     at = (x0 + unit * xtick.index, y0)
-    points ((0, 0), (0, 8))
-    stroke "#475569"
-    stroke-width 0.4
+    points = ((0, 0), (0, 8))
+    stroke = "#475569"
+    stroke-width = 0.4
   }
   xlabel: text "${index}" {
-    count 6
+    count = 6
     at = (x0 + unit * xlabel.index - 4, y0 + 18)
-    font-size 15
+    font-size = 15
   }
 
   ytick: freedraw {
-    count 5
+    count = 5
     at = (x0, y0 - unit * ytick.index)
-    points ((0, 0), (-8, 0))
-    stroke "#475569"
-    stroke-width 0.4
+    points = ((0, 0), (-8, 0))
+    stroke = "#475569"
+    stroke-width = 0.4
   }
   ylabel: text "${index}" {
-    count 5
+    count = 5
     at = (x0 - 27, y0 - unit * ylabel.index - 9)
-    font-size 15
+    font-size = 15
   }
 
   cardioid: math.plot {
     at = (x0 + unit * 1, y0 - unit * 2)
     x = unit * 0.58 * (1 + cos(t)) * cos(t)
     y = unit * 0.58 * (1 + cos(t)) * sin(t)
-    domain (0, tau)
-    tolerance 0.5
-    stroke "#4f46e5"
-    stroke-width 0.6
-    background "#e0e7ff"
+    t in [0, tau]
+    tolerance = 0.5
+    stroke = "#4f46e5"
+    stroke-width = 0.6
+    background = "#e0e7ff"
   }
 
   wave: math.plot {
     at = (x0 + unit * 2.7, y0 - unit * 2)
     x = unit * 2.6 * t / tau
     y = 0 - unit * 0.85 * sin(2 * t)
-    domain (0, tau)
-    tolerance 0.5
-    stroke "#0891b2"
-    stroke-width 0.6
+    t in [0, tau]
+    tolerance = 0.5
+    stroke = "#0891b2"
+    stroke-width = 0.6
   }
 }

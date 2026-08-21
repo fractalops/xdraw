@@ -1,7 +1,7 @@
 use "xdraw/math" as math
 
 diagram "One template, six curves" {
-  subtitle "The same rose written once; each use supplies its own amplitude, petal count and colour"
+  subtitle "The same rose written once; each = use supplies its own amplitude, petal count and colour"
 
   let unit = 120
   let gapX = 340
@@ -12,9 +12,9 @@ diagram "One template, six curves" {
       at = (${x0}, ${y0})
       x = ${amp} * cos(${freq} * t) * cos(t)
       y = ${amp} * cos(${freq} * t) * sin(t)
-      domain (0, tau)
-      stroke "${hue}"
-      stroke-width 2
+      t in [0, tau]
+      stroke = "${hue}"
+      stroke-width = 2
     }
   }
 

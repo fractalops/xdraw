@@ -3,11 +3,11 @@ use "xdraw/palette" as palette
 diagram "XDraw architecture reference" {
   subtitle "How the compiler is arranged, for people changing it"
 
-  default: theme { font-family normal; title-size 22; body-size 19 }
-  arrange grid { columns 2; gap 28; width 2000 }
+  default: theme { font-family = normal; title-size = 22; body-size = 19 }
+  arrange grid { columns = 2; gap = 28; width = 2000 }
 
   pipeline: section "1. The pipeline" {
-    arrange column { gap 18 }
+    arrange column { gap = 18 }
 
     stages: code """
       tokenize    language/tokenizer.ts
@@ -20,22 +20,22 @@ diagram "XDraw architecture reference" {
       place       compile/geometry-pass.ts  routing/
       emit        compile/render.ts  excalidraw/
     """ {
-      title "docs/spec.md section 18, stage by stage"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "docs/spec.md section 18, stage by stage"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     forms: group {
-      arrange row { gap 18 }
-      text_in: rectangle "source text" { body "what an author writes"; style palette.neutral }
-      ir: rectangle "SemanticDocument" { body "the seam between halves"; style palette.accent }
-      out: rectangle "Drawing" { body "native Excalidraw elements"; style palette.success }
+      arrange row { gap = 18 }
+      text_in: rectangle "source text" { body = "what an author writes"; style = palette.neutral }
+      ir: rectangle "SemanticDocument" { body = "the seam between halves"; style = palette.accent }
+      out: rectangle "Drawing" { body = "native Excalidraw elements"; style = palette.success }
     }
   }
 
   layout_map: section "2. Where things live" {
-    arrange column { gap 18 }
+    arrange column { gap = 18 }
 
     tree: code """
       language/    source text to semantic IR
@@ -49,24 +49,24 @@ diagram "XDraw architecture reference" {
       platform/    one worker host, node and browser
       contracts/   types only, no runtime
     """ {
-      title "src/ groups a subsystem, never a topic"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "src/ groups a subsystem, never a topic"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     roots: code """
       xdraw.ts  index.ts  browser.ts  excalidraw-api.ts  cli.ts
     """ {
-      title "Published entry points stay at src/ root"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Published entry points stay at src/ root"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
   }
 
   seams: section "3. Where behaviour varies" {
-    arrange column { gap 18 }
+    arrange column { gap = 18 }
 
     variation: code """
       layout adapter    BUILTIN_LAYOUT | LAYERED_LAYOUT
@@ -74,10 +74,10 @@ diagram "XDraw architecture reference" {
       worker host       node | browser
       contracts         one types-only layer
     """ {
-      title "Extend here; each already has two adapters"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Extend here; each = already has two adapters"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     registry: code """
@@ -87,15 +87,15 @@ diagram "XDraw architecture reference" {
         { name: "architecture", supports, plan, render },
       ])
     """ {
-      title "nodes/rich-nodes.ts: a closed registry"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "nodes/rich-nodes.ts: a closed registry"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
   }
 
   invariants: section "4. Invariants that bite" {
-    arrange column { gap 18 }
+    arrange column { gap = 18 }
 
     rules: code """
       rule order    VALIDATION_RULES order sets diagnostic order
@@ -104,17 +104,17 @@ diagram "XDraw architecture reference" {
       validators    manifest schema first, then semantics
       text limits   code has its own budget, larger than text
     """ {
-      title "Looks like cruft, is load bearing"
-      language xdraw
-      line-numbers false
-      highlight true
+      title = "Looks like cruft, is load bearing"
+      language = xdraw
+      line-numbers = false
+      highlight = true
     }
 
     consequences: group {
-      arrange row { gap 18 }
-      reorder: rectangle "Reorder" { body "diagnostics change order"; style palette.warning }
-      compute: rectangle "Compute a URL" { body "the browser worker hangs"; style palette.danger }
-      inline: rectangle "Inline the types" { body "runtime cycles return"; style palette.warning }
+      arrange row { gap = 18 }
+      reorder: rectangle "Reorder" { body = "diagnostics change order"; style = palette.warning }
+      compute: rectangle "Compute a URL" { body = "the browser worker hangs"; style = palette.danger }
+      inline: rectangle "Inline the types" { body = "runtime cycles return"; style = palette.warning }
     }
   }
 }

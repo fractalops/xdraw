@@ -4,16 +4,16 @@ diagram "How XDraw emits native frames" {
   subtitle "Frames preserve nested ownership, clipping and inherited locking"
 
   workspace: frame "Compiled document" {
-    locked true
-    arrange row { gap 229 }
-    request: arch.person "Source declaration" { description "Defines the requested visual" }
-    service: arch.system "Scene element" { description "Represents the compiled visual" }
+    locked = true
+    arrange row { gap = 229 }
+    request: arch.person "Source declaration" { description = "Defines the requested visual" }
+    service: arch.system "Scene element" { description = "Represents the compiled visual" }
     request -> service "compiled inside frame"
 
     storage: frame "Nested frame" {
       records: arch.database "Child elements" {
-        description "Stores nested editable elements"
-        technology "Excalidraw JSON"
+        description = "Stores nested editable elements"
+        technology = "Excalidraw JSON"
       }
     }
 

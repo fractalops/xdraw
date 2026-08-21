@@ -3,58 +3,58 @@ use "xdraw/palette" as palette
 diagram "How a document becomes a scene" {
   subtitle "Boxes are what exists; arrows are what turns one into the next"
 
-  default: theme { font-family normal; title-size 22; body-size 19 }
-  arrange grid { columns 1; gap 46; width 2000 }
+  default: theme { font-family = normal; title-size = 22; body-size = 19 }
+  arrange grid { columns = 1; gap = 46; width = 2000 }
 
   spine: frame "Front end works in source terms; back end works in geometry" {
-    arrange row { gap 220 }
+    arrange row { gap = 220 }
 
     source: rectangle "source text" {
-      size (208, 150)
-      body "what an author writes"
-      style palette.neutral
+      size = (208, 150)
+      body = "what an author writes"
+      style = palette.neutral
     }
     syntax: rectangle "SourceDocument" {
-      size (208, 150)
-      body "tokens and spans, no meaning yet"
-      style palette.info
+      size = (208, 150)
+      body = "tokens and spans, no meaning yet"
+      style = palette.info
     }
     ast: rectangle "DiagramDocument" {
-      size (208, 150)
-      body "constructors resolved against manifests"
-      style palette.info
+      size = (208, 150)
+      body = "constructors resolved against manifests"
+      style = palette.info
     }
     ir: rectangle "SemanticDocument" {
-      size (208, 150)
-      body "validated, indexed, templates gone"
-      style palette.accent
+      size = (208, 150)
+      body = "validated, indexed, templates gone"
+      style = palette.accent
     }
     drawing: rectangle "Drawing" {
-      size (208, 150)
-      body "native Excalidraw elements"
-      style palette.success
+      size = (208, 150)
+      body = "native Excalidraw elements"
+      style = palette.success
     }
 
-    source@right -> syntax@left "tokenize"
-    syntax@right -> ast@left "lower"
-    ast@right -> ir@left "expand, validate"
-    ir@right -> drawing@left "measure, place, emit"
+    source@east -> syntax@west "tokenize"
+    syntax@east -> ast@west "lower"
+    ast@east -> ir@west "expand, validate"
+    ir@east -> drawing@west "measure, place, emit"
   }
 
   preparation: frame "compileAsync resolves these first, then renders synchronously" {
-    arrange row { gap 60 }
+    arrange row { gap = 60 }
 
     shiki: rectangle "syntax highlighting" {
-      body "text/syntax-highlighter.ts"
-      style palette.warning
+      body = "text/syntax-highlighter.ts"
+      style = palette.warning
     }
     formulas: rectangle "formula SVG" {
-      body "nodes/math/, MathJax in a worker"
-      style palette.warning
+      body = "nodes/math/, MathJax in a worker"
+      style = palette.warning
     }
     elk: rectangle "layered placement" {
-      body "layout/elk/, ELK in a worker"
-      style palette.warning
+      body = "layout/elk/, ELK in a worker"
+      style = palette.warning
     }
   }
 
@@ -65,9 +65,9 @@ diagram "How a document becomes a scene" {
     measure, place       compile/measurement.ts  compile/geometry-pass.ts
     emit                 compile/render.ts  excalidraw/
   """ {
-    title "Which module performs each arrow"
-    language xdraw
-    line-numbers false
-    highlight true
+    title = "Which module performs each arrow"
+    language = xdraw
+    line-numbers = false
+    highlight = true
   }
 }

@@ -1,32 +1,31 @@
 use "xdraw/architecture" as arch
 
 diagram "Deployment environments" {
-  subtitle "One template, instantiated once per environment"
 
-  arrange grid { columns 1; gap 40 }
+  arrange grid { columns = 1; gap = 40 }
 
   tier: template(name, store_tech) {
     env: section "${name}" {
-      arrange row { gap 124 }
+      arrange row { gap = 124 }
 
       api: arch.container "API" {
-        description "Serves orders over HTTP"
-        technology "Go"
-        size (260, 140)
+        description = "Serves orders over HTTP"
+        technology = "Go"
+        size = (260, 140)
       }
       cache: arch.container "Cache" {
-        description "Holds recent reads"
-        technology "Redis"
-        size (260, 140)
+        description = "Holds recent reads"
+        technology = "Redis"
+        size = (260, 140)
       }
       store: arch.database "Orders" {
-        description "Order and line-item history"
-        technology "${store_tech}"
-        size (260, 140)
+        description = "Order and line-item history"
+        technology = "${store_tech}"
+        size = (260, 140)
       }
 
-      api@right -> cache@left "reads" { technology "RESP" }
-      cache@right -> store@left "on a miss" { technology "SQL" }
+      api@east -> cache@west "reads" { technology = "RESP" }
+      cache@east -> store@west "on a miss" { technology = "SQL" }
     }
   }
 

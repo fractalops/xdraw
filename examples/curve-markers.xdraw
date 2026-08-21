@@ -11,34 +11,34 @@ diagram "Markers placed along a curve" {
     at = (cx, cy)
     x = 13 * t * cos(t)
     y = 13 * t * sin(t)
-    domain (0, 20)
-    stroke "#0891b2"
-    stroke-width 1
+    t in [0, 20]
+    stroke = "#0891b2"
+    stroke-width = 1
   }
 
   start: text "start" {
-    at = (along_x(spiral, 0) + 14, along_y(spiral, 0))
-    font-size 19
+    at = along(spiral, 0) + (14, 0)
+    font-size = 19
   }
   quarter: text "a quarter along" {
-    at = (along_x(spiral, 0.25) + 14, along_y(spiral, 0.25))
-    font-size 19
+    at = along(spiral, 0.25) + (14, 0)
+    font-size = 19
   }
   half: text "halfway" {
-    at = (along_x(spiral, 0.5) + 14, along_y(spiral, 0.5))
-    font-size 19
+    at = along(spiral, 0.5) + (14, 0)
+    font-size = 19
   }
   threequarter: text "three quarters" {
-    at = (along_x(spiral, 0.75) + 14, along_y(spiral, 0.75))
-    font-size 19
+    at = along(spiral, 0.75) + (14, 0)
+    font-size = 19
   }
   finish: text "end" {
-    at = (along_x(spiral, 1) + 14, along_y(spiral, 1))
-    font-size 19
+    at = along(spiral, 1) + (14, 0)
+    font-size = 19
   }
 
   note: text "the four gaps are equal lengths of line, so they crowd where the spiral is tight" {
     at = (140, 700)
-    font-size 19
+    font-size = 19
   }
 }

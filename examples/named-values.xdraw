@@ -10,39 +10,39 @@ diagram "One number, named once" {
   let radius = unit * 2.4
 
   first: rectangle "Ingest" {
-    at (100, 220)
+    at = (100, 220)
     size = (card, unit * 1.6)
-    body "reads source"
-    style palette.info
+    body = "reads source"
+    style = palette.info
   }
   second: rectangle "Parse" {
-    at (100, 400)
+    at = (100, 400)
     size = (card, unit * 1.6)
-    body "builds a tree"
-    style palette.accent
+    body = "builds a tree"
+    style = palette.accent
   }
   third: rectangle "Emit" {
-    at (100, 580)
+    at = (100, 580)
     size = (card, unit * 1.6)
-    body "writes elements"
-    style palette.success
+    body = "writes elements"
+    style = palette.success
   }
 
   rose: math.plot {
-    at (720, 400)
+    at = (720, 400)
     x = radius * cos(5 * t) * cos(t)
     y = radius * cos(5 * t) * sin(t)
-    domain (0, tau)
-    stroke "#7c3aed"
-    stroke-width 2
+    t in [0, tau]
+    stroke = "#7c3aed"
+    stroke-width = 2
   }
 
   ring: math.plot {
-    at (720, 400)
+    at = (720, 400)
     x = (radius + gutter) * cos(t)
     y = (radius + gutter) * sin(t)
-    domain (0, tau)
-    stroke "#94a3b8"
-    stroke-width 2
+    t in [0, tau]
+    stroke = "#94a3b8"
+    stroke-width = 2
   }
 }
