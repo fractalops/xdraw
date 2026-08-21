@@ -440,14 +440,18 @@ function elementVersion(element: SceneElementResource): number {
   return element.version ?? 0;
 }
 
-function revised(element: SceneElementResource, changes: Record<string, unknown>): SceneElementResource {
+function revised(
+  element: SceneElementResource,
+  changes: Record<string, unknown>,
+  updated: number,
+): SceneElementResource {
   const version = elementVersion(element) + 1;
   return {
     ...structuredClone(element),
     ...changes,
     version,
     versionNonce: nonceFor(`${element.id}:${version}`),
-    updated: Date.now(),
+    updated,
   };
 }
 
@@ -479,6 +483,7 @@ function semanticUpdates(
   content: SceneContentResource,
   element: SceneElementResource,
   properties: SceneUpdateProperties,
+  updated: number,
 ): SceneElementResource[] {
   const changes: Record<string, unknown> = {};
   const labelChanges: Record<string, unknown> = {};
@@ -514,11 +519,11 @@ function semanticUpdates(
       else labelChanges.strokeColor = value;
     }
   }
-  const updates = Object.keys(changes).length ? [revised(element, changes)] : [];
+  const updates = Object.keys(changes).length ? [revised(element, changes, updated)] : [];
   if (Object.keys(labelChanges).length) {
     const label = labelElement(content, element);
     if (!label) throw new Error(`XDraw element '${element.customData?.xdrawId ?? element.id}' has no editable label`);
-    updates.push(revised(label, labelChanges));
+    updates.push(revised(label, labelChanges, updated));
   }
   return updates;
 }
@@ -526,11 +531,57 @@ function semanticUpdates(
 function deletionElements(
   content: SceneContentResource,
   element: SceneElementResource,
+  updated: number,
 ): SceneElementResource[] {
-  const result = [revised(element, { isDeleted: true })];
+  const result = [revised(element, { isDeleted: true }, updated)];
   const label = labelElement(content, element);
-  if (label) result.push(revised(label, { isDeleted: true }));
+  if (label) result.push(revised(label, { isDeleted: true }, updated));
   return result;
+}
+
+export interface PlannedScenePatch {
+  elements: SceneElementResource[];
+  files?: EmbeddedAssetFiles;
+  added: number;
+  updated: number;
+  deleted: number;
+}
+
+/** Plan a hosted-scene mutation without performing network I/O. */
+export function planScenePatch(
+  content: SceneContentResource,
+  { updates = [], deletes = [], drawing }: ScenePatchRequest = {},
+  timestamp = Date.now(),
+): PlannedScenePatch {
+  assertPatchTargets(updates, deletes);
+  if (!Number.isFinite(timestamp)) throw new Error("patch timestamp must be finite");
+  const changed = updates.flatMap(({ target, properties }) => (
+    semanticUpdates(content, semanticElement(content, target), properties, timestamp)
+  ));
+  const removed = deletes.flatMap((target) => (
+    deletionElements(content, semanticElement(content, target), timestamp)
+  ));
+  const additions = drawing
+    ? taggedDrawing(drawing, { afterIndex: lastOrderingKey(content.elements) })
+    : undefined;
+  const existingIds = new Set(content.elements.map((item) => item.id));
+  const liveSelectors = new Set(content.elements.flatMap((item) => {
+    if (item.isDeleted) return [];
+    const semanticId = item.customData?.xdrawId;
+    return typeof semanticId === "string" ? [item.id, semanticId] : [item.id];
+  }));
+  const collision = additions?.elements.find((item) => (
+    existingIds.has(item.id)
+    || liveSelectors.has(typeof item.customData?.xdrawId === "string" ? item.customData.xdrawId : item.id)
+  ));
+  if (collision) throw new Error(`added XDraw element '${collision.id}' already exists in the scene`);
+  return {
+    elements: [...changed, ...removed, ...(additions?.elements ?? [])],
+    ...(additions && Object.keys(additions.files ?? {}).length ? { files: additions.files } : {}),
+    added: additions?.elements.length ?? 0,
+    updated: updates.length,
+    deleted: deletes.length,
+  };
 }
 
 function errorMessage(payload: unknown, text: string, statusText: string): string {
@@ -702,7 +753,22 @@ export class ExcalidrawApiClient {
         ?? (collections.length === 1 ? collections[0] : undefined);
     } else if (resource.collection === "private") collection = { id: "private", name: "private" };
     else collection = selectNamed(collections, resource.collection, "collection");
-    if (!collection) throw new Error(`Excalidraw+ collection '${resource.collection}' was not found`);
+    if (!collection) {
+      // A scene is created on demand but a collection is not, so this is a wrong
+      // name rather than a missing step. Name the collections that do exist: the
+      // bare "was not found" read like a typo and gave nothing to correct it with.
+      const available = collections
+        .map((item) => recordName(item) ?? recordId(item))
+        .filter((name): name is string => Boolean(name))
+        .sort((left, right) => left.localeCompare(right));
+      throw new Error(
+        `Excalidraw+ has no collection '${resource.collection}'.`
+        + ` Collections are created in the Excalidraw+ app, not from here.`
+        + (available.length
+          ? ` These exist: ${available.map((name) => `'${name}'`).join(", ")}.`
+          : ` This workspace has none yet.`),
+      );
+    }
     const collectionId = recordId(collection);
     if (!collectionId) throw new Error("Excalidraw API response did not contain a collection ID");
     const scenes = await this.listAll(`/collections/${encodeURIComponent(collectionId)}/scenes`);
@@ -762,34 +828,14 @@ export class ExcalidrawApiClient {
     assertPatchTargets(updates, deletes);
     const { sceneId: id } = await this.resolveSceneResource(resource);
     const content = await this.getSceneContent(id);
-    const changed = updates.flatMap(({ target, properties }) => (
-      semanticUpdates(content, semanticElement(content, target), properties)
-    ));
-    const removed = deletes.flatMap((target) => deletionElements(content, semanticElement(content, target)));
-    const additions = drawing
-      ? taggedDrawing(drawing, { afterIndex: lastOrderingKey(content.elements) })
-      : undefined;
-    const existingIds = new Set(content.elements.map((item) => item.id));
-    const liveSelectors = new Set(content.elements.flatMap((item) => {
-      if (item.isDeleted) return [];
-      const semanticId = item.customData?.xdrawId;
-      return typeof semanticId === "string" ? [item.id, semanticId] : [item.id];
-    }));
-    const collision = additions?.elements.find((item) => (
-      existingIds.has(item.id)
-      || liveSelectors.has(typeof item.customData?.xdrawId === "string" ? item.customData.xdrawId : item.id)
-    ));
-    if (collision) throw new Error(`added XDraw element '${collision.id}' already exists in the scene`);
-    const body = {
-      elements: [...changed, ...removed, ...(additions?.elements ?? [])],
-      ...(additions && Object.keys(additions.files ?? {}).length ? { files: additions.files } : {}),
-    };
+    const plan = planScenePatch(content, { updates, deletes, drawing });
+    const body = { elements: plan.elements, ...(plan.files ? { files: plan.files } : {}) };
     await this.request("PATCH", `/scenes/${encodeURIComponent(id)}/content`, body);
     return {
       sceneId: id,
-      added: additions?.elements.length ?? 0,
-      updated: updates.length,
-      deleted: deletes.length,
+      added: plan.added,
+      updated: plan.updated,
+      deleted: plan.deleted,
     };
   }
 

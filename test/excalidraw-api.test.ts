@@ -3,25 +3,39 @@ import test from "node:test";
 
 import { digestAssetBytes } from "../src/io/assets.ts";
 import { ExcalidrawApiClient } from "../src/excalidraw-api.ts";
+import type { ExcalidrawFetch, SceneResource } from "../src/excalidraw-api.ts";
+import type { DrawingElement, DrawingJson } from "../src/contracts/render.ts";
 
-function reply(status, payload) {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    statusText: status === 200 ? "OK" : "Error",
-    async text() { return payload === undefined ? "" : JSON.stringify(payload); },
-  };
+interface FakeCall {
+  method: string;
+  path: string;
+  headers: Record<string, string>;
+  body: Record<string, any> & { elements: Array<Record<string, any>> };
 }
 
-function fakeFetch(routes) {
-  const calls = [];
-  const fetch = async (url, init) => {
-    const parsed = new URL(url);
+interface FakeRoute {
+  method: string;
+  path: string | RegExp;
+  status?: number;
+  payload?: unknown | ((call: FakeCall) => unknown);
+}
+
+function reply(status: number, payload: unknown): Response {
+  return new Response(payload === undefined ? "" : JSON.stringify(payload), {
+    status,
+    statusText: status === 200 ? "OK" : "Error",
+  });
+}
+
+function fakeFetch(routes: FakeRoute[]): { fetch: ExcalidrawFetch; calls: FakeCall[] } {
+  const calls: FakeCall[] = [];
+  const fetch: ExcalidrawFetch = async (input, init = {}) => {
+    const parsed = new URL(input instanceof Request ? input.url : input);
     const call = {
-      method: init.method,
+      method: init.method ?? "GET",
       path: `${parsed.pathname}${parsed.search}`,
-      headers: init.headers,
-      body: init.body ? JSON.parse(init.body) : undefined,
+      headers: (init.headers ?? {}) as Record<string, string>,
+      body: (typeof init.body === "string" ? JSON.parse(init.body) : {}) as FakeCall["body"],
     };
     calls.push(call);
     const route = routes.find((item) => (
@@ -34,11 +48,19 @@ function fakeFetch(routes) {
   return { fetch, calls };
 }
 
-function resource(scene = "system_overview") {
+function callAt(calls: FakeCall[], index = -1): FakeCall {
+  const call = calls.at(index);
+  assert.ok(call, `missing recorded call at ${index}`);
+  return call;
+}
+
+function resource(scene = "system_overview"): SceneResource {
   return { provider: "excalidraw", workspace: "default", collection: "architecture", scene };
 }
 
-function sceneElement(overrides) {
+type SceneElementSeed = { id: string; type: DrawingElement["type"] } & Record<string, unknown>;
+
+function sceneElement(overrides: SceneElementSeed): DrawingElement {
   const type = overrides.type;
   const base = {
     id: overrides.id,
@@ -98,10 +120,10 @@ function sceneElement(overrides) {
     scale: [1, 1],
     crop: null,
   } : {};
-  return { ...base, ...byType, ...overrides };
+  return { ...base, ...byType, ...overrides } as DrawingElement;
 }
 
-function drawing(elements = [{ id: "api", type: "rectangle", version: 1 }]) {
+function drawing(elements: SceneElementSeed[] = [{ id: "api", type: "rectangle", version: 1 }]): DrawingJson {
   return {
     type: "excalidraw",
     version: 2,
@@ -117,7 +139,7 @@ function drawing(elements = [{ id: "api", type: "rectangle", version: 1 }]) {
   };
 }
 
-function inventoryRoutes(scenePayload = []) {
+function inventoryRoutes(scenePayload: unknown[] = []): FakeRoute[] {
   return [
     {
       method: "GET",
@@ -137,7 +159,7 @@ test("REST client requires an API key and sends bearer authentication", async ()
   const remote = fakeFetch([{ method: "GET", path: "/api/v1/scenes/scene-1/content", payload: drawing([]) }]);
   const client = new ExcalidrawApiClient({ apiKey: "Bearer secret", fetch: remote.fetch });
   await client.pull("scene-1");
-  assert.equal(remote.calls[0].headers.Authorization, "Bearer secret");
+  assert.equal(callAt(remote.calls, 0).headers.Authorization, "Bearer secret");
 });
 
 test("REST errors retain the operation, status, and remote message", async () => {
@@ -174,6 +196,33 @@ test("collection and scene inventories are paginated", async () => {
   assert.deepEqual(await client.resolveSceneResource(resource()), {
     sceneId: "scene-1", collectionId: "collection-1", created: false,
   });
+});
+
+test("a missing collection names the ones that exist and says who creates them", async () => {
+  const remote = fakeFetch([{
+    method: "GET",
+    path: "/api/v1/collections?limit=100&offset=0",
+    payload: {
+      data: [
+        { metadata: { id: "collection-2", name: "Infrastructure Engineering" } },
+        { metadata: { id: "collection-1", name: "Architecture" } },
+      ],
+      hasNextPage: false,
+    },
+  }]);
+  const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
+  // A scene is created on demand, a collection is not, so the reader needs to know
+  // this is a wrong name and where the right ones come from.
+  await assert.rejects(
+    () => client.resolveSceneResource({ ...resource(), collection: "DataAnalytics" }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /no collection 'DataAnalytics'/);
+      assert.match(error.message, /created in the Excalidraw\+ app/);
+      assert.match(error.message, /'Architecture', 'Infrastructure Engineering'/);
+      return true;
+    },
+  );
 });
 
 test("hosted scene inventory exposes copyable addresses and stable IDs", async () => {
@@ -294,11 +343,11 @@ test("replace creates a missing scene and PUTs the complete tagged drawing", asy
   assert.deepEqual(await client.applyReplace(resource(), drawing()), {
     sceneId: "scene-new", added: 1, created: true,
   });
-  assert.deepEqual(remote.calls.at(-2).body, {
+  assert.deepEqual(callAt(remote.calls, -2).body, {
     name: "System Overview", pinned: false, collectionId: "collection-1",
   });
-  assert.equal(remote.calls.at(-1).method, "PUT");
-  assert.equal(remote.calls.at(-1).body.elements[0].customData.xdrawId, "api");
+  assert.equal(callAt(remote.calls).method, "PUT");
+  assert.equal(callAt(remote.calls).body.elements[0]?.customData.xdrawId, "api");
 });
 
 test("replace preserves formula metadata while adding the hosted scene identity", async () => {
@@ -324,7 +373,7 @@ test("replace preserves formula metadata while adding the hosted scene identity"
       },
     },
   }]));
-  assert.deepEqual(remote.calls.at(-1).body.elements[0].customData, {
+  assert.deepEqual(callAt(remote.calls).body.elements[0]?.customData, {
     xdraw: {
       type: "formula",
       source: String.raw`E = mc^2`,
@@ -364,7 +413,7 @@ test("replace assigns deterministic Excalidraw ordering keys", async () => {
     { id: "third", type: "rectangle" },
   ]));
 
-  const indices = remote.calls.at(-1).body.elements.map((element) => element.index);
+  const indices = callAt(remote.calls).body.elements.map((element) => element.index as string);
   assert.ok(indices.every((index) => typeof index === "string" && index.length > 0));
   assert.deepEqual(indices, [...indices].sort());
   assert.equal(new Set(indices).size, indices.length);
@@ -401,7 +450,8 @@ test("patch updates a semantic shape and its bound label as complete newer eleme
   ]);
   const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
   await client.applyPatch(resource(), { updates: [{ target: "api", properties: { tone: "warning", title: "API v2" } }] });
-  const [shape, label] = remote.calls.at(-1).body.elements;
+  const [shape, label] = callAt(remote.calls).body.elements;
+  assert.ok(shape && label);
   assert.equal(shape.id, "shape-remote");
   assert.equal(shape.version, 5);
   assert.notEqual(shape.versionNonce, 10);
@@ -423,7 +473,7 @@ test("title-only patches do not rewrite the containing shape", async () => {
   ]);
   const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
   await client.applyPatch(resource(), { updates: [{ target: "api", properties: { title: "New" } }] });
-  assert.deepEqual(remote.calls.at(-1).body.elements.map((item) => item.id), ["label"]);
+  assert.deepEqual(callAt(remote.calls).body.elements.map((item) => item.id), ["label"]);
 });
 
 test("delete soft-deletes the shape and its bound label", async () => {
@@ -438,7 +488,7 @@ test("delete soft-deletes the shape and its bound label", async () => {
   ]);
   const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
   await client.applyPatch(resource(), { deletes: ["obsolete"] });
-  assert.deepEqual(remote.calls.at(-1).body.elements.map(({ id, isDeleted }) => ({ id, isDeleted })), [
+  assert.deepEqual(callAt(remote.calls).body.elements.map(({ id, isDeleted }) => ({ id, isDeleted })), [
     { id: "shape", isDeleted: true }, { id: "label", isDeleted: true },
   ]);
 });
@@ -524,7 +574,8 @@ test("patch additions receive ordering keys after the existing scene", async () 
     ]),
   });
 
-  const additions = remote.calls.at(-1).body.elements;
+  const additions = callAt(remote.calls).body.elements;
+  assert.ok(additions[0] && additions[1]);
   assert.ok(additions[0].index > "a1");
   assert.ok(additions[1].index > additions[0].index);
 });
@@ -545,7 +596,7 @@ test("pull resolves a readable scene address before retrieving content", async (
   ]);
   const client = new ExcalidrawApiClient({ apiKey: "secret", fetch: remote.fetch });
   assert.deepEqual(await client.pull(resource()), content);
-  assert.equal(remote.calls.at(-1).path, "/api/v1/scenes/scene-1/content");
+  assert.equal(callAt(remote.calls).path, "/api/v1/scenes/scene-1/content");
 });
 
 test("pull rejects malformed scene content before it reaches patch logic", async () => {
@@ -605,8 +656,10 @@ test("pull verifies formula asset integrity metadata", async () => {
 });
 
 test("requests stop when the configured timeout expires", async () => {
-  const fetch = (_url, init) => new Promise((_resolve, reject) => {
-    init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true });
+  const fetch: ExcalidrawFetch = (_url, init) => new Promise<Response>((_resolve, reject) => {
+    const signal = init?.signal;
+    assert.ok(signal);
+    signal.addEventListener("abort", () => reject(signal.reason), { once: true });
   });
   const client = new ExcalidrawApiClient({ apiKey: "secret", fetch, timeoutMs: 5 });
 

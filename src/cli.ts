@@ -3,14 +3,17 @@ import { basename, dirname, extname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
 import { resolveAssets } from "./io/assets.ts";
-import { compileAsync } from "./compile/pipeline.ts";
+import { compile } from "./compile/pipeline.ts";
 import { ExcalidrawApiClient } from "./excalidraw-api.ts";
 import { RootedFileSystem } from "./io/filesystem.ts";
 import { renderScenePng, renderSceneSvg } from "./io/local-renderer.ts";
 import { parseSource } from "./language/parser.ts";
 import { formatSceneResource, parseSceneDocument, parseSceneResource } from "./io/scene-document.ts";
 import { writeDrawing } from "./io/writer.ts";
-import { formatDiagnostic } from "./io/diagnostics.ts";
+import { renderDiagnostics } from "./io/diagnostics.ts";
+import { renderMeasurementReport } from "./io/measurement-report.ts";
+import type { DiagnosticFormat } from "./contracts/foundation.ts";
+import type { MeasurementFormat } from "./contracts/measurements.ts";
 import type {
   SceneDocument,
 } from "./io/scene-document.ts";
@@ -32,7 +35,9 @@ interface ParsedArguments {
   input?: string;
   expression?: string;
   output?: string;
-  json?: boolean;
+  diagnostics?: DiagnosticFormat;
+  format?: MeasurementFormat;
+  remarks?: boolean;
   remote: RemoteOptions;
 }
 
@@ -44,6 +49,9 @@ const COMMAND_OPTIONS = {
   frame: { type: "string" },
   "max-width": { type: "string" },
   padding: { type: "string" },
+  remarks: { type: "boolean" },
+  diagnostics: { type: "string" },
+  format: { type: "string" },
 } as const;
 
 const BUILD_OUTPUT_EXTENSIONS = [".excalidraw", ".json", ".png", ".svg"];
@@ -98,6 +106,9 @@ Options:
   --frame <id>              Preview one frame instead of the full scene.
   --max-width <pixels>      Limit preview width.
   --padding <pixels>        Set preview padding.
+  --remarks                 Report what each container reserved against what it used.
+  --diagnostics <format>    Write diagnostics as text (default) or json, one object per line.
+  --format <format>         Format check measurements as text (default) or json.
   -h, --help                Show this help.
   -v, --version             Show the installed version.
 
@@ -213,7 +224,25 @@ function parseArguments(argv: readonly string[]): ParsedArguments {
       throw new Error("pull output must end in .excalidraw, .json, .png, or .svg");
     }
   }
-  return { action: command as Command, input, expression, output, remote };
+  const diagnostics = parsed.values.diagnostics;
+  if (diagnostics !== undefined && diagnostics !== "text" && diagnostics !== "json") {
+    throw new Error("--diagnostics expects text or json");
+  }
+  const format = parsed.values.format;
+  if (format !== undefined && format !== "text" && format !== "json") {
+    throw new Error("--format expects text or json");
+  }
+  if (command !== "check" && format !== undefined) throw new Error("--format is supported only by check");
+  return {
+    action: command as Command,
+    input,
+    expression,
+    output,
+    diagnostics,
+    format,
+    remarks: parsed.values.remarks,
+    remote,
+  };
 }
 
 function requiredInput(options: ParsedArguments): string {
@@ -221,28 +250,60 @@ function requiredInput(options: ParsedArguments): string {
   return options.input;
 }
 
-async function loadInput(
+interface SourceInput {
+  source: string;
+  filesystem: RootedFileSystem;
+  origin: "expression" | "stdin" | "file";
+  label: string;
+}
+
+/**
+ * Read the source once, before anything decides what kind of document it is.
+ * Stdin can only be read once, so the kind cannot be settled by reading twice.
+ */
+async function readSource(
   input: string | undefined,
   expression: string | undefined,
   stdin: NodeJS.ReadableStream,
-) {
+): Promise<SourceInput> {
   if (expression !== undefined) {
-    const filesystem = new RootedFileSystem(process.cwd());
-    return resolveAssets(parseSource(expression), filesystem);
+    return {
+      source: expression,
+      filesystem: new RootedFileSystem(process.cwd()),
+      origin: "expression",
+      label: "inline expression",
+    };
   }
   if (input === undefined || input === "-") {
-    const filesystem = new RootedFileSystem(process.cwd());
-    const source = await readStdin(stdin);
-    if (!source.trim()) throw new Error("stdin did not contain XDraw source");
-    return resolveAssets(parseSource(source), filesystem);
+    return {
+      source: await readStdin(stdin),
+      filesystem: new RootedFileSystem(process.cwd()),
+      origin: "stdin",
+      label: "stdin",
+    };
   }
   const entry = resolve(input);
-  const filesystem = new RootedFileSystem(dirname(entry));
+  return {
+    source: await readFile(entry, "utf8"),
+    filesystem: new RootedFileSystem(dirname(entry)),
+    origin: "file",
+    label: basename(entry),
+  };
+}
+
+/** Whether the source declares a hosted scene rather than a diagram. */
+function isSceneSource(source: string): boolean {
+  return /^\s*scene\b/u.test(source);
+}
+
+async function loadInput(read: SourceInput) {
+  const { source, filesystem, origin, label } = read;
+  if (origin === "stdin" && !source.trim()) throw new Error("stdin did not contain XDraw source");
   try {
-    return resolveAssets(parseSource(await readFile(entry, "utf8")), filesystem);
+    return await resolveAssets(parseSource(source), filesystem);
   } catch (error: unknown) {
-    if (error instanceof Error && error.name === "XDrawSyntaxError") {
-      error.message = `${basename(entry)}: ${error.message}`;
+    if (origin === "file" && error instanceof Error && error.name === "XDrawSyntaxError") {
+      error.message = `${label}: ${error.message}`;
     }
     throw error;
   }
@@ -258,26 +319,18 @@ async function withRemote<T>(
   finally { await remote.close(); }
 }
 
-async function loadSceneInput(
-  input: string | undefined,
-  expression: string | undefined,
-  stdin: NodeJS.ReadableStream,
-): Promise<SceneDocument> {
-  let source: string;
-  let filesystem: RootedFileSystem;
-  if (expression !== undefined) {
-    source = expression;
-    filesystem = new RootedFileSystem(process.cwd());
-  } else if (input === undefined || input === "-") {
-    source = await readStdin(stdin);
-    filesystem = new RootedFileSystem(process.cwd());
-  } else {
-    const entry = resolve(input);
-    source = await readFile(entry, "utf8");
-    filesystem = new RootedFileSystem(dirname(entry));
-  }
+async function loadSceneInput(read: SourceInput): Promise<SceneDocument> {
+  const { source, filesystem, origin, label } = read;
   if (!source.trim()) throw new Error("scene document input is empty");
-  const document = parseSceneDocument(source);
+  let document: SceneDocument;
+  try {
+    document = parseSceneDocument(source);
+  } catch (error: unknown) {
+    if (origin === "file" && error instanceof Error && error.name === "XDrawSyntaxError") {
+      error.message = `${label}: ${error.message}`;
+    }
+    throw error;
+  }
   if (document.operation.type === "replace") {
     document.operation.diagram = await resolveAssets(document.operation.diagram, filesystem);
   } else if (document.operation.additions) {
@@ -289,34 +342,63 @@ async function loadSceneInput(
   return document;
 }
 
+/** Validate a hosted address and its diagram without making the remote call. */
+async function checkSceneDocument(
+  read: SourceInput,
+  sourceLabel: string,
+  stderr: NodeJS.WritableStream,
+  diagnosticFormat: DiagnosticFormat,
+  measurementFormat: MeasurementFormat,
+  remarks: boolean,
+): Promise<string> {
+  const scene = await loadSceneInput(read);
+  const resource = formatSceneResource(scene.resource);
+  const additions = scene.operation.type === "patch" ? scene.operation.additions : undefined;
+  const diagram = scene.operation.type === "replace"
+    ? scene.operation.diagram
+    : additions && { ...additions, title: additions.title ?? "" };
+  if (diagram) {
+    const compiled = await compile(diagram, { remarks });
+    stderr.write(renderDiagnostics(compiled.diagnostics, diagnosticFormat));
+    compiled.toJSON();
+    if (!compiled.measurements) throw new Error("compilation did not produce measurements");
+    return renderMeasurementReport(compiled.measurements, measurementFormat, `${sourceLabel} -> ${resource}`);
+  }
+  return measurementFormat === "json"
+    ? JSON.stringify({ ok: true, source: sourceLabel, resource, measurements: null }, null, 2)
+    : `OK ${sourceLabel} -> ${resource}\nNo diagram additions to measure`;
+}
+
 export async function run(argv: readonly string[], {
   stdin = process.stdin,
   stderr = process.stderr,
   remoteFactory = (options) => ExcalidrawApiClient.connect(options),
 }: RunDependencies = {}): Promise<string> {
   const options = parseArguments(argv);
+  const diagnosticFormat: DiagnosticFormat = options.diagnostics ?? "text";
+  const measurementFormat: MeasurementFormat = options.format ?? "text";
   if (options.action === "help") return options.help ?? HELP;
   if (options.action === "version") return `xdraw ${await version()}`;
   if (["build", "check", "apply"].includes(options.action)
       && options.input === undefined && options.expression === undefined && stdin.isTTY === true) return HELP;
 
   if (options.action === "apply") {
-    const scene = await loadSceneInput(options.input, options.expression, stdin);
+    const scene = await loadSceneInput(await readSource(options.input, options.expression, stdin));
     return withRemote(options, remoteFactory, async (remote) => {
       const resource = formatSceneResource(scene.resource);
       if (scene.operation.type === "replace") {
-        const drawing = await compileAsync(scene.operation.diagram);
-        if (drawing.diagnostics.length) stderr.write(`${drawing.diagnostics.map(formatDiagnostic).join("\n")}\n`);
+        const drawing = await compile(scene.operation.diagram);
+        stderr.write(renderDiagnostics(drawing.diagnostics, diagnosticFormat));
         const result = await remote.applyReplace(scene.resource, drawing.toJSON());
         return `${result.created ? "Created" : "Replaced"} ${resource} (${result.added} elements)\nScene ID: ${result.sceneId}`;
       }
       let drawing;
       if (scene.operation.additions) {
-        const compiled = await compileAsync({
+        const compiled = await compile({
           ...scene.operation.additions,
           title: scene.operation.additions.title ?? "",
         });
-        if (compiled.diagnostics.length) stderr.write(`${compiled.diagnostics.map(formatDiagnostic).join("\n")}\n`);
+        stderr.write(renderDiagnostics(compiled.diagnostics, diagnosticFormat));
         drawing = compiled.toJSON();
       }
       const result = await remote.applyPatch(scene.resource, {
@@ -364,14 +446,20 @@ export async function run(argv: readonly string[], {
     });
   }
 
-  const document = await loadInput(options.input, options.expression, stdin);
-  const drawing = await compileAsync(document);
-  if (drawing.diagnostics.length) {
-    stderr.write(`${drawing.diagnostics.map(formatDiagnostic).join("\n")}\n`);
+  const read = await readSource(options.input, options.expression, stdin);
+  const sourceLabel = options.expression !== undefined ? "inline expression" : options.input ?? "stdin";
+
+  if (options.action === "check" && isSceneSource(read.source)) {
+    return checkSceneDocument(read, sourceLabel, stderr, diagnosticFormat, measurementFormat, options.remarks ?? false);
   }
+
+  const document = await loadInput(read);
+  const drawing = await compile(document, { remarks: options.remarks });
+  stderr.write(renderDiagnostics(drawing.diagnostics, diagnosticFormat));
   if (options.action === "check") {
     drawing.toJSON();
-    return `OK ${options.expression !== undefined ? "inline expression" : options.input ?? "stdin"}`;
+    if (!drawing.measurements) throw new Error("compilation did not produce measurements");
+    return renderMeasurementReport(drawing.measurements, measurementFormat, sourceLabel);
   }
 
   const target = options.output === undefined ? defaultOutput(options.input) : options.output;

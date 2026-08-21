@@ -3,6 +3,7 @@ import type {
   EmbeddedAssetFiles,
   Point,
 } from "./foundation.ts";
+import type { CompilationMeasurements } from "./measurements.ts";
 import type { FontFamily } from "../text/metrics.ts";
 
 export type StrokeStyle = "solid" | "dashed" | "dotted";
@@ -226,6 +227,7 @@ export interface DrawingOptions {
   backgroundColor?: string;
   files?: EmbeddedAssetFiles;
   diagnostics?: Diagnostic[];
+  measurements?: CompilationMeasurements | null;
   syntaxHighlighting?: boolean;
   gridSize?: number;
   gridStep?: number;

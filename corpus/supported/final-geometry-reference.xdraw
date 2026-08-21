@@ -1,0 +1,13 @@
+diagram "Final geometry reference" {
+  flow: frame "Flow" {
+    arrange row { gap = 120 }
+    source: rectangle "Source"
+    target: rectangle "Target"
+  }
+
+  offset (flow.target) by (180, 60)
+
+  marker: text "final edge" {
+    at = (flow.target.bounds.right + 16, y(flow.target.center))
+  }
+}

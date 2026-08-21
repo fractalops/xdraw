@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "budget": 80,
+  "policy": "Containers that reserve more than `budget` pixels below their last child, as reported by XD3001. This list may only shrink. Adding an entry means a new over-reservation shipped; test/container-slack.test.ts fails on additions and on stale entries alike, and prints the corrected object.",
+  "known": {
+    "cause": "Every `group` in the tree over-reserves by 87 or 96 pixels. The synthetic `diagram` lane, which the compiler invents to hold loose top-level nodes, over-reserves by 168 to 203 when its children carry an explicit `at`. These are separate nested-group and explicit-position lane reservation defects.",
+    "not-affected": "No `section` and no `frame` over-reserves."
+  },
+  "accepted": {
+    "corpus/supported/connector-routing.xdraw": [
+      "diagram"
+    ],
+    "corpus/supported/precision-placement.xdraw": [
+      "diagram"
+    ],
+    "examples/architecture-cheatsheet.xdraw": [
+      "invariants.consequences",
+      "pipeline.forms"
+    ],
+    "examples/extension-seams.xdraw": [
+      "filesystem_seam.implementations",
+      "layout_seam.adapters",
+      "node_seam.families",
+      "worker_seam.hosts"
+    ],
+    "examples/readme-cheatsheet.xdraw": [
+      "anatomy.parts",
+      "compose.guidance"
+    ]
+  }
+}

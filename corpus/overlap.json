@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "policy": "Unexpected sibling and connector/node overlaps reported by XD3002. This list may only shrink; primitive illustration deliberately composes overlapping strokes and shapes.",
+  "accepted": {
+    "examples/primitive-illustration.xdraw": [
+      "hair_left <> brow_left_end",
+      "hair_left <> brow_left_start",
+      "hair_left <> hair_middle",
+      "hair_middle <> brow_left_end",
+      "hair_middle <> brow_right_start",
+      "hair_middle <> hair_right",
+      "hair_right <> brow_right_end",
+      "hair_right <> brow_right_start",
+      "head <> brow_left_end",
+      "head <> brow_left_start",
+      "head <> brow_right_end",
+      "head <> brow_right_start",
+      "head <> hair_left",
+      "head <> hair_middle",
+      "head <> hair_right",
+      "head <> left_cheek",
+      "head <> left_eye",
+      "head <> left_pupil",
+      "head <> mouth_left",
+      "head <> mouth_right",
+      "head <> nose",
+      "head <> right_cheek",
+      "head <> right_eye",
+      "head <> right_pupil",
+      "left_ear <> head",
+      "left_eye <> left_pupil",
+      "right_ear <> head",
+      "right_eye <> right_pupil"
+    ]
+  }
+}
