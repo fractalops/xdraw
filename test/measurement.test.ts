@@ -6,7 +6,7 @@ import {
   calculateRowPlan,
   calculateSlotWidth,
 } from "../src/compile/measurement.ts";
-import { compile } from "../src/compile/pipeline.ts";
+import { compilePrepared as compile } from "../src/compile/pipeline.ts";
 import { buildSemanticIR } from "../src/language/semantic.ts";
 import { parseSource } from "../src/language/parser.ts";
 
@@ -27,8 +27,13 @@ test("row plans treat preferred and hard minimum widths separately", () => {
 });
 
 test("semantic validation rejects non-text body content before measurement", () => {
-  const semantic = buildSemanticIR(parseSource('diagram "Body" { item: rectangle "Item" { body "Text" } }'));
-  const body = semantic.statements[0].statements.find((item) => item.type === "body");
+  const semantic = buildSemanticIR(parseSource('diagram "Body" { item: rectangle "Item" { body = "Text" } }'));
+  const node = semantic.statements[0];
+  assert.equal(node?.type, "node");
+  if (node?.type !== "node") throw new Error("expected node");
+  const body = node.statements.find((item) => item.type === "body");
+  assert.equal(body?.type, "body");
+  if (body?.type !== "body") throw new Error("expected body");
   body.value = 42;
   assert.throws(() => compile(semantic), /body content must be text/);
 });

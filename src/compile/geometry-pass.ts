@@ -1,13 +1,10 @@
-import { alignBounds, distributeBounds } from "../geometry.ts";
-import type { AlignmentMode, Bounds, Point } from "../contracts/foundation.ts";
+import { isSemanticGeometryStatement as isGeometryStatement } from "../language/geometry-statements.ts";
+import { solveGeometryConstraints, type GeometryEnvelope } from "../layout/constraints.ts";
+import { resolveStablePathOperations, type GeometryEnvironment } from "./geometry-references.ts";
+import { analyzeRelativeCoordinate, analyzeRelativePoint, type RelativePositionConstraint } from "../language/relative-position.ts";
+import type { AlignmentMode, Bounds } from "../contracts/foundation.ts";
 import type { GeometryStatement, RenderableGeometryStatement, SemanticStatement } from "../contracts/semantic.ts";
-import type { SceneGraph } from "../contracts/layout.ts";
-import type { Drawing } from "../excalidraw/document.ts";
-import type { DrawingElement } from "../contracts/render.ts";
-
-function isGeometryStatement(statement: SemanticStatement): statement is GeometryStatement {
-  return ["alignment", "distribution", "offset", "match-size", "rotation", "snap", "layer"].includes(statement.type);
-}
+import type { SceneGraph, SceneLayerOperation, SceneVisual } from "../contracts/layout.ts";
 
 function isAlignmentMode(value: unknown): value is AlignmentMode {
   return typeof value === "string"
@@ -58,27 +55,62 @@ function geometryStatements(
   return result;
 }
 
+function nodeRelativePosition(statement: SemanticStatement): RelativePositionConstraint | null {
+  if (statement.type !== "node") return null;
+  const at = statement.at;
+  if (typeof at === "string") return { id: statement.id, ...analyzeRelativePoint(at) };
+  if (!Array.isArray(at) || at.length !== 2 || !at.some((coordinate) => typeof coordinate === "string")) return null;
+  return {
+    id: statement.id,
+    x: analyzeRelativeCoordinate(at[0]),
+    y: analyzeRelativeCoordinate(at[1]),
+  };
+}
+
+function attachmentRelativePosition(
+  statement: SemanticStatement,
+  available: ReadonlySet<string>,
+  geometry?: GeometryEnvironment,
+): RelativePositionConstraint | null {
+  if (statement.type !== "attachment" || !available.has(statement.moving)) return null;
+  const source = geometry
+    ? resolveStablePathOperations(statement.target, geometry, `attachment '${statement.moving}.${statement.anchor}'`)
+    : statement.target;
+  const point = analyzeRelativePoint(source);
+  const horizontal = statement.anchor.includes("west") || statement.anchor === "origin" ? 0
+    : statement.anchor.includes("east") ? 1 : 0.5;
+  const vertical = statement.anchor.startsWith("north") || statement.anchor === "origin" ? 0
+    : statement.anchor.startsWith("south") ? 1 : 0.5;
+  if (horizontal) point.x.terms.push({ element: statement.moving, part: "width", coefficient: -horizontal });
+  if (vertical) point.y.terms.push({ element: statement.moving, part: "height", coefficient: -vertical });
+  return { id: statement.moving, ...point };
+}
+
+function relativePositions(
+  statements: readonly SemanticStatement[],
+  available: ReadonlySet<string>,
+  geometry?: GeometryEnvironment,
+  result: RelativePositionConstraint[] = [],
+): RelativePositionConstraint[] {
+  for (const statement of statements) {
+    const placement = nodeRelativePosition(statement)
+      ?? attachmentRelativePosition(statement, available, geometry);
+    if (placement) result.push(placement);
+    if (statement.statements) relativePositions(statement.statements, available, geometry, result);
+  }
+  return result;
+}
+
+export function geometryTargetIds(statements: readonly SemanticStatement[]): Set<string> {
+  return new Set(geometryStatements(statements)
+    .filter((statement) => statement.type !== "layer")
+    .flatMap((statement) => [...statement.ids]));
+}
+
 function requiredBounds(scene: SceneGraph, id: string): Bounds {
   const bounds = scene.bounds.get(id);
   if (!bounds) throw new Error(`geometry operation references unplaced node: ${id}`);
   return bounds;
-}
-
-function ownedElements(drawing: Drawing, id: string): DrawingElement[] {
-  const elements = drawing.elements.filter((element) => element.id.startsWith(`${id}:`));
-  if (!elements.length) throw new Error(`geometry operation found no rendered elements for node: ${id}`);
-  return elements;
-}
-
-function moveSemanticNode(drawing: Drawing, scene: SceneGraph, id: string, bounds: Bounds): void {
-  const previous = requiredBounds(scene, id);
-  const dx = bounds.x - previous.x;
-  const dy = bounds.y - previous.y;
-  updateSceneBounds(scene, id, bounds);
-  for (const element of ownedElements(drawing, id)) {
-    element.x += dx;
-    element.y += dy;
-  }
 }
 
 function updateSceneBounds(scene: SceneGraph, id: string, bounds: Bounds): void {
@@ -87,145 +119,210 @@ function updateSceneBounds(scene: SceneGraph, id: string, bounds: Bounds): void 
   if (record) record.bounds = bounds;
 }
 
-function elementAabb(element: DrawingElement): Bounds {
-  const cosine = Math.abs(Math.cos(element.angle));
-  const sine = Math.abs(Math.sin(element.angle));
-  const width = element.width * cosine + element.height * sine;
-  const height = element.width * sine + element.height * cosine;
-  const centerX = element.x + element.width / 2;
-  const centerY = element.y + element.height / 2;
+function sameBounds(left: Bounds, right: Bounds): boolean {
+  return (["x", "y", "width", "height"] as const).every((key) => (
+    Math.abs(left[key] - right[key]) < 1e-9
+  ));
+}
+
+function updateSceneVisualBounds(
+  scene: SceneGraph,
+  id: string,
+  previous: Bounds,
+  next: Bounds,
+): void {
+  updateSceneBounds(scene, id, next);
+  const visual = scene.visuals.find((item) => item.id === id);
+  if (!visual) return;
+  if (visual.type === "node") {
+    if (previous.width !== next.width || previous.height !== next.height) {
+      const rendered = { ...previous, x: next.x, y: next.y };
+      visual.bounds = rendered;
+      visual.transform = { from: rendered, to: next, angle: 0 };
+    } else {
+      visual.bounds = next;
+    }
+  } else if (visual.type === "container" || visual.type === "frame" || visual.type === "code") {
+    visual.bounds = next;
+  } else if (visual.type === "freedraw") {
+    const dx = next.x - previous.x;
+    const dy = next.y - previous.y;
+    visual.statement = {
+      ...visual.statement,
+      at: [visual.statement.at[0] + dx, visual.statement.at[1] + dy],
+    };
+    visual.bounds = next;
+  } else if (visual.type === "text") {
+    visual.position = [next.x, next.y];
+  }
+}
+
+function statementWithIds(
+  statement: RenderableGeometryStatement,
+  ids: string[],
+): RenderableGeometryStatement {
+  return { ...statement, ids };
+}
+
+function hasEnoughTargets(statement: RenderableGeometryStatement): boolean {
+  if (statement.type === "alignment" || statement.type === "match-size") return statement.ids.length >= 2;
+  if (statement.type === "distribution") return statement.ids.length >= 3;
+  return statement.ids.length > 0;
+}
+
+function projectLinearStatements(
+  statements: readonly SemanticStatement[],
+  targets: ReadonlySet<string>,
+  keepRelationalPeers: boolean,
+): RenderableGeometryStatement[] {
+  const result: RenderableGeometryStatement[] = [];
+  for (const statement of geometryStatements(statements)) {
+    if (statement.type === "layer" || statement.type === "rotation") continue;
+    const selected = statement.ids.filter((id) => targets.has(id));
+    if (!selected.length) continue;
+    const relational = statement.type === "alignment" || statement.type === "distribution";
+    const projected = statementWithIds(statement, keepRelationalPeers && relational ? [...statement.ids] : selected);
+    if (hasEnoughTargets(projected)) result.push(projected);
+  }
+  return result;
+}
+
+function boundedVisual(scene: SceneGraph, id: string): SceneVisual & { bounds: Bounds } {
+  const visual = scene.visuals.find((item) => item.id === id);
+  if (!visual || !("bounds" in visual)) {
+    throw new Error(`geometry operation found no scene visual for: ${id}`);
+  }
+  return visual;
+}
+
+function rotatedBounds(bounds: Bounds, angle: number): Bounds {
+  const cosine = Math.abs(Math.cos(angle));
+  const sine = Math.abs(Math.sin(angle));
+  const width = bounds.width * cosine + bounds.height * sine;
+  const height = bounds.width * sine + bounds.height * cosine;
+  const centerX = bounds.x + bounds.width / 2;
+  const centerY = bounds.y + bounds.height / 2;
   return { x: centerX - width / 2, y: centerY - height / 2, width, height };
 }
 
-function unionBounds(bounds: readonly Bounds[]): Bounds {
-  const left = Math.min(...bounds.map((item) => item.x));
-  const top = Math.min(...bounds.map((item) => item.y));
-  const right = Math.max(...bounds.map((item) => item.x + item.width));
-  const bottom = Math.max(...bounds.map((item) => item.y + item.height));
-  return { x: left, y: top, width: right - left, height: bottom - top };
-}
-
-function localScaleFor(element: DrawingElement, scaleX: number, scaleY: number): Point {
-  const cosine = Math.abs(Math.cos(element.angle));
-  const sine = Math.abs(Math.sin(element.angle));
-  const epsilon = 1e-9;
-  if (Math.abs(scaleX - scaleY) < epsilon || sine < epsilon) return [scaleX, scaleY];
-  if (cosine < epsilon) return [scaleY, scaleX];
-  throw new Error("match-size cannot anisotropically resize nodes rotated outside quarter turns");
-}
-
-function scaleElementPoints(element: DrawingElement, scaleX: number, scaleY: number): void {
-  if (element.type !== "arrow" && element.type !== "line" && element.type !== "freedraw") return;
-  element.points = element.points.map(([x, y]) => [x * scaleX, y * scaleY]);
-}
-
-function transformSemanticNode(drawing: Drawing, scene: SceneGraph, id: string, next: Bounds): void {
-  const previous = requiredBounds(scene, id);
-  const scaleX = previous.width ? next.width / previous.width : 1;
-  const scaleY = previous.height ? next.height / previous.height : 1;
-  const elements = ownedElements(drawing, id);
-  for (const element of elements) {
-    const centerX = element.x + element.width / 2;
-    const centerY = element.y + element.height / 2;
-    const nextCenterX = next.x + (centerX - previous.x) * scaleX;
-    const nextCenterY = next.y + (centerY - previous.y) * scaleY;
-    const [localScaleX, localScaleY] = localScaleFor(element, scaleX, scaleY);
-    element.width *= localScaleX;
-    element.height *= localScaleY;
-    scaleElementPoints(element, localScaleX, localScaleY);
-    element.x = nextCenterX - element.width / 2;
-    element.y = nextCenterY - element.height / 2;
+function rotationEnvelopes(
+  bounds: ReadonlyMap<string, Bounds>,
+  statements: readonly SemanticStatement[],
+  targets: ReadonlySet<string>,
+): ReadonlyMap<string, GeometryEnvelope> {
+  const angles = new Map<string, number>();
+  for (const statement of geometryStatements(statements)) {
+    if (statement.type !== "rotation") continue;
+    const radians = statement.degrees * Math.PI / 180;
+    for (const id of statement.ids) {
+      if (targets.has(id)) angles.set(id, (angles.get(id) ?? 0) + radians);
+    }
   }
-  updateSceneBounds(scene, id, unionBounds(elements.map(elementAabb)));
-}
-
-function rotateSemanticNode(drawing: Drawing, scene: SceneGraph, id: string, radians: number): void {
-  const previous = requiredBounds(scene, id);
-  const centerX = previous.x + previous.width / 2;
-  const centerY = previous.y + previous.height / 2;
-  const cosine = Math.cos(radians);
-  const sine = Math.sin(radians);
-  const elements = ownedElements(drawing, id);
-  for (const element of elements) {
-    const elementCenterX = element.x + element.width / 2;
-    const elementCenterY = element.y + element.height / 2;
-    const dx = elementCenterX - centerX;
-    const dy = elementCenterY - centerY;
-    const rotatedCenterX = centerX + dx * cosine - dy * sine;
-    const rotatedCenterY = centerY + dx * sine + dy * cosine;
-    element.x = rotatedCenterX - element.width / 2;
-    element.y = rotatedCenterY - element.height / 2;
-    element.angle += radians;
+  const result = new Map<string, GeometryEnvelope>();
+  for (const [id, angle] of angles) {
+    const linear = bounds.get(id);
+    if (!linear) continue;
+    const rotated = rotatedBounds(linear, angle);
+    result.set(id, {
+      left: linear.x - rotated.x,
+      right: rotated.x + rotated.width - (linear.x + linear.width),
+      top: linear.y - rotated.y,
+      bottom: rotated.y + rotated.height - (linear.y + linear.height),
+    });
   }
-  updateSceneBounds(scene, id, unionBounds(elements.map(elementAabb)));
+  return result;
 }
 
-export function applyGeometryStatements(
-  drawing: Drawing,
+function planRotations(
   scene: SceneGraph,
   statements: readonly SemanticStatement[],
+  targets: ReadonlySet<string>,
 ): void {
   for (const statement of geometryStatements(statements)) {
-    // Layer order is applied after everything is drawn, because it reorders the
-    // emitted elements rather than moving any of them.
-    if (statement.type === "layer") continue;
-    const bounds = statement.ids.map((id) => requiredBounds(scene, id));
-    if (statement.type === "alignment" || statement.type === "distribution") {
-      const resolved = statement.type === "alignment"
-        ? alignBounds(bounds, statement.mode)
-        : distributeBounds(bounds, statement.axis);
-      statement.ids.forEach((id, index) => moveSemanticNode(drawing, scene, id, resolved[index]));
-    } else if (statement.type === "offset") {
-      statement.ids.forEach((id, index) => moveSemanticNode(drawing, scene, id, {
-        ...bounds[index], x: bounds[index].x + statement.by[0], y: bounds[index].y + statement.by[1],
-      }));
-    } else if (statement.type === "match-size") {
-      const reference = bounds[0];
-      statement.ids.forEach((id, index) => transformSemanticNode(drawing, scene, id, {
-        ...bounds[index],
-        width: statement.axis === "height" ? bounds[index].width : reference.width,
-        height: statement.axis === "width" ? bounds[index].height : reference.height,
-      }));
-    } else if (statement.type === "rotation") {
-      const radians = statement.degrees * Math.PI / 180;
-      statement.ids.forEach((id) => rotateSemanticNode(drawing, scene, id, radians));
-    } else if (statement.type === "snap") {
-      statement.ids.forEach((id, index) => moveSemanticNode(drawing, scene, id, {
-        ...bounds[index],
-        x: Math.round(bounds[index].x / statement.grid) * statement.grid,
-        y: Math.round(bounds[index].y / statement.grid) * statement.grid,
-      }));
+    if (statement.type !== "rotation") continue;
+    const radians = statement.degrees * Math.PI / 180;
+    for (const id of statement.ids.filter((candidate) => targets.has(candidate))) {
+      const visual = boundedVisual(scene, id);
+      const linear = visual.transform?.to ?? visual.bounds;
+      const angle = (visual.transform?.angle ?? 0) + radians;
+      visual.transform = { from: visual.transform?.from ?? linear, to: linear, angle };
+      updateSceneBounds(scene, id, rotatedBounds(linear, angle));
     }
   }
 }
 
-/**
- * Applies `bring-to-front` and `send-to-back` by reordering what has been drawn.
- *
- * In Excalidraw a scene has no z-index: depth is the order of the element array,
- * and its own front-and-back commands reorder that array. This does the same, so
- * a document says the thing Excalidraw would say and the two agree.
- *
- * It runs last, unlike every other operation in the family, because connectors
- * are drawn after the elements they join and an element cannot be lifted above
- * something that does not exist yet.
- */
-export function applyLayerOrder(drawing: Drawing, statements: readonly SemanticStatement[]): void {
-  for (const statement of geometryStatements(statements)) {
-    if (statement.type !== "layer") continue;
-    // A card owns `id:frame` and `id:title`, while an icon, an image and a piece
-    // of free text are the element `id` itself, so both spellings count.
-    const owned = (id: string): DrawingElement[] => {
-      const elements = drawing.elements.filter((element) => (
-        element.id === id || element.id.startsWith(`${id}:`)
-      ));
-      if (!elements.length) throw new Error(`layer order found no rendered elements for: ${id}`);
-      return elements;
-    };
-    const moved: DrawingElement[] = [];
-    for (const id of statement.ids) moved.push(...owned(id));
-    const lifted = new Set(moved);
-    const rest = drawing.elements.filter((element) => !lifted.has(element));
-    drawing.elements = statement.mode === "front" ? [...rest, ...moved] : [...moved, ...rest];
+export interface SceneGeometryOptions {
+  targets?: ReadonlySet<string>;
+  keepRelationalPeers?: boolean;
+  includeRelativePositions?: boolean;
+  includeLayoutRelations?: boolean;
+  fixed?: ReadonlySet<string>;
+  attachmentEnvironment?: GeometryEnvironment;
+}
+
+/** Solve and record final geometry while the scene is still renderer-independent data. */
+export function solveSceneGeometry(
+  scene: SceneGraph,
+  statements: readonly SemanticStatement[],
+  options: SceneGeometryOptions = {},
+): void {
+  const targets = options.targets ?? new Set(scene.bounds.keys());
+  const selected = projectLinearStatements(statements, targets, options.keepRelationalPeers ?? false);
+  const placements = options.includeRelativePositions === false
+    ? []
+    : relativePositions(statements, new Set(scene.bounds.keys()), options.attachmentEnvironment);
+  const envelopes = rotationEnvelopes(scene.bounds, statements, targets);
+  const includeRelationalLayout = placements.length > 0;
+  const includeLayout = options.includeLayoutRelations ?? (includeRelationalLayout || envelopes.size > 0);
+  const layout = includeLayout ? {
+    containers: scene.containers,
+    membership: scene.containerMembership,
+    // A rotation needs containment but must not reactivate an arrangement's
+    // already-consumed flow constraints. Relative placement does need the
+    // original flows to remain coherent while it moves boxes.
+    flows: includeRelationalLayout ? scene.layoutFlows : [],
+    envelopes,
+    containmentTargets: includeRelationalLayout ? undefined : new Set(envelopes.keys()),
+  } : undefined;
+  const solved = solveGeometryConstraints(
+    scene.bounds,
+    selected,
+    placements,
+    layout,
+    options.fixed,
+  );
+  let changed = false;
+  for (const [id, next] of solved) {
+    const previous = requiredBounds(scene, id);
+    if (!sameBounds(previous, next)) {
+      changed = true;
+      updateSceneVisualBounds(scene, id, previous, next);
+    }
   }
+  if (geometryStatements(statements).some((statement) => statement.type === "rotation"
+      && statement.ids.some((id) => targets.has(id)))) changed = true;
+  planRotations(scene, statements, targets);
+  // Adapter routes were computed against pre-constraint bounds. Let the final
+  // router derive fresh waypoints whenever precision geometry changed them.
+  if (changed) scene.adapterRoutes.clear();
+}
+
+/** Bounds of a detached stroke before target-format point normalization. */
+export function freedrawBounds(statement: { at: readonly [number, number]; points: readonly (readonly [number, number])[] }): Bounds {
+  const xs = statement.points.map(([x]) => statement.at[0] + x);
+  const ys = statement.points.map(([, y]) => statement.at[1] + y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return {
+    x,
+    y,
+    width: Math.max(...xs) - x,
+    height: Math.max(...ys) - y,
+  };
+}
+
+export function collectLayerOperations(statements: readonly SemanticStatement[]): SceneLayerOperation[] {
+  return geometryStatements(statements).flatMap((statement) => (
+    statement.type === "layer" ? [{ ids: [...statement.ids], mode: statement.mode }] : []
+  ));
 }

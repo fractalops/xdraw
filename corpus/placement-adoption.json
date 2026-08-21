@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "method": "Task-based examples are selected for coordinate relationships before counting which syntax they use; this avoids treating pre-feature source as evidence of low demand.",
+  "sources": [
+    {
+      "file": "examples/plot-flow.xdraw",
+      "task": "Keep four variable-size stages and their plots anchored while stage dimensions change.",
+      "expected": {
+        "automaticNodes": 1,
+        "absoluteNodes": 0,
+        "relativeNodes": 3,
+        "absoluteDetached": 0,
+        "relativeDetached": 4,
+        "computedDetached": 0
+      },
+      "remainingAbsoluteIntent": "No absolute coordinate is required; automatic layout establishes the origin."
+    },
+    {
+      "file": "corpus/supported/relative-placement.xdraw",
+      "task": "Keep a measured processing chain aligned with a stable gap while node widths change.",
+      "expected": {
+        "automaticNodes": 1,
+        "absoluteNodes": 0,
+        "relativeNodes": 2,
+        "absoluteDetached": 0,
+        "relativeDetached": 0,
+        "computedDetached": 0
+      },
+      "remainingAbsoluteIntent": "No absolute coordinate is required."
+    }
+  ]
+}

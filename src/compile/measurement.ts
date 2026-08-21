@@ -7,9 +7,9 @@ import {
 import { layoutGap } from "../routing/clearances.ts";
 import { codeBlockRequiredWidth, measureCodeBlock } from "../text/code-block.ts";
 import { arrangedItems, childSections } from "../layout/sections.ts";
+import { isFinitePoint } from "../excalidraw/freedraw-policy.ts";
 import {
   planRichNode,
-  registerRichNodePlanner,
   richNodeMinimumWidth,
 } from "../nodes/rich-nodes.ts";
 import type {
@@ -33,7 +33,7 @@ import type { DiagnosticCollector } from "../contracts/foundation.ts";
 import type { RichNodePlan } from "../contracts/rich-node.ts";
 import type { FormulaPreparation } from "../nodes/math/formula.ts";
 
-interface ArrangedRow {
+export interface ArrangedRow {
   items: ArrangedStatement[];
   widths: number[];
 }
@@ -61,6 +61,35 @@ function connectionLabels(connection: ConnectionStatement): string[] {
     .filter((value): value is string => typeof value === "string" && value.length > 0);
 }
 
+function warnRaisedGap(
+  layout: LayoutStatement | undefined,
+  diagnostics: DiagnosticCollector | null,
+  requested: number,
+  resolved: number,
+  reason: string,
+): void {
+  if (layout?.gap === undefined || resolved <= requested) return;
+  diagnostics?.warn(
+    "XD2001",
+    `layout gap ${requested} was raised to ${resolved} so ${reason}`,
+    layout,
+    { measures: { requested, resolved } },
+  );
+}
+
+function connectorLabelGap(labels: readonly string[], column: boolean, requested: number): number {
+  if (!column) {
+    const width = labels.reduce((largest, label) => Math.max(largest, measureConnectorLabelWidth(label)), 0);
+    return Math.max(requested, 64, Math.ceil(width + 28));
+  }
+  const height = labels.reduce((largest, label) => {
+    const width = measureConnectorLabelWidth(label);
+    const lines = wrapTextToWidth(label, width, DEFAULT_CONNECTOR_LABEL_SIZE).split("\n").length;
+    return Math.max(largest, lines * DEFAULT_CONNECTOR_LABEL_SIZE * 1.25);
+  }, 0);
+  return Math.max(requested, 52, Math.ceil(height + 28));
+}
+
 export function resolveContainerGap(
   node: ContainerStatement,
   layout: LayoutStatement | undefined,
@@ -73,28 +102,11 @@ export function resolveContainerGap(
   if (!labels.length) {
     if (layout?.ownsChildren) return Math.max(requested, layout.kind === "column" ? 36 : 40);
     const resolved = Math.max(requested, layout?.kind === "column" ? 52 : 64);
-    if (layout?.gap !== undefined && resolved > requested) {
-      diagnostics?.warn("XD2001", `layout gap ${requested} was raised to ${resolved} so connectors remain visible`, layout);
-    }
+    warnRaisedGap(layout, diagnostics, requested, resolved, "connectors remain visible");
     return resolved;
   }
-  if (layout?.kind === "column") {
-    const labelHeight = labels.reduce((height, label) => {
-      const width = measureConnectorLabelWidth(label);
-      const lines = wrapTextToWidth(label, width, DEFAULT_CONNECTOR_LABEL_SIZE).split("\n").length;
-      return Math.max(height, lines * DEFAULT_CONNECTOR_LABEL_SIZE * 1.25);
-    }, 0);
-    const resolved = Math.max(requested, 52, Math.ceil(labelHeight + 28));
-    if (layout?.gap !== undefined && resolved > requested) {
-      diagnostics?.warn("XD2001", `layout gap ${requested} was raised to ${resolved} so connector labels fit`, layout);
-    }
-    return resolved;
-  }
-  const labelWidth = labels.reduce((width, label) => Math.max(width, measureConnectorLabelWidth(label)), 0);
-  const resolved = Math.max(requested, 64, Math.ceil(labelWidth + 28));
-  if (layout?.gap !== undefined && resolved > requested) {
-    diagnostics?.warn("XD2001", `layout gap ${requested} was raised to ${resolved} so connector labels fit`, layout);
-  }
+  const resolved = connectorLabelGap(labels, layout?.kind === "column", requested);
+  warnRaisedGap(layout, diagnostics, requested, resolved, "connector labels fit");
   return resolved;
 }
 
@@ -197,6 +209,27 @@ export function calculateArrangedRows(
   return rows;
 }
 
+/** Plan a fixed-column grid for any arranged children of a container. */
+export function calculateGridRows(
+  totalWidth: number,
+  items: readonly ArrangedStatement[],
+  gap: number,
+  columns: number,
+): ArrangedRow[] {
+  if (!Number.isInteger(columns) || columns < 1) {
+    throw new Error("nested grid columns must be a positive integer");
+  }
+  if (!items.length) return [];
+  const minimumWidth = Math.max(...items.map(arrangedItemMinimumWidth));
+  const slotWidth = calculateSlotWidth(totalWidth, columns, gap, "nested grid", minimumWidth);
+  const rows: ArrangedRow[] = [];
+  for (let index = 0; index < items.length; index += columns) {
+    const rowItems = items.slice(index, index + columns);
+    rows.push({ items: rowItems, widths: rowItems.map(() => slotWidth) });
+  }
+  return rows;
+}
+
 function nodeMinimumHeight(node: NodeMeasurementTarget): number {
   if (node.kind === "junction") return 20;
   if (node.kind === "decision") return 120;
@@ -233,7 +266,7 @@ export function createMeasurer(
     richPlanCache,
     node,
     width,
-    () => planRichNode(node, width, styles?.resolveNode(node), formulaPreparation),
+    () => planRichNode(node, width, styles?.resolveNode(node), formulaPreparation, styles),
   );
 
   const measureNode: Measurer["measureNode"] = (node, width) => cached(nodeCache, node, width, () => {
@@ -326,11 +359,36 @@ export function createMeasurer(
     return measureSection(item, width, y);
   };
 
+  const measureOwnedChildren = (
+    layout: LayoutStatement,
+    items: readonly ArrangedStatement[],
+    contentWidth: number,
+    gap: number,
+    startY: number,
+  ): number => {
+    if (!items.length) return 0;
+    if (layout.kind === "column") {
+      return items.reduce((sum, item, itemIndex) => (
+        sum + measureArrangedItem(item, item.size?.[0] ?? contentWidth, startY + sum)
+        + (itemIndex < items.length - 1 ? gap : 0)
+      ), 0);
+    }
+    const rows = layout.kind === "grid"
+      ? calculateGridRows(contentWidth, items, gap, layout.columns ?? 2)
+      : calculateArrangedRows(contentWidth, items, gap);
+    return rows.reduce((height, row, rowIndex) => {
+      const rowHeight = Math.max(...row.items.map((item, itemIndex) => (
+        measureArrangedItem(item, row.widths[itemIndex], startY + height)
+      )));
+      return height + rowHeight + (rowIndex < rows.length - 1 ? gap : 0);
+    }, 0);
+  };
+
   function measureContainer(node: ContainerStatement, width: number, y = 0): number {
     return cached(containerCache, node, `${width}:${y}`, () => {
       const nodes = nodeStatements(node.statements);
-      const automatic = nodes.filter((item) => !item.at);
-      const explicit = nodes.filter((item): item is NodeStatement & { at: [number, number] } => Boolean(item.at));
+      const automatic = nodes.filter((item) => !isFinitePoint(item.at));
+      const explicit = nodes.filter((item): item is NodeStatement & { at: [number, number] } => isFinitePoint(item.at));
       const layout = node.statements.find((item) => item.type === "layout");
       const gap = resolveContainerGap(node, layout, styles?.diagnostics);
       const contentWidth = width - 80;
@@ -347,22 +405,13 @@ export function createMeasurer(
       const automaticStart = explicit.length ? Math.max(76, explicitBottom + gap) : 76;
       if (layout?.ownsChildren) {
         const items = arrangedItems(node.statements);
-        let arrangedHeight = 0;
-        if (items.length && layout.kind === "column") {
-          arrangedHeight = items.reduce((sum, item, itemIndex) => (
-            sum + measureArrangedItem(item, item.size?.[0] ?? contentWidth, y + automaticStart + sum)
-            + (itemIndex < items.length - 1 ? gap : 0)
-          ), 0);
-        } else if (items.length) {
-          const rows = calculateArrangedRows(contentWidth, items, gap);
-          for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
-            const row = rows[rowIndex];
-            arrangedHeight += Math.max(...row.items.map((item, itemIndex) => (
-              measureArrangedItem(item, row.widths[itemIndex], y + automaticStart + arrangedHeight)
-            )));
-            if (rowIndex < rows.length - 1) arrangedHeight += gap;
-          }
-        }
+        const arrangedHeight = measureOwnedChildren(
+          layout,
+          items,
+          contentWidth,
+          gap,
+          y + automaticStart,
+        );
         const contentBottom = Math.max(
           88,
           explicitBottom + (explicit.length ? 24 : 0),
@@ -403,6 +452,7 @@ export function createMeasurer(
   }
 
   const measurer = {
+    planRichNode: planNode,
     measureNode,
     measureAnnotation,
     measureLayoutText,
@@ -413,6 +463,5 @@ export function createMeasurer(
     measureSequence,
     measureTree,
   };
-  registerRichNodePlanner(measurer, planNode);
   return measurer;
 }

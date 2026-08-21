@@ -3,6 +3,7 @@ import { splitEndpoint } from "../routing/endpoints.ts";
 import { BUILTIN_LAYOUT_CAPABILITIES, createLayoutAdapter } from "../compile/scene.ts";
 import {
   calculateArrangedRows,
+  calculateGridRows,
   calculateRowPlan,
   calculateSlotWidth,
   renderableCode,
@@ -10,6 +11,7 @@ import {
 } from "../compile/measurement.ts";
 import { wrapTextToWidth } from "../text/metrics.ts";
 import { codeBlockRequiredWidth } from "../text/code-block.ts";
+import { isFinitePoint } from "../excalidraw/freedraw-policy.ts";
 import { arrangedItems, childSections } from "./sections.ts";
 import type {
   ArrangedStatement,
@@ -95,6 +97,21 @@ function addVisual(
   if (owner && frameId) state.frameMembership.set(owner, frameId);
 }
 
+function recordFlow(
+  state: SceneGraph,
+  axis: "x" | "y",
+  groups: readonly (readonly string[])[],
+  gap: number,
+): void {
+  for (let index = 1; index < groups.length; index += 1) {
+    const before = groups[index - 1];
+    const after = groups[index];
+    if (before.length && after.length) {
+      state.layoutFlows.push({ axis, before: [...before], after: [...after], gap });
+    }
+  }
+}
+
 function placeCodeBlock(
   context: BuiltinLayoutContext,
   node: CodeStatement,
@@ -103,11 +120,13 @@ function placeCodeBlock(
   const { state, registerBounds } = context;
   registerBounds(state, node.id, bounds);
   const block = renderableCode(node);
-  if (codeBlockRequiredWidth(block) > bounds.width) {
+  const requiredWidth = codeBlockRequiredWidth(block);
+  if (requiredWidth > bounds.width) {
     state.diagnostics?.warn(
       "XD2005",
       `code block '${node.id}' exceeds its ${Math.round(bounds.width)}px content width`,
       node,
+      { subjects: [node.id], measures: { required: Math.round(requiredWidth), available: Math.round(bounds.width) } },
     );
   }
   addVisual(state, {
@@ -176,13 +195,18 @@ function layoutContainer(
     }
     : { ...context, containerId: node.id };
   if (isFrame) state.frameLocks.set(node.id, childContext.frameLocked ?? false);
+  // Every container reserved a band for its heading. A `group` draws no heading,
+  // labelled or not, so the band was empty space above its first child, and it
+  // read as the container being loosely padded rather than as a reservation for
+  // something absent.
+  const headingBand = node.type === "group" ? 24 : 76;
   const nodes = nodeStatements(node.statements);
   const layout = node.statements.find((item) => item.type === "layout");
-  if (layout && !["row", "column"].includes(layout.kind)) throw new Error(`unsupported layout: ${layout.kind}`);
+  if (layout && !["row", "column", "grid"].includes(layout.kind)) throw new Error(`unsupported layout: ${layout.kind}`);
   if (layout?.ownsChildren) {
     const gap = resolveContainerGap(node, layout, state.diagnostics);
-    const content = box(x + 40, y + 76, width - 80, 1);
-    const explicit = nodes.filter((item): item is NodeStatement & { at: Point } => Boolean(item.at));
+    const content = box(x + 40, y + headingBand, width - 80, 1);
+    const explicit = nodes.filter((item): item is NodeStatement & { at: Point } => isFinitePoint(item.at));
     const explicitBottom = explicit.reduce((bottom, item) => (
       Math.max(bottom, item.at[1] + (item.size?.[1] ?? 110))
     ), content.y);
@@ -239,8 +263,11 @@ function layoutContainer(
         itemY += itemHeight + gap;
       }
       arrangedBottom = itemY - gap;
+      recordFlow(state, "y", items.map((item) => [item.id]), gap);
     } else if (items.length) {
-      const rows = calculateArrangedRows(content.width, items, gap);
+      const rows = layout.kind === "grid"
+        ? calculateGridRows(content.width, items, gap, layout.columns ?? 2)
+        : calculateArrangedRows(content.width, items, gap);
       let itemY = startY;
       for (const arrangedRow of rows) {
         let itemX = content.x;
@@ -255,6 +282,10 @@ function layoutContainer(
         itemY += Math.max(...itemBounds.map((itemBounds_) => itemBounds_.height)) + gap;
       }
       arrangedBottom = itemY - gap;
+      for (const arrangedRow of rows) {
+        recordFlow(state, "x", arrangedRow.items.map((item) => [item.id]), gap);
+      }
+      recordFlow(state, "y", rows.map((arrangedRow) => arrangedRow.items.map((item) => item.id)), gap);
     }
     const scopedNotes = node.statements.filter((item): item is NoteStatement => (
       item.type === "note" && !item.target && !item.at
@@ -286,13 +317,13 @@ function layoutContainer(
   }
   if (nodes.length) {
     const gap = resolveContainerGap(node, layout, state.diagnostics);
-    const content = box(x + 40, y + 76, width - 80, 1);
-    const automatic = nodes.filter((item) => !item.at);
-    const explicitNodes = nodes.filter((item): item is NodeStatement & { at: Point } => Boolean(item.at));
+    const content = box(x + 40, y + headingBand, width - 80, 1);
+    const automatic = nodes.filter((item) => !isFinitePoint(item.at));
+    const explicitNodes = nodes.filter((item): item is NodeStatement & { at: Point } => isFinitePoint(item.at));
     const explicitBottom = explicitNodes.reduce((bottom, item) => (
       Math.max(bottom, item.at[1] + (item.size?.[1] ?? 110))
     ), content.y);
-    const automaticStartY = nodes.some((item) => item.at) ? Math.max(content.y, explicitBottom + gap) : content.y;
+    const automaticStartY = explicitNodes.length ? Math.max(content.y, explicitBottom + gap) : content.y;
     const automaticBounds: Bounds[] = [];
     if (automatic.length && layout?.kind === "column") {
       let itemY = automaticStartY;
@@ -302,11 +333,14 @@ function layoutContainer(
         automaticBounds.push(box(content.x, itemY, itemWidth, itemHeight));
         itemY += itemHeight + gap;
       }
+      recordFlow(state, "y", automatic.map((item) => [item.id]), gap);
     } else if (automatic.length) {
       const plan = calculateRowPlan(content.width, automatic.length, gap, "row layout");
       let itemY = automaticStartY;
+      const rows: NodeStatement[][] = [];
       for (let index = 0; index < automatic.length; index += plan.columns) {
         const rowItems = automatic.slice(index, index + plan.columns);
+        rows.push(rowItems);
         const slots = row(box(content.x, itemY, content.width, 1), rowItems.length, gap);
         const rowBounds = slots.map((slot, rowIndex) => ({
           ...slot,
@@ -315,10 +349,12 @@ function layoutContainer(
         automaticBounds.push(...rowBounds);
         itemY += Math.max(...rowBounds.map((bounds) => bounds.height)) + gap;
       }
+      for (const rowItems of rows) recordFlow(state, "x", rowItems.map((item) => [item.id]), gap);
+      recordFlow(state, "y", rows.map((rowItems) => rowItems.map((item) => item.id)), gap);
     }
     let automaticIndex = 0;
     for (const item of nodes) {
-      const itemBounds = item.at
+      const itemBounds = isFinitePoint(item.at)
         ? box(item.at[0], item.at[1], item.size?.[0] ?? 240, item.size?.[1] ?? 110)
         : { ...automaticBounds[automaticIndex++], width: item.size?.[0] ?? automaticBounds[automaticIndex - 1].width };
       registerBounds(state, item.id, itemBounds);
@@ -337,6 +373,10 @@ function layoutContainer(
     state.containerMembership.set(child.id, node.id);
     const childHeight = layoutBuiltInSection(childContext, child, { x: x + 30, y: childY, width: width - 60 });
     childY += childHeight + 24;
+  }
+  recordFlow(state, "y", children.map((child) => [child.id]), 24);
+  if (nodes.length && children.length) {
+    state.layoutFlows.push({ axis: "y", before: nodes.map((item) => item.id), after: [children[0].id], gap: 35 });
   }
   const scopedNotes = node.statements.filter((item): item is NoteStatement => (
     item.type === "note" && !item.target && !item.at
@@ -448,7 +488,7 @@ function layoutTree(
           type: "connection",
           nodes: direction === "right"
             ? [`${item.parent}.right`, `${item.id}.left`]
-            : [`${item.parent}.south`, `${item.id}.north`],
+            : [`${item.parent}.bottom`, `${item.id}.top`],
           attributes,
           generatedRoute: direction === "right",
         });
@@ -590,19 +630,25 @@ export function layoutBuiltInDocument(
   let y = startY;
   if (kind === "grid") {
     const columnWidth = (contentWidth - columnGap * (columns - 1)) / columns;
+    const rows: LayoutSectionStatement[][] = [];
     for (let index = 0; index < sections.length; index += columns) {
-      const heights = sections.slice(index, index + columns).map((section, column) => layoutBuiltInSection(context, section, {
+      const rowSections = sections.slice(index, index + columns);
+      rows.push(rowSections);
+      const heights = rowSections.map((section, column) => layoutBuiltInSection(context, section, {
         x: x + column * (columnWidth + columnGap),
         y,
         width: columnWidth,
       }));
+      recordFlow(context.state, "x", rowSections.map((section) => [section.id]), columnGap);
       y += Math.max(...heights) + gap;
     }
+    recordFlow(context.state, "y", rows.map((row) => row.map((section) => section.id)), gap);
     return y;
   }
   for (const section of sections) {
     y += layoutBuiltInSection(context, section, { x, y, width: contentWidth }) + gap;
   }
+  recordFlow(context.state, "y", sections.map((section) => [section.id]), gap);
   return y;
 }
 

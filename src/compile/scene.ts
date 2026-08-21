@@ -1,5 +1,4 @@
 import { splitEndpoint } from "../routing/endpoints.ts";
-import { attachRichNodePlan, planMeasuredRichNode } from "../nodes/rich-nodes.ts";
 import type {
   AdapterRoute,
   LayoutAdapter,
@@ -222,6 +221,7 @@ export function createSceneGraph(document: SemanticDocument, options: SceneGraph
     visuals: [],
     frameMembership: new Map(),
     containerMembership: new Map(),
+    layoutFlows: [],
     frameLocks: new Map(),
     canvas: { left: 70, right: 70 + options.diagramWidth, top: 30 },
     annotationGutter: options.annotationGutterWidth
@@ -242,20 +242,26 @@ export function createSceneGraph(document: SemanticDocument, options: SceneGraph
       return record;
     },
     addVisual(visual) {
-      const sourceId = visual.source ?? (visual.type === "node" ? visual.node.semanticId : undefined) ?? visual.id;
+      const sourceId = visual.source
+        ?? (visual.type === "node" ? visual.node.semanticId : undefined)
+        ?? (visual.type === "freedraw" ? visual.statement.semanticId : undefined)
+        ?? visual.id;
       const origin = graph.origins.get(sourceId) ?? document.origin ?? null;
       graph.registerGenerated(visual.id, visual, origin);
       if (visual.type === "node") {
         const style = visual.style ?? graph.styles?.resolveNode(visual.node);
         if (!style) throw new Error(`node visual '${visual.id}' requires a style resolver`);
-        const nodeVisual = { ...visual, style, origin };
-        attachRichNodePlan(nodeVisual, planMeasuredRichNode(
-          graph.measurer,
-          visual.node,
-          visual.bounds.width,
+        const nodeVisual = {
+          ...visual,
           style,
-        ));
+          origin,
+          richPlan: visual.richPlan ?? graph.measurer.planRichNode(visual.node, visual.bounds.width, style),
+        };
         graph.visuals.push(nodeVisual);
+      } else if (visual.type === "freedraw") {
+        const style = visual.style ?? graph.styles?.resolveFreedraw(visual.statement);
+        if (!style) throw new Error(`freedraw visual '${visual.id}' requires a style resolver`);
+        graph.visuals.push({ ...visual, style, origin });
       } else {
         graph.visuals.push({ ...visual, origin });
       }

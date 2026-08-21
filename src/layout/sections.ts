@@ -1,5 +1,6 @@
 import type { ArrangedStatement, LayoutSectionStatement } from "../contracts/layout.ts";
 import type { SemanticStatement } from "../contracts/semantic.ts";
+import { isFinitePoint } from "../excalidraw/freedraw-policy.ts";
 
 export const SECTION_TYPES = new Set<SemanticStatement["type"]>([
   "code", "frame", "group", "lane", "section", "sequence", "tree",
@@ -21,7 +22,7 @@ export function childSections(statements: readonly SemanticStatement[]): LayoutS
 
 export function arrangedItems(statements: readonly SemanticStatement[]): ArrangedStatement[] {
   return statements.filter((item): item is ArrangedStatement => (
-    (item.type === "node" && !item.at)
+    (item.type === "node" && !isFinitePoint(item.at))
     || item.type === "layout-text"
     || SECTION_TYPES.has(item.type)
   ));

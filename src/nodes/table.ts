@@ -126,7 +126,7 @@ function cellElements(
     const rowId = row.type === "table-header" ? "header" : `row:${rowIndex - 1}`;
     const cellId = `${tableId}:${rowId}:cell:${columnIndex}`;
     const contentBounds = box(
-      x = + HORIZONTAL_PADDING,
+      x + HORIZONTAL_PADDING,
       rowBounds.y + VERTICAL_PADDING,
       Math.max(1, width - HORIZONTAL_PADDING * 2),
       Math.max(1, rowBounds.height - VERTICAL_PADDING * 2),

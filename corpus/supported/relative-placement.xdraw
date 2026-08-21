@@ -1,0 +1,15 @@
+diagram "Relative placement" {
+  source: rectangle "Source" { size = (140, 90) }
+  transform: rectangle "Transform" {
+    at = (source.bounds.right + 24, source.bounds.top)
+    size = (180, 90)
+  }
+  result: rectangle "Result" {
+    at = (transform.bounds.right + 24, transform.bounds.top)
+    size = (150, 90)
+  }
+
+  source -> transform
+  transform -> result
+  match-size (source, transform, result) height
+}
