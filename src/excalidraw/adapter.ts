@@ -3,7 +3,9 @@ import { arrow, diamond, ellipse, frame, freedraw, image, isEllipticalKind, text
 import { box } from "../geometry.ts";
 import { wrapTextToWidth } from "../text/metrics.ts";
 import { renderCodeBlock } from "../text/code-block.ts";
-import { planRichNode, renderRichNode, richNodePlanFor } from "../nodes/rich-nodes.ts";
+import { applySceneTransform } from "./transform.ts";
+import { isFinitePoint } from "./freedraw-policy.ts";
+import { renderRichNode } from "../nodes/rich-nodes.ts";
 import {
   isArchitectureBoundaryKind,
   renderArchitectureBoundary,
@@ -21,10 +23,13 @@ import type {
   ResolvedFreedrawStyle,
   ResolvedNodeStyle,
   ResolvedTextStyle,
+  SceneLayerOperation,
   SceneVisual,
+  TextVisual,
 } from "../contracts/layout.ts";
 import type { Drawing } from "./document.ts";
 import type {
+  DrawingElement,
   FreedrawElement,
   ImageCrop,
   TextAlign,
@@ -75,8 +80,7 @@ function renderNode(
   style: ResolvedNodeStyle,
   visual?: Extract<SceneVisual, { type: "node" }>,
 ): void {
-  const storedPlan = visual ? richNodePlanFor(visual) : undefined;
-  const richPlan = storedPlan === undefined ? planRichNode(node, bounds.width, style) : storedPlan;
+  const richPlan = visual?.richPlan ?? null;
   if (richPlan) {
     drawing.add(renderRichNode(node, bounds, style, richPlan));
     return;
@@ -147,7 +151,16 @@ export function renderFreeText(
   statement: TextStatement,
   style?: ResolvedTextStyle,
 ): void {
-  if (!statement.at) throw new Error(`text '${statement.id}' requires a position`);
+  const { visual } = planFreeText(statement, style);
+  drawing.add(text(visual.id, visual.position, visual.value, visual.options));
+}
+
+/** Plan free text once so SceneGraph, routing, measurements, and emission share its exact bounds. */
+export function planFreeText(
+  statement: TextStatement,
+  style?: ResolvedTextStyle,
+): { visual: TextVisual; bounds: Bounds } {
+  if (!isFinitePoint(statement.at)) throw new Error(`text '${statement.id}' requires a resolved position`);
   const resolvedAlign = textAlign(statement.align);
   const fontSize = style?.fontSize ?? statement.fontSize ?? 18;
   if (!(fontSize > 0)) throw new Error("font size must be positive");
@@ -157,7 +170,7 @@ export function renderFreeText(
   const value = width === undefined
     ? statement.value
     : wrapTextToWidth(statement.value, width, fontSize, style?.fontFamily);
-  drawing.add(text(statement.id, { x: statement.at[0], y: statement.at[1] }, value, {
+  const options = {
     fontSize,
     width,
     textAlign: resolvedAlign,
@@ -167,7 +180,12 @@ export function renderFreeText(
     lineHeight: style?.lineHeight,
     link: style?.link,
     locked: style?.locked,
-  }));
+  };
+  const emitted = text(statement.id, statement.at, value, options);
+  return {
+    visual: { type: "text", id: statement.id, position: [...statement.at], value, options },
+    bounds: { x: emitted.x, y: emitted.y, width: emitted.width, height: emitted.height },
+  };
 }
 
 export function renderFreedraw(
@@ -188,7 +206,8 @@ export function renderableFreedraw(statement: FreedrawStatement): RenderableFree
   if (typeof statement.simulatePressure !== "boolean") {
     throw new Error(`freedraw '${statement.id}' simulatePressure must be boolean`);
   }
-  return { ...statement, simulatePressure: statement.simulatePressure };
+  if (!isFinitePoint(statement.at)) throw new Error(`freedraw '${statement.id}' requires a resolved position`);
+  return { ...statement, at: statement.at, simulatePressure: statement.simulatePressure };
 }
 
 export function renderSceneVisuals(drawing: Drawing, visuals: readonly SceneVisual[]): void {
@@ -220,20 +239,57 @@ export function renderSceneVisuals(drawing: Drawing, visuals: readonly SceneVisu
       drawing.add(arrow(visual.id, visual.start, visual.end, visual.options));
     } else if (visual.type === "text") {
       drawing.add(text(visual.id, visual.position, visual.value, visual.options));
+    } else if (visual.type === "image") {
+      drawing.add(image(visual.id, visual.bounds, visual.fileId, {
+        crop: visual.crop,
+        description: visual.description,
+        locked: visual.locked,
+      }));
     } else if (visual.type === "code") {
       renderCodeBlock(drawing, visual.block, visual.bounds);
+    } else if (visual.type === "freedraw") {
+      renderFreedraw(drawing, visual.statement, visual.style);
     } else {
       const unreachable: never = visual;
       throw new Error(`unsupported scene visual: ${String(unreachable)}`);
     }
-    for (const element of drawing.elements.slice(start)) {
+    const elements = drawing.elements.slice(start);
+    applySceneTransform(elements, visual.transform);
+    for (const element of elements) {
       element.frameId = visual.frameId ?? null;
       if (visual.locked) element.locked = true;
     }
   }
 }
 
+/** Apply final source-level depth operations at the target format's ordering seam. */
+export function applyLayerOrder(drawing: Drawing, operations: readonly SceneLayerOperation[]): void {
+  for (const operation of operations) {
+    const owned = (id: string): DrawingElement[] => {
+      const elements = drawing.elements.filter((element) => (
+        element.id === id || element.id.startsWith(`${id}:`)
+      ));
+      if (!elements.length) throw new Error(`layer order found no rendered elements for: ${id}`);
+      return elements;
+    };
+    const moved = operation.ids.flatMap(owned);
+    const lifted = new Set(moved);
+    const rest = drawing.elements.filter((element) => !lifted.has(element));
+    drawing.elements = operation.mode === "front" ? [...rest, ...moved] : [...moved, ...rest];
+  }
+}
+
 export function renderImage(drawing: Drawing, statement: AssetUseStatement): void {
+  const visual = planImage(drawing, statement);
+  drawing.add(image(visual.id, visual.bounds, visual.fileId, {
+    crop: visual.crop,
+    description: visual.description,
+    locked: visual.locked,
+  }));
+}
+
+/** Plan an embedded image before routing and reporting consume its bounds. */
+export function planImage(drawing: Drawing, statement: AssetUseStatement): Extract<SceneVisual, { type: "image" }> {
   if (!statement.resolvedAsset) throw new Error(`image '${statement.id}' uses unresolved asset '${statement.asset}'`);
   const embedded = drawing.files[statement.resolvedAsset.fileId];
   if (!embedded || embedded.id !== statement.resolvedAsset.fileId) {
@@ -276,9 +332,13 @@ export function renderImage(drawing: Drawing, statement: AssetUseStatement): voi
   }
   const alt = statement.attributes.alt;
   if (alt !== undefined && typeof alt !== "string") throw new Error(`image '${statement.id}' alt must be text`);
-  drawing.add(image(statement.id, { x, y, width, height }, statement.resolvedAsset.fileId, {
+  return {
+    type: "image",
+    id: statement.id,
+    bounds: { x, y, width, height },
+    fileId: statement.resolvedAsset.fileId,
     crop,
     description: alt,
     locked: statement.attributes.locked === true,
-  }));
+  };
 }

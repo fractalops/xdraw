@@ -7,8 +7,10 @@ import type {
   StyleFillStyle,
   StyleStrokeStyle,
 } from "./foundation.ts";
-import type { LinearElementOptions, TextElementOptions } from "./render.ts";
+import type { ImageCrop, LinearElementOptions, TextElementOptions } from "./render.ts";
+import type { RichNodePlan } from "./rich-node.ts";
 import type {
+  CoordinatePlaneConfiguration,
   CodeStatement,
   ConnectionStatement,
   ContainerStatement,
@@ -17,6 +19,7 @@ import type {
   NodeStatement,
   NoteStatement,
   RenderableCodeStatement,
+  RenderableFreedrawStatement,
   RootTreeStatement,
   SemanticDocument,
   SemanticStatement,
@@ -84,12 +87,34 @@ export interface LayoutAdapterDefinition {
 
 export type LayoutAdapter = Readonly<LayoutAdapterDefinition>;
 
+/** A required gap between two layout groups along one axis. */
+export interface LayoutFlow {
+  axis: "x" | "y";
+  before: string[];
+  after: string[];
+  gap: number;
+}
+
+/** An affine transform the Excalidraw adapter applies while emitting one visual. */
+export interface SceneTransform {
+  from: Bounds;
+  to: Bounds;
+  angle: number;
+}
+
+/** A final element-array ordering operation, applied after every visual exists. */
+export interface SceneLayerOperation {
+  ids: string[];
+  mode: "front" | "back";
+}
+
 export interface SceneVisualBase {
   id: string;
   source?: string;
   frameId?: string | null;
   locked?: boolean;
   origin?: SourceSpan | null;
+  transform?: SceneTransform;
 }
 
 export interface ContainerVisual extends SceneVisualBase {
@@ -113,9 +138,13 @@ export interface NodeVisual extends SceneVisualBase {
   node: NodeStatement;
   bounds: Bounds;
   style: ResolvedNodeStyle;
+  richPlan: RichNodePlan | null;
 }
 
-export type NodeVisualInput = Omit<NodeVisual, "style"> & { style?: ResolvedNodeStyle };
+export type NodeVisualInput = Omit<NodeVisual, "style" | "richPlan"> & {
+  style?: ResolvedNodeStyle;
+  richPlan?: RichNodePlan | null;
+};
 
 export interface ArrowVisual extends SceneVisualBase {
   type: "arrow";
@@ -131,14 +160,31 @@ export interface TextVisual extends SceneVisualBase {
   options?: Omit<TextElementOptions, "frameId">;
 }
 
+export interface ImageVisual extends SceneVisualBase {
+  type: "image";
+  bounds: Bounds;
+  fileId: string;
+  crop: ImageCrop | null;
+  description?: string;
+}
+
 export interface CodeVisual extends SceneVisualBase {
   type: "code";
   block: RenderableCodeStatement;
   bounds: Bounds;
 }
 
-export type SceneVisual = ContainerVisual | FrameVisual | NodeVisual | ArrowVisual | TextVisual | CodeVisual;
-export type SceneVisualInput = Exclude<SceneVisual, NodeVisual> | NodeVisualInput;
+export interface FreedrawVisual extends SceneVisualBase {
+  type: "freedraw";
+  statement: RenderableFreedrawStatement;
+  bounds: Bounds;
+  style: ResolvedFreedrawStyle;
+}
+
+export type FreedrawVisualInput = Omit<FreedrawVisual, "style"> & { style?: ResolvedFreedrawStyle };
+
+export type SceneVisual = ContainerVisual | FrameVisual | NodeVisual | ArrowVisual | TextVisual | ImageVisual | CodeVisual | FreedrawVisual;
+export type SceneVisualInput = Exclude<SceneVisual, NodeVisual | FreedrawVisual> | NodeVisualInput | FreedrawVisualInput;
 
 export interface SceneObjectRecord {
   id: string;
@@ -149,14 +195,18 @@ export interface SceneObjectRecord {
 }
 
 export interface NodeMeasurementTarget extends NodeStyleTarget {
+  id?: string;
   size?: Point;
+  formulaScale?: number;
   statements?: readonly SemanticStatement[];
+  plane?: CoordinatePlaneConfiguration;
 }
 
 export type LayoutSectionStatement = CodeStatement | ContainerStatement | SequenceStatement | RootTreeStatement;
 export type ArrangedStatement = NodeStatement | LayoutTextStatement | LayoutSectionStatement;
 
 export interface Measurer {
+  planRichNode(node: NodeMeasurementTarget, width: number, style?: ResolvedNodeStyle): RichNodePlan | null;
   measureNode(node: NodeMeasurementTarget, width: number): number;
   measureAnnotation(node: NoteStatement, width: number): number;
   measureLayoutText(node: LayoutTextStatement, width: number): number;
@@ -223,6 +273,7 @@ export interface ResolvedFreedrawStyle {
   strokeColor: string;
   backgroundColor: string;
   strokeWidth: number;
+  strokeStyle: StyleStrokeStyle;
   fillStyle: StyleFillStyle;
   roughness: number;
   opacity: number;
@@ -278,6 +329,7 @@ export interface SceneGraph {
   visuals: SceneVisual[];
   frameMembership: Map<string, string>;
   containerMembership: Map<string, string>;
+  layoutFlows: LayoutFlow[];
   frameLocks: Map<string, boolean>;
   canvas: { left: number; right: number; top: number };
   annotationGutter: { x: number; width: number } | null;

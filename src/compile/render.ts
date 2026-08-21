@@ -5,33 +5,34 @@ import { LAYERED_LAYOUT } from "../layout/layered.ts";
 import { heading } from "../excalidraw/components.ts";
 import { text } from "../excalidraw/elements.ts";
 import {
-  renderableFreedraw,
-  renderFreedraw,
-  renderFreeText,
-  renderImage,
+  applyLayerOrder,
+  planImage,
+  planFreeText,
   renderSceneVisuals,
 } from "../excalidraw/adapter.ts";
-import { applyGeometryStatements, applyLayerOrder } from "./geometry-pass.ts";
-import { resolveGeometryReferences } from "./geometry-references.ts";
+import { collectLayerOperations } from "./geometry-pass.ts";
+import { planFinalGeometry } from "./final-geometry.ts";
 import { renderAnnotation, renderConnection } from "../routing/renderer.ts";
 import { splitEndpoint } from "../routing/endpoints.ts";
 import { createSceneGraph, layoutWithAdapter } from "./scene.ts";
 import { createMeasurer } from "./measurement.ts";
 import { createStyleResolver } from "./styles.ts";
 import { createDiagnosticCollector } from "../io/diagnostics.ts";
+import { reportContainerGeometry } from "./container-report.ts";
+import { reportSceneOverlaps } from "./overlap-report.ts";
+import { measureCompilation } from "./measurement-report.ts";
 import { measureTextWidth } from "../text/metrics.ts";
 import { layoutGap } from "../routing/clearances.ts";
 import { SECTION_TYPES } from "../layout/sections.ts";
 import { validateArchitectureUsage } from "../nodes/architecture.ts";
 import type {
   AssetUseStatement,
-  FreedrawStatement,
   NoteStatement,
   SemanticDocument,
   SemanticStatement,
   TextStatement,
 } from "../contracts/semantic.ts";
-import type { Bounds, Point } from "../contracts/foundation.ts";
+import type { Bounds } from "../contracts/foundation.ts";
 import type { SceneGraph } from "../contracts/layout.ts";
 import type {
   DrawingElement,
@@ -42,6 +43,8 @@ import type { FormulaPreparation } from "../nodes/math/formula.ts";
 
 interface RenderOptions {
   syntaxHighlighting?: boolean;
+  /** Emit XD3001 container-geometry remarks. Off by default; see container-report.ts. */
+  remarks?: boolean;
 }
 
 interface DetachedStatement<T extends SemanticStatement = SemanticStatement> {
@@ -57,8 +60,11 @@ type FixedTextElement = TextElement & {
   autoResize: false;
 };
 
-function isFreedraw(statement: SemanticStatement): statement is FreedrawStatement {
-  return statement.type === "freedraw";
+interface DocumentHeadingPlan {
+  bottom: number;
+  subtitle: Extract<SemanticStatement, { type: "subtitle" }> | undefined;
+  subtitleY: number | null;
+  titleY: number | null;
 }
 
 function isText(statement: SemanticStatement): statement is TextStatement {
@@ -82,6 +88,35 @@ function isFixedTextElement(element: DrawingElement): element is FixedTextElemen
       || element.fontFamily === 2
       || element.fontFamily === 3
       || element.fontFamily === 7);
+}
+
+function planDocumentHeading(scene: SemanticDocument): DocumentHeadingPlan {
+  let bottom = 42;
+  const titleY = scene.title ? bottom : null;
+  if (scene.title) bottom += 44;
+  const subtitle = scene.statements.find((item) => item.type === "subtitle");
+  const subtitleY = subtitle ? bottom : null;
+  if (subtitle) bottom += 50;
+  return { bottom, subtitle, subtitleY, titleY };
+}
+
+function renderDocumentHeading(
+  drawing: Drawing,
+  scene: SemanticDocument,
+  plan: DocumentHeadingPlan,
+): void {
+  if (scene.title && plan.titleY !== null) {
+    drawing.add(heading("document:title", { x: 70, y: plan.titleY }, scene.title, {
+      fontSize: 26,
+      color: "#334155",
+    }));
+  }
+  if (plan.subtitle && plan.subtitleY !== null) {
+    drawing.add(text("document:subtitle", { x: 72, y: plan.subtitleY }, plan.subtitle.value, {
+      fontSize: 17,
+      strokeColor: "#64748b",
+    }));
+  }
 }
 
 function containsAnnotations(statements: readonly SemanticStatement[]): boolean {
@@ -112,26 +147,16 @@ function registerBounds(state: SceneGraph, id: string, bounds: Bounds): void {
   state.place(id, bounds);
 }
 
-function renderDetached<T extends SemanticStatement>(
-  drawing: Drawing,
-  items: readonly DetachedStatement<T>[],
-  render: (statement: T) => void,
-): void {
-  items.forEach(({ statement, frameId, locked }) => {
-    const start = drawing.elements.length;
-    render(statement);
-    for (const element of drawing.elements.slice(start)) {
-      element.frameId = frameId;
-      if (locked) element.locked = true;
-    }
-  });
-}
-
-
 /**
  * Row layout tops-aligns its children, so siblings of differing height end up
  * with their centres at different y. Any connector between them slopes, which
  * reads as a mistake and has no other signal.
+ *
+ * Siblings is the operative word. Two nodes in different containers can share a
+ * y = by coincidence, each being the first child of its own parent, and then the
+ * suggested `match-size` is not a fix: their heights answer to their own
+ * containers, and one of them usually connects to several nodes at different
+ * heights, so levelling one connector tilts the next.
  */
 function warnAboutCrookedConnectors(
   state: SceneGraph,
@@ -155,14 +180,45 @@ function warnAboutCrookedConnectors(
       const topAligned = Math.abs(from.y - to.y) <= 1;
       const differentHeight = Math.abs(from.height - to.height) > 1;
       if (!topAligned || !differentHeight) continue;
+      const siblings = state.containerMembership?.get(endpoints[index])
+        === state.containerMembership?.get(endpoints[index + 1]);
+      if (!siblings) continue;
+      const pair = [endpoints[index], endpoints[index + 1]] as const;
+      const remedy = `match-size (${pair[0]}, ${pair[1]}) height`;
       diagnostics.warn(
         "XD2006",
-        `'${endpoints[index]}' and '${endpoints[index + 1]}' share a row but differ in height,`
-          + ` so their connector will not be level; match-size`
-          + ` (${endpoints[index]}, ${endpoints[index + 1]}) height levels them`,
+        `'${pair[0]}' and '${pair[1]}' share a row but differ in height,`
+          + ` so their connector will not be level; ${remedy} levels them`,
         connection,
+        { subjects: [...pair], suggestion: remedy },
       );
     }
+  }
+}
+
+function planDetachedText(state: SceneGraph, scene: SemanticDocument): void {
+  for (const { statement, frameId, locked } of collectDetachedStatements(scene.statements, isText)) {
+    const { visual, bounds } = planFreeText(statement, state.styles?.resolveText(statement));
+    registerBounds(state, statement.id, bounds);
+    state.addVisual({
+      ...visual,
+      source: statement.semanticId,
+      frameId,
+      locked: locked || visual.options?.locked === true,
+    });
+  }
+}
+
+function planDetachedImages(state: SceneGraph, scene: SemanticDocument, drawing: Drawing): void {
+  for (const { statement, frameId, locked } of collectDetachedStatements(scene.statements, isImage)) {
+    const visual = planImage(drawing, statement);
+    registerBounds(state, statement.id, visual.bounds);
+    state.addVisual({
+      ...visual,
+      source: statement.semanticId,
+      frameId,
+      locked: locked || visual.locked,
+    });
   }
 }
 
@@ -199,16 +255,8 @@ export function renderCompilation(
   styles.diagnostics = diagnostics;
   const measurer = createMeasurer(styles, formulaPreparation);
   const state = createSceneGraph(scene, { diagramWidth, contentWidth, annotationGutterWidth, measurer, styles, diagnostics });
-  let y = 42;
-  if (scene.title) {
-    drawing.add(heading("document:title", { x: 70, y }, scene.title, { fontSize: 32 }));
-    y += 52;
-  }
-  const subtitle = scene.statements.find((item) => item.type === "subtitle");
-  if (subtitle) {
-    drawing.add(text("document:subtitle", { x: 72, y }, subtitle.value, { fontSize: 17, strokeColor: "#64748b" }));
-    y += 50;
-  }
+  const documentHeading = planDocumentHeading(scene);
+  let y = documentHeading.bottom;
 
   const adapter = documentLayout?.kind === "layered" ? LAYERED_LAYOUT : BUILTIN_LAYOUT;
   const containers = scene.statements.filter((item) => SECTION_TYPES.has(item.type));
@@ -242,50 +290,13 @@ export function renderCompilation(
     },
   );
   y = layoutResult.bottom;
+  planFinalGeometry(state, scene);
+  planDetachedText(state, scene);
+  planDetachedImages(state, scene, drawing);
+  renderDocumentHeading(drawing, scene, documentHeading);
   renderSceneVisuals(drawing, state.visuals);
   state.connections.push(...topLevelConnections.filter((item) => !syntheticConnections.includes(item)));
   state.annotations.push(...scene.statements.filter(isNote));
-  // Text and freehand are drawn where they are told and take no part in layout,
-  // so an `at` that names another element's geometry can be resolved here,
-  // against the boxes layout has just produced, without moving them.
-  // A stroke's points are relative to its own origin, so they are offered in
-  // absolute coordinates — the same space every other geometry name uses.
-  const strokes = new Map<string, readonly Point[]>();
-  collectDetachedStatements(scene.statements, isFreedraw).forEach(({ statement }) => {
-    strokes.set(statement.id, statement.points.map(([x, y]) => [
-      statement.at[0] + x,
-      statement.at[1] + y,
-    ] as Point));
-  });
-  resolveGeometryReferences(scene.statements, state.bounds, strokes);
-  collectDetachedStatements(scene.statements, isFreedraw).forEach(({ statement, frameId, locked }) => {
-    const element = renderFreedraw(drawing, renderableFreedraw(statement), styles.resolveFreedraw(statement));
-    // Recomputed here rather than reused from above, because `at` may have been
-    // a geometry reference that only resolved on the line before this.
-    state.strokePoints.set(statement.id, statement.points.map(([x, y]) => [
-      statement.at[0] + x,
-      statement.at[1] + y,
-    ] as Point));
-    element.frameId = frameId;
-    if (locked) element.locked = true;
-    registerBounds(state, statement.id, {
-      x: element.x,
-      y: element.y,
-      width: element.width,
-      height: element.height,
-    });
-  });
-  applyGeometryStatements(drawing, state, scene.statements);
-  renderDetached(
-    drawing,
-    collectDetachedStatements(scene.statements, isText),
-    (statement) => renderFreeText(drawing, statement, styles.resolveText(statement)),
-  );
-  renderDetached(
-    drawing,
-    collectDetachedStatements(scene.statements, isImage),
-    (statement) => renderImage(drawing, statement),
-  );
   const annotationIds = new Set(state.annotations.map((annotation) => annotation.id));
   const referencedAnnotations = new Set(state.connections.flatMap((connection) => (
     connection.nodes
@@ -297,6 +308,11 @@ export function renderCompilation(
       renderAnnotation(drawing, state, annotation, index, registerBounds);
     }
   });
+  // After geometry and routing, so invariant remarks describe emitted geometry.
+  if (options.remarks) {
+    reportContainerGeometry(state, diagnostics);
+    reportSceneOverlaps(state, drawing.elements, diagnostics);
+  }
   warnAboutCrookedConnectors(state, diagnostics);
   state.connections.forEach((connection, index) => renderConnection(drawing, state, connection, index));
   state.annotations.forEach((annotation, index) => {
@@ -305,7 +321,7 @@ export function renderCompilation(
     }
   });
   // Last, because depth is the order of what has been drawn.
-  applyLayerOrder(drawing, scene.statements);
+  applyLayerOrder(drawing, collectLayerOperations(scene.statements));
   for (const element of drawing.elements.filter(isFixedTextElement)) {
     const measured = Math.max(...String(element.text).split("\n").map((line) => (
       measureTextWidth(line, element.fontSize, element.fontFamily)
@@ -314,5 +330,5 @@ export function renderCompilation(
       diagnostics.warn("XD2004", `text '${element.id}' exceeds its ${Math.round(element.width)}px content width`, null);
     }
   }
-  return drawing;
+  return drawing.withMeasurements(measureCompilation(state, drawing));
 }

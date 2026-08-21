@@ -121,7 +121,7 @@ export function borderPoint(bounds: Bounds, target: Point, shape: BorderShape = 
  * into the middle of the figure.
  *
  * Returns null when the ray misses every segment, which happens for an open
- * stroke the ray never reaches, and the caller falls back to the bounding box.
+ * stroke = the ray never reaches, and the caller falls back to the bounding box.
  */
 export function strokeBorderPoint(
   points: readonly Point[],

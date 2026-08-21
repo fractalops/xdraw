@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { tone } from "../src/excalidraw/components.ts";
-import { compile } from "../src/compile/pipeline.ts";
+import { compilePrepared as compile } from "../src/compile/pipeline.ts";
 import { Drawing } from "../src/excalidraw/document.ts";
 import { image } from "../src/excalidraw/elements.ts";
 import {
@@ -12,8 +12,11 @@ import {
   renderSceneVisuals,
 } from "../src/excalidraw/adapter.ts";
 import { parseSource } from "../src/language/parser.ts";
+import type { EmbeddedAssetFile } from "../src/contracts/foundation.ts";
+import type { AssetUseStatement } from "../src/contracts/semantic.ts";
+import type { ToneName } from "../src/excalidraw/components.ts";
 
-const embeddedFile = {
+const embeddedFile: EmbeddedAssetFile = {
   id: "asset-file",
   dataURL: "data:image/png;base64,AA==",
   mimeType: "image/png",
@@ -21,7 +24,7 @@ const embeddedFile = {
   lastRetrieved: 1,
 };
 
-function imageStatement(overrides = {}) {
+function imageStatement(overrides: Partial<AssetUseStatement> = {}): AssetUseStatement {
   return {
     type: "image",
     id: "hero",
@@ -52,14 +55,14 @@ test("images require a matching embedded file and valid natural dimensions", () 
   for (const value of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
     const drawing = new Drawing({ files: { "asset-file": embeddedFile } });
     const statement = imageStatement({
-      resolvedAsset: { ...imageStatement().resolvedAsset, width: value },
+      resolvedAsset: { ...imageStatement().resolvedAsset!, width: value },
     });
     assert.throws(() => renderImage(drawing, statement), /invalid natural dimensions/);
   }
 });
 
 test("image fit modes preserve finite positive output geometry", () => {
-  for (const fit of ["contain", "cover", "fill"]) {
+  for (const fit of ["contain", "cover", "fill"] as const) {
     const drawing = new Drawing({ files: { "asset-file": embeddedFile } });
     renderImage(drawing, imageStatement({ attributes: { fit } }));
     const element = drawing.validate().elements[0];
@@ -76,7 +79,7 @@ test("drawing validation rejects image elements without embedded files", () => {
 });
 
 test("ordinary frames render their declared tone", () => {
-  for (const name of ["neutral", "success", "danger", "warning", "info", "accent"]) {
+  for (const name of ["neutral", "success", "danger", "warning", "info", "accent"] satisfies ToneName[]) {
     const drawing = new Drawing();
     renderSceneVisuals(drawing, [{
       type: "frame",
@@ -91,9 +94,30 @@ test("ordinary frames render their declared tone", () => {
   }
 });
 
+test("scene transforms are applied atomically at the Excalidraw emission seam", () => {
+  const drawing = new Drawing();
+  const transform = structuredClone({
+    from: { x: 0, y: 0, width: 10, height: 10 },
+    to: { x: 100, y: 200, width: 20, height: 30 },
+    angle: Math.PI / 2,
+  });
+  renderSceneVisuals(drawing, [{
+    type: "arrow",
+    id: "path",
+    start: [0, 0],
+    end: [10, 10],
+    transform,
+  }]);
+  const path = drawing.elements[0];
+  assert.equal(path.type, "arrow");
+  assert.deepEqual([path.x, path.y, path.width, path.height], [100, 200, 20, 30]);
+  assert.deepEqual(path.points, [[0, 0], [20, 30]]);
+  assert.equal(path.angle, Math.PI / 2);
+});
+
 test("compact decision nodes fail before rendering", () => {
   assert.throws(
-    () => compile(parseSource('diagram "Decision" { gate: diamond "Proceed?" { at (20, 20); size (60, 40) } }')),
+    () => compile(parseSource('diagram "Decision" { gate: diamond "Proceed?" { at = (20, 20); size = (60, 40) } }')),
     /decision size must be at least 96 by 72/,
   );
 });

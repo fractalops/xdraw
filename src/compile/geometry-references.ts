@@ -1,26 +1,33 @@
 /**
  * Resolves expressions that name another element's geometry.
  *
- * `at = (flow.ingest.right + 40, flow.ingest.center_y)` needs numbers that do
- * not exist until measurement and layout have run, so unlike a `let` binding
+ * `at = flow.ingest.east + (40, 0)` needs a point that does not exist until
+ * measurement and layout have run, so unlike a constant `let` binding
  * this cannot be folded while the document is read. It runs after layout, over
  * the boxes the compiler actually produced.
  *
- * A referring element is placed absolutely, so it does not take part in the
- * layout it refers to. That is what keeps the dependency between names rather
- * than between placement and layout, which a symbol table could not see.
+ * This pass handles detached text, plot, and freehand positions. Relative node
+ * positions participate in layout and are handled as linear relations by the
+ * geometry solver instead.
  */
-import { type ExpressionNode, ExpressionError, evaluateExpression, formatExpression, freeNames, parseExpression } from "../language/expression.ts";
-import { advance, demand } from "../language/deferred.ts";
+import {
+  type ExpressionNode,
+  type ExpressionValue,
+  ExpressionError,
+  TYPED_FUNCTIONS,
+  evaluateValueExpression,
+  expressionPathReferences,
+  foldConstantExpressions,
+  formatExpression,
+  freeNames,
+  parseExpression,
+} from "../language/expression.ts";
+import { splitAnchorName, splitGeometryName, type BoxPart, type GeometryAnchor } from "../language/geometry-names.ts";
 import type { Bounds, Point } from "../contracts/foundation.ts";
 import type { SemanticStatement } from "../contracts/semantic.ts";
 
-/** The parts of a box an expression may name. Closed, like every vocabulary. */
-export const BOX_PARTS = Object.freeze([
-  "left", "right", "top", "bottom", "width", "height", "center_x", "center_y",
-] as const);
-
-export type BoxPart = (typeof BOX_PARTS)[number];
+export { BOX_PARTS } from "../language/geometry-names.ts";
+export type { BoxPart } from "../language/geometry-names.ts";
 
 export class GeometryReferenceError extends Error {
   constructor(message: string) {
@@ -37,27 +44,23 @@ function partOf(bounds: Bounds, part: BoxPart): number {
     case "bottom": return bounds.y + bounds.height;
     case "width": return bounds.width;
     case "height": return bounds.height;
-    case "center_x": return bounds.x + bounds.width / 2;
-    case "center_y": return bounds.y + bounds.height / 2;
   }
 }
 
-/**
- * Splits `flow.ingest.right` into an element and a part.
- *
- * A nested element is itself `flow.ingest`, so the name is ambiguous by
- * construction — `flow.ingest.right` could be element `flow.ingest` part
- * `right`, or element `flow` part `ingest.right`. The parts are a closed set of
- * eight and none contains a dot, so taking the last segment as the part is the
- * only reading that can be right.
- */
-export function splitReference(name: string): { element: string; part: BoxPart } | null {
-  const separator = name.lastIndexOf(".");
-  if (separator <= 0) return null;
-  const part = name.slice(separator + 1);
-  if (!(BOX_PARTS as readonly string[]).includes(part)) return null;
-  return { element: name.slice(0, separator), part: part as BoxPart };
+function anchorOf(bounds: Bounds, anchor: GeometryAnchor): Point {
+  const x = anchor.includes("west") ? bounds.x
+    : anchor.includes("east") ? bounds.x + bounds.width : bounds.x + bounds.width / 2;
+  const y = anchor.startsWith("north") ? bounds.y
+    : anchor.startsWith("south") ? bounds.y + bounds.height : bounds.y + bounds.height / 2;
+  return [x, y];
 }
+
+/**
+ * Splits `flow.ingest.bounds.right` into an element and a scalar bound. The
+ * explicit namespace and closed part vocabulary keep dotted element IDs
+ * unambiguous.
+ */
+export const splitReference = splitGeometryName;
 
 /**
  * Walks a polyline by arc length and returns the point at `fraction` of its
@@ -92,10 +95,11 @@ export function pointAlong(points: readonly Point[], fraction: number): Point {
 export interface GeometryEnvironment {
   /** Every name the expression may use, resolved on demand. */
   lookup(name: string): number | undefined;
+  point(name: string): Point | undefined;
   /** True when the name looks like a geometry reference at all. */
   describes(name: string): boolean;
   /** A point at a fraction along a named stroke. */
-  along(id: string, fraction: number, axis: 0 | 1): number;
+  path(id: string): readonly Point[];
 }
 
 /**
@@ -108,23 +112,29 @@ export function geometryEnvironment(
   strokes: ReadonlyMap<string, readonly Point[]> = new Map(),
 ): GeometryEnvironment {
   return {
-    describes: (name) => splitReference(name) !== null,
+    describes: (name) => splitReference(name) !== null || splitAnchorName(name) !== null,
     lookup: (name) => {
       const reference = splitReference(name);
       if (!reference) return undefined;
       const box = bounds.get(reference.element);
       return box ? partOf(box, reference.part) : undefined;
     },
-    along: (id, fraction, axis) => {
+    point: (name) => {
+      const reference = splitAnchorName(name);
+      if (!reference) return undefined;
+      const box = bounds.get(reference.element);
+      return box ? anchorOf(box, reference.anchor) : undefined;
+    },
+    path: (id) => {
       const points = strokes.get(id);
       if (!points) {
         throw new GeometryReferenceError(
           bounds.has(id)
-            ? `along expects a stroke, and '${id}' is not one`
-            : `along names '${id}', which is not a stroke in this document`,
+            ? `path functions require a drawn path, and '${id}' is not one`
+            : `path function names '${id}', which is not a drawn path in this document`,
         );
       }
-      return pointAlong(points, fraction)[axis];
+      return points;
     },
   };
 }
@@ -140,6 +150,30 @@ export function resolveGeometryExpression(
   environment: GeometryEnvironment,
   owner: string,
 ): number {
+  const result = resolveGeometryValue(source, environment, owner);
+  if (typeof result !== "number" || !Number.isFinite(result)) {
+    throw new GeometryReferenceError(`${owner}: '${source}' is not a finite number`);
+  }
+  return result;
+}
+
+export function resolveGeometryPoint(
+  source: string,
+  environment: GeometryEnvironment,
+  owner: string,
+): Point {
+  const result = resolveGeometryValue(source, environment, owner);
+  if (!Array.isArray(result) || result.length !== 2 || !result.every(Number.isFinite)) {
+    throw new GeometryReferenceError(`${owner}: '${source}' is not a point`);
+  }
+  return [...result] as Point;
+}
+
+function resolveGeometryValue(
+  source: string,
+  environment: GeometryEnvironment,
+  owner: string,
+): ExpressionValue {
   let node;
   try {
     node = parseExpression(source);
@@ -147,72 +181,192 @@ export function resolveGeometryExpression(
     const detail = error instanceof ExpressionError ? error.message : String(error);
     throw new GeometryReferenceError(`${owner}: '${source}' is not a valid expression: ${detail}`);
   }
-  const resolved = resolveAlongCalls(node, environment, owner);
-  const names = new Map<string, number>();
-  for (const name of freeNames(resolved)) {
-    const value = environment.lookup(name);
-    if (value === undefined) {
-      // A name that looks like a geometry reference gets the better message;
-      // anything else is reported by the shared resolver, which names it and
-      // says nobody defined it.
-      if (environment.describes(name)) {
-        const reference = splitReference(name);
-        throw new GeometryReferenceError(
-          `${owner}: no element '${reference?.element}' to take '${reference?.part}' from`,
-        );
-      }
-      continue;
-    }
-    names.set(name, value);
+  const resolved = resolveGeometryNodes(node, environment, owner, true);
+  try {
+    return evaluateValueExpression(resolved, {});
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new GeometryReferenceError(`${owner}: ${detail}`);
   }
-  const advanced = advance(formatExpression(resolved), names);
-  const result = demand(advanced, owner);
-  if (!Number.isFinite(result)) {
-    throw new GeometryReferenceError(`${owner}: '${source}' is not a finite number`);
+}
+
+function isPathFunction(name: string): boolean {
+  return TYPED_FUNCTIONS.get(name)?.parameters[0] === "path";
+}
+
+function numberNode(value: number): ExpressionNode {
+  return { kind: "number", value };
+}
+
+function isPointValue(value: ExpressionValue): value is readonly [number, number] {
+  return Array.isArray(value);
+}
+
+function pointNode([x, y]: readonly [number, number]): ExpressionNode {
+  return { kind: "point", x: numberNode(x), y: numberNode(y) };
+}
+
+function pathLength(points: readonly Point[]): number {
+  let result = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    result += Math.hypot(points[index][0] - points[index - 1][0], points[index][1] - points[index - 1][1]);
   }
   return result;
 }
 
-const ALONG = new Map([["along_x", 0], ["along_y", 1]] as const);
+function tangentAlong(points: readonly Point[], fraction: number): Point | null {
+  if (points.length < 2) return null;
+  const epsilon = 1e-4;
+  const before = pointAlong(points, Math.max(0, fraction - epsilon));
+  const after = pointAlong(points, Math.min(1, fraction + epsilon));
+  const length = Math.hypot(after[0] - before[0], after[1] - before[1]);
+  return length === 0 ? null : [(after[0] - before[0]) / length, (after[1] - before[1]) / length];
+}
 
 /**
- * Replaces every `along_x(curve, u)` with the number it resolves to.
+ * Replaces point, anchor, bound, and path operations with concrete values.
  *
- * The first argument names a stroke rather than a value, so it cannot be an
- * ordinary free name — it would be reported unknown. Rewriting the call to a
- * number keeps the rest of evaluation entirely conventional.
+ * A path argument remains symbolic until sampled points exist. Rewriting the
+ * operation to a point or number here keeps ordinary expression evaluation
+ * independent of compilation stages.
  */
-function resolveAlongCalls(
+function resolveProjection(
+  node: Extract<ExpressionNode, { kind: "call" }>,
+  environment: GeometryEnvironment,
+  owner: string,
+  resolveBoxes: boolean,
+): ExpressionNode {
+  const argument = resolveGeometryNodes(node.args[0], environment, owner, resolveBoxes);
+  if (freeNames(argument).size) return { ...node, args: [argument] };
+  const value = evaluateValueExpression(argument, {});
+  if (!isPointValue(value)) throw new GeometryReferenceError(`${owner}: ${node.name} takes a point`);
+  return numberNode(value[node.name === "x" ? 0 : 1]);
+}
+
+function resolvePathCall(
+  node: Extract<ExpressionNode, { kind: "call" }>,
+  environment: GeometryEnvironment,
+  owner: string,
+  resolveBoxes: boolean,
+): ExpressionNode {
+  const [target, parameter] = node.args;
+  const signature = TYPED_FUNCTIONS.get(node.name)!;
+  const needsParameter = signature.parameters.length === 2;
+  if (target?.kind !== "name" || node.args.length !== signature.parameters.length) {
+    throw new GeometryReferenceError(`${owner}: ${node.name} takes a path${needsParameter ? " and a fraction from 0 to 1" : ""}`);
+  }
+  const points = environment.path(target.name);
+  const fractionValue = parameter
+    ? evaluateValueExpression(resolveGeometryNodes(parameter, environment, owner, resolveBoxes), {}) : 0;
+  if (parameter && typeof fractionValue !== "number") {
+    throw new GeometryReferenceError(`${owner}: ${node.name} fraction must be a number`);
+  }
+  const fraction = typeof fractionValue === "number" ? fractionValue : 0;
+  if (parameter && (!Number.isFinite(fraction) || fraction < 0 || fraction > 1)) {
+    throw new GeometryReferenceError(`${owner}: ${node.name} fraction must be finite and between 0 and 1`);
+  }
+  if (node.name === "along") return pointNode(pointAlong(points, fraction));
+  if (node.name === "start") return pointNode(pointAlong(points, 0));
+  if (node.name === "end") return pointNode(pointAlong(points, 1));
+  if (node.name === "midpoint") return pointNode(pointAlong(points, 0.5));
+  if (node.name === "tangent") {
+    const tangent = tangentAlong(points, fraction);
+    if (!tangent) throw new GeometryReferenceError(`${owner}: tangent is undefined on a zero-length path segment`);
+    return pointNode(tangent);
+  }
+  return numberNode(pathLength(points));
+}
+
+function resolveCall(
+  node: Extract<ExpressionNode, { kind: "call" }>,
+  environment: GeometryEnvironment,
+  owner: string,
+  resolveBoxes: boolean,
+): ExpressionNode {
+  if ((node.name === "x" || node.name === "y") && node.args.length === 1) {
+    return resolveProjection(node, environment, owner, resolveBoxes);
+  }
+  if (isPathFunction(node.name)) return resolvePathCall(node, environment, owner, resolveBoxes);
+  return { ...node, args: node.args.map((argument) => resolveGeometryNodes(argument, environment, owner, resolveBoxes)) };
+}
+
+function resolveName(
+  node: Extract<ExpressionNode, { kind: "name" }>,
+  environment: GeometryEnvironment,
+  owner: string,
+  resolveBoxes: boolean,
+): ExpressionNode {
+  if (!resolveBoxes) return node;
+  const scalar = environment.lookup(node.name);
+  if (scalar !== undefined) return numberNode(scalar);
+  const point = environment.point(node.name);
+  if (point) return pointNode(point);
+  const reference = splitReference(node.name) ?? splitAnchorName(node.name);
+  if (reference) throw new GeometryReferenceError(`${owner}: no element '${reference.element}' for '${node.name}'`);
+  return node;
+}
+
+function resolveGeometryNodes(
   node: ExpressionNode,
   environment: GeometryEnvironment,
   owner: string,
+  resolveBoxes: boolean,
 ): ExpressionNode {
   switch (node.kind) {
-    case "call": {
-      const axis = ALONG.get(node.name as "along_x" | "along_y");
-      if (axis === undefined) {
-        return { ...node, args: node.args.map((argument) => resolveAlongCalls(argument, environment, owner)) };
-      }
-      const [target, fraction] = node.args;
-      if (node.args.length !== 2 || target?.kind !== "name") {
-        throw new GeometryReferenceError(`${owner}: ${node.name} takes a stroke and a fraction from 0 to 1`);
-      }
-      const resolved = resolveAlongCalls(fraction, environment, owner);
-      const value = environment.along(target.name, evaluateExpression(resolved, {}), axis);
-      return { kind: "number", value };
-    }
-    case "negate": return { kind: "negate", operand: resolveAlongCalls(node.operand, environment, owner) };
+    case "call": return resolveCall(node, environment, owner, resolveBoxes);
+    case "name": return resolveName(node, environment, owner, resolveBoxes);
+    case "point": return {
+      kind: "point",
+      x: resolveGeometryNodes(node.x, environment, owner, resolveBoxes),
+      y: resolveGeometryNodes(node.y, environment, owner, resolveBoxes),
+    };
+    case "negate": return { kind: "negate", operand: resolveGeometryNodes(node.operand, environment, owner, resolveBoxes) };
     case "binary": return {
       ...node,
-      left: resolveAlongCalls(node.left, environment, owner),
-      right: resolveAlongCalls(node.right, environment, owner),
+      left: resolveGeometryNodes(node.left, environment, owner, resolveBoxes),
+      right: resolveGeometryNodes(node.right, environment, owner, resolveBoxes),
     };
     default: return node;
   }
 }
 
+/** Resolve stable path operations while preserving live placed-box terms for the constraint solve. */
+export function resolveStablePathOperations(
+  source: string,
+  environment: GeometryEnvironment,
+  owner: string,
+): string {
+  let node: ExpressionNode;
+  try {
+    node = parseExpression(source);
+  } catch (error) {
+    const detail = error instanceof ExpressionError ? error.message : String(error);
+    throw new GeometryReferenceError(`${owner}: '${source}' is not a valid expression: ${detail}`);
+  }
+  return formatExpression(foldConstantExpressions(resolveGeometryNodes(node, environment, owner, false)));
+}
+
+/** Path identities consumed by path functions in detached positions. */
+export function geometryStrokeReferences(statements: readonly SemanticStatement[]): Set<string> {
+  const result = new Set<string>();
+  const visit = (items: readonly SemanticStatement[]): void => {
+    for (const statement of items) {
+      const positions = typeof statement.at === "string" ? [statement.at] : statement.at ?? [];
+      const expressions = statement.type === "attachment" ? [...positions, statement.target] : positions;
+      for (const expression of expressions) {
+        if (typeof expression !== "string") continue;
+        try { expressionPathReferences(parseExpression(expression), result); } catch { /* resolved with context later */ }
+      }
+      const children = statement.statements;
+      if (Array.isArray(children)) visit(children);
+    }
+  };
+  visit(statements);
+  return result;
+}
+
 /**
- * Resolves every `at` that was written as a pair of expressions, in place.
+ * Resolves every detached `at` expression in place.
  *
  * Only the detached kinds are considered. A node placed with `at` takes part in
  * document layout, so resolving one against a box it had already displaced
@@ -227,16 +381,21 @@ export function resolveGeometryReferences(
   const environment = geometryEnvironment(bounds, strokes);
   const visit = (items: readonly SemanticStatement[]): void => {
     for (const statement of items) {
-      const carrier = statement as unknown as { type: string; id?: string; at?: unknown[] };
-      if ((carrier.type === "text" || carrier.type === "freedraw")
-          && Array.isArray(carrier.at)
-          && carrier.at.some((part) => typeof part === "string")) {
-        const owner = `${carrier.type} '${carrier.id ?? "?"}'`;
-        carrier.at = carrier.at.map((part) => (
-          typeof part === "string" ? resolveGeometryExpression(part, environment, owner) : part
-        ));
+      if ((statement.type === "text" || statement.type === "freedraw") && typeof statement.at === "string") {
+        const owner = `${statement.type} '${statement.id}'`;
+        statement.at = resolveGeometryPoint(statement.at, environment, owner);
       }
-      const children = (statement as { statements?: readonly SemanticStatement[] }).statements;
+      if ((statement.type === "text" || statement.type === "freedraw")
+          && Array.isArray(statement.at)
+          && statement.at.some((part) => typeof part === "string")) {
+        const owner = `${statement.type} '${statement.id}'`;
+        const [x, y] = statement.at;
+        statement.at = [
+          typeof x === "string" ? resolveGeometryExpression(x, environment, owner) : x,
+          typeof y === "string" ? resolveGeometryExpression(y, environment, owner) : y,
+        ];
+      }
+      const children = statement.statements;
       if (Array.isArray(children)) visit(children);
     }
   };
