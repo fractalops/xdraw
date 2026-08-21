@@ -78,7 +78,7 @@ const TEXT_PROPERTIES: ReadonlySet<keyof StyleProperties> = new Set([
   "autoSize", "wrapWidth",
 ]);
 const FREEDRAW_PROPERTIES: ReadonlySet<keyof StyleProperties> = new Set([
-  "strokeColor", "backgroundColor", "strokeWidth", "fillStyle", "roughness",
+  "strokeColor", "backgroundColor", "strokeWidth", "strokeStyle", "fillStyle", "roughness",
   "opacity", "link", "locked",
 ]);
 
@@ -250,6 +250,7 @@ export function createStyleResolver(document: SemanticDocument): StyleResolver {
       strokeColor: "#1f2937",
       backgroundColor: "transparent",
       strokeWidth: 2,
+      strokeStyle: "solid",
       fillStyle: "solid",
       roughness: 0,
       opacity: 100,

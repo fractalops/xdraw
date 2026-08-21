@@ -1,6 +1,7 @@
 import { layoutGap, ROUTING_CLEARANCE } from "../../routing/clearances.ts";
 import { splitEndpoint } from "../../routing/endpoints.ts";
 import { createMeasurer } from "../../compile/measurement.ts";
+import { measureConnectorLabelWidth } from "../../text/metrics.ts";
 import { createStyleResolver } from "../../compile/styles.ts";
 import type { Bounds } from "../../contracts/foundation.ts";
 import type {
@@ -67,7 +68,14 @@ export function createLayeredGraph(
   const measurer = createMeasurer(styles, formulaPreparation);
   const requestedGap = layoutGap(layout, 36);
   const rowGap = Math.max(MINIMUM_ROUTABLE_GAP, requestedGap);
-  const layerGap = Math.max(MINIMUM_ROUTABLE_GAP, requestedGap);
+  const labelWidth = connections.reduce((maximum, connection) => {
+    const technology = typeof connection.attributes?.technology === "string"
+      ? `[${connection.attributes.technology}]`
+      : "";
+    const label = [connection.label, technology].filter(Boolean).join("\n");
+    return label ? Math.max(maximum, measureConnectorLabelWidth(label) + 28) : maximum;
+  }, 0);
+  const layerGap = Math.max(MINIMUM_ROUTABLE_GAP, requestedGap, labelWidth);
 
   const edges: ElkExtendedEdge[] = connections.flatMap((connection, connectionIndex) => (
     connection.nodes.slice(0, -1).map((endpoint, segmentIndex) => {

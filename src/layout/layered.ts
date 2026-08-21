@@ -93,6 +93,8 @@ function layoutLayered({ context, sections, options }: Readonly<LayoutRequest>):
     state.diagnostics?.warn(
       "XD2001",
       `layout gap ${Math.min(requestedColumnGap, requestedRowGap)} was raised to ${minimumGap} so connectors remain visible`,
+      null,
+      { measures: { requested: Math.min(requestedColumnGap, requestedRowGap), resolved: minimumGap } },
     );
   }
   let bottom = options.startY;

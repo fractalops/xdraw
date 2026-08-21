@@ -8,10 +8,10 @@ test("renders reusable templates and movable waypoint labels", async ({ page }) 
     service: template(name) { node: arch.system "\${name}" }
     source: service("Source")
     target: service("Target")
-    source.node@right -> target.node@left "calls" {
-      via ((420, 180), (480, 180))
-      start-label "caller"
-      end-label "callee"
+    source.node@east -> target.node@west "calls" {
+      via = ((420, 180), (480, 180))
+      start-label = "caller"
+      end-label = "callee"
     }
   }`;
   const app = await openDiagram(page, source);
@@ -60,7 +60,7 @@ test("renders an embedded image without network access", async ({ page }) => {
   const data = `data:image/svg+xml,${encodeURIComponent(svg)}`;
   const source = `diagram "Offline image" {
     mark: asset "${data}"
-    hero: image(mark) { at (100, 100); size (360, 180); alt "Blue mark" }
+    hero: image(mark) { at = (100, 100); size = (360, 180); alt = "Blue mark" }
   }`;
   const app = await openDiagram(page, source);
   const drawing = await downloadDrawing(page, app);

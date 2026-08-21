@@ -119,7 +119,29 @@ function radialPoint(state: SceneGraph, id: string, bounds: Bounds, target: Poin
     if (crossing) return crossing;
   }
   const semantic = state.objects?.get(id)?.semantic as { kind?: unknown } | undefined;
-  return borderPoint(bounds, target, outlineOfKind(semantic?.kind));
+  const visual = state.visuals.find((item) => item.id === id);
+  const transform = visual?.transform;
+  if (!transform?.angle) return borderPoint(bounds, target, outlineOfKind(semantic?.kind));
+  const center = anchor.center(transform.to);
+  const localTarget = rotateAround(target, center, -transform.angle);
+  return rotateAround(borderPoint(transform.to, localTarget, outlineOfKind(semantic?.kind)), center, transform.angle);
+}
+
+function rotateAround(point: Point, center: Point, angle: number): Point {
+  const dx = point[0] - center[0];
+  const dy = point[1] - center[1];
+  return [
+    center[0] + dx * Math.cos(angle) - dy * Math.sin(angle),
+    center[1] + dx * Math.sin(angle) + dy * Math.cos(angle),
+  ];
+}
+
+function endpointPoint(state: SceneGraph, id: string, bounds: Bounds, side: EndpointSide): Point {
+  const visual = state.visuals.find((item) => item.id === id);
+  const transform = visual?.transform;
+  if (!transform?.angle) return anchor[side](bounds);
+  const center = anchor.center(transform.to);
+  return rotateAround(anchor[side](transform.to), center, transform.angle);
 }
 
 function bindingElementId(state: SceneGraph, id: string): string {
@@ -127,7 +149,7 @@ function bindingElementId(state: SceneGraph, id: string): string {
   const semantic = state.objects?.get(id)?.semantic;
   if (semantic && typeof semantic === "object" && "type" in semantic) {
     if (semantic.type === "freedraw") return `${id}:stroke`;
-    if (semantic.type === "image" || semantic.type === "icon" || semantic.type === "text") return id;
+    if (semantic.type === "image" || semantic.type === "icon" || semantic.type === "text" || semantic.type === "layout-text") return id;
   }
   return `${id}:frame`;
 }
@@ -179,15 +201,20 @@ export function renderConnection(
     const endSide = to.side ?? sides.endSide;
     const waypoints = parseWaypoints(connection.attributes.via);
     const adapterRoute = state.adapterRoutes.get(`${index}:${nodeIndex}`);
+    const priorRoutes = [...state.routes];
     const style = connectionStyle(connection.attributes.style);
     // A straight run whose sides were inferred meets each border where it
-    // actually crosses. Writing '@top' asks for that side's midpoint and still
+    // actually crosses. Writing '@north' asks for that side's midpoint and still
     // gets it, and routed styles keep midpoints because their segments leave
     // perpendicular to the side.
     const radial = (style === "straight" || style === "line")
       && from.side === undefined && to.side === undefined;
-    const start = radial ? radialPoint(state, from.id, fromBounds, anchor.center(toBounds)) : anchor[startSide](fromBounds);
-    const end = radial ? radialPoint(state, to.id, toBounds, anchor.center(fromBounds)) : anchor[endSide](toBounds);
+    const start = radial
+      ? radialPoint(state, from.id, fromBounds, anchor.center(toBounds))
+      : endpointPoint(state, from.id, fromBounds, startSide);
+    const end = radial
+      ? radialPoint(state, to.id, toBounds, anchor.center(fromBounds))
+      : endpointPoint(state, to.id, toBounds, endSide);
     if (waypoints) {
       if (!connection.generatedRoute) {
         state.diagnostics?.warn("XD2003", "connection via disables automatic obstacle routing", connection);
@@ -253,8 +280,25 @@ export function renderConnection(
         ...[...state.nodeIds]
           .filter((id) => id !== from.id && id !== to.id)
           .map((id) => state.bounds.get(id))
-          .filter((bounds): bounds is Bounds => Boolean(bounds)),
+          .filter((bounds): bounds is Bounds => Boolean(bounds))
+          // A containing lane or section is the label's available region, not
+          // an obstacle. Only unrelated nodes should disqualify a placement.
+          .filter((bounds) => !(
+            bounds.x <= fromBounds.x && bounds.y <= fromBounds.y
+            && bounds.x + bounds.width >= fromBounds.x + fromBounds.width
+            && bounds.y + bounds.height >= fromBounds.y + fromBounds.height
+          ) && !(
+            bounds.x <= toBounds.x && bounds.y <= toBounds.y
+            && bounds.x + bounds.width >= toBounds.x + toBounds.width
+            && bounds.y + bounds.height >= toBounds.y + toBounds.height
+          )),
         ...(state.labelBounds ?? []),
+      ],
+      labelRoutes: [
+        ...priorRoutes,
+        ...[...state.adapterRoutes.entries()]
+          .filter(([key]) => key !== `${index}:${nodeIndex}`)
+          .map(([, route]) => route),
       ],
     });
     addWithFrame(drawing, rendered, frameId, connection.locked || (frameId ? state.frameLocks.get(frameId) : false));

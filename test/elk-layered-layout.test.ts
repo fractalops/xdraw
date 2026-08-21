@@ -5,14 +5,16 @@ import { performance } from "node:perf_hooks";
 import test from "node:test";
 import { promisify } from "node:util";
 
-import { compile, compileAsync } from "../src/compile/pipeline.ts";
+import { compilePrepared as compile, compile as compileAsync } from "../src/compile/pipeline.ts";
 import { prepareLayeredLayout } from "../src/layout/elk/prepare.ts";
 import { runElkLayout } from "../src/layout/elk/worker-transport.ts";
 import { parseSource } from "../src/language/parser.ts";
 import { buildSemanticIR } from "../src/language/semantic.ts";
 import { expandDocument } from "../src/language/expander.ts";
+import { measureRouteQuality } from "../src/routing/quality.ts";
 import { requireArrow, requireElementById } from "../test-support/assertions.ts";
 import { budgetMs } from "../test-support/budget.ts";
+import type { Point, Route } from "../src/contracts/foundation.ts";
 import type { Drawing } from "../src/excalidraw/document.ts";
 import type { SemanticDocument } from "../src/contracts/semantic.ts";
 import type { DrawingElement } from "../src/contracts/render.ts";
@@ -51,7 +53,7 @@ test("ELK placement preserves XDraw labels and explicit connector sides", async 
     arrange layered {}
     producer: rectangle "Producer"
     consumer: rectangle "Consumer"
-    producer@right -> consumer@left "HTTPS"
+    producer@east -> consumer@west "HTTPS"
   }`));
   const elements = drawing.toJSON().elements;
   const connector = requireArrow(elements, "document:connection:0:0");
@@ -62,12 +64,52 @@ test("ELK placement preserves XDraw labels and explicit connector sides", async 
   assert.ok(elements.some((element) => element.type === "text" && element.text === "HTTPS"));
 });
 
+test("clear aligned layered nodes use a direct connector", async () => {
+  const drawing = (await compileAsync(parseSource(`diagram "Direct" {
+    arrange layered {}
+    source: rectangle "Source"
+    target: rectangle "Target"
+    source -> target
+  }`))).toJSON();
+  const connector = requireArrow(drawing.elements);
+  const absolute = connector.points.map(([x, y]) => [x + connector.x, y + connector.y]);
+  assert.equal(new Set(absolute.map(([, y]) => y)).size, 1);
+});
+
+test("layered connector labels do not overlap another planned route", async () => {
+  const drawing = (await compileAsync(parseSource(`use "xdraw/architecture" as arch
+  diagram "Checkout" {
+    arrange layered { gap = 96; width = 1320 }
+    customer: arch.person "Customer" { description = "Places an order" }
+    checkout: arch.container "Checkout" {
+      description = "Validates the basket and coordinates the purchase"
+      technology = "TypeScript"
+    }
+    payments: arch.system "Payments" {
+      description = "Authorizes the charge"
+      technology = "External API"
+    }
+    orders: arch.database "Orders" {
+      description = "Stores completed orders"
+      technology = "PostgreSQL"
+    }
+    customer -> checkout "submits" { technology = "HTTPS" }
+    checkout -> payments "authorizes" { technology = "JSON/HTTPS" }
+    checkout -> orders "records" { technology = "SQL" }
+  }`))).toJSON();
+  const payments = requireArrow(drawing.elements, "document:connection:1:0");
+  const records = requireElementById(drawing.elements, "document:connection:2:0:label");
+  assert.ok(records.type === "text");
+  const route = payments.points.map(([x, y]): Point => [x + payments.x, y + payments.y]) as Route;
+  assert.equal(measureRouteQuality([route], [records]).obstacleIntersections, 0);
+});
+
 test("opposing explicit ports route around their endpoint nodes", async () => {
   const drawing = (await compileAsync(parseSource(`diagram "Opposing ports" {
     arrange layered {}
     a: rectangle "A"
     b: rectangle "B"
-    a@left -> b@right
+    a@west -> b@east
   }`))).toJSON();
   const arrow = requireArrow(drawing.elements);
   const absolute = arrow.points.map(([x, y]) => [x + arrow.x, y + arrow.y]);
@@ -163,9 +205,9 @@ test("layered output is deterministic across compiler processes", async () => {
     c -> b
   }`;
   const script = `
-    import { compileAsync } from "./src/compile/pipeline.ts";
+    import { compile } from "./src/compile/pipeline.ts";
     import { parseSource } from "./src/language/parser.ts";
-    const drawing = await compileAsync(parseSource(${JSON.stringify(source)}));
+    const drawing = await compile(parseSource(${JSON.stringify(source)}));
     process.stdout.write(JSON.stringify(drawing.toJSON()));
   `;
   const options = {
@@ -177,6 +219,26 @@ test("layered output is deterministic across compiler processes", async () => {
     execFileAsync(process.execPath, ["--input-type=module", "--eval", script], options),
   ]);
   assert.equal(first.stdout, second.stdout);
+});
+
+test("layered placement is invariant to declaration insertion order", async () => {
+  const declarations = {
+    a: 'a: rectangle "A"', b: 'b: rectangle "B"',
+    c: 'c: rectangle "C"', d: 'd: rectangle "D"',
+  };
+  const orders = [
+    ["a", "b", "c", "d"], ["d", "c", "b", "a"],
+    ["b", "d", "a", "c"], ["c", "a", "d", "b"],
+  ] as const;
+  const placements = await Promise.all(orders.map(async (order) => {
+    const source = `diagram "Stable constraints" { arrange layered {}; ${order.map((id) => declarations[id]).join(";")}; a -> c; b -> c; c -> d }`;
+    const elements = (await compileAsync(parseSource(source))).toJSON().elements;
+    return Object.fromEntries(elements
+      .filter((element) => element.id.endsWith(":frame"))
+      .map((element): [string, number[]] => [element.id, [element.x, element.y]])
+      .sort(([left], [right]) => left.localeCompare(right)));
+  }));
+  for (const placement of placements.slice(1)) assert.deepEqual(placement, placements[0]);
 });
 
 test("ELK preparation fails closed instead of changing layout algorithms", async () => {
@@ -225,9 +287,9 @@ test("ELK placement honors the shared spacing policy", async () => {
       a -> b
     }`;
   const positions = (drawing: Drawing) => frames(drawing, ["a", "b"]).map((frame) => frame.x);
-  const synchronousTight = positions(compile(parseSource(source("spacing tight"))));
-  const asynchronousTight = positions(await compileAsync(parseSource(source("spacing tight"))));
-  const wide = positions(await compileAsync(parseSource(source("gap 120"))));
+  const synchronousTight = positions(compile(parseSource(source("spacing = tight"))));
+  const asynchronousTight = positions(await compileAsync(parseSource(source("spacing = tight"))));
+  const wide = positions(await compileAsync(parseSource(source("gap = 120"))));
   assert.deepEqual(asynchronousTight, synchronousTight);
   assert.ok(wide[1] - wide[0] > asynchronousTight[1] - asynchronousTight[0]);
 });
@@ -258,7 +320,7 @@ for (const [sectionType, source] of [
   ["tree", `diagram "Tree" {
       arrange layered {}
       map: section "Map" {
-        arrange tree { root root }
+        arrange tree { root = root }
         root: rectangle "Root"
         child: rectangle "Child"
         root -> child
@@ -279,7 +341,7 @@ test("layered preparation rejects non-node connection endpoints explicitly", asy
     diagram "Annotation endpoint" {
       arrange layered {}
       a: rectangle "A"
-      n: annotations.note "N" { attach a@bottom }
+      n: annotations.note "N" { attach = a@south }
       a -> n
     }`)),
     /layered connection requires node endpoints: a -> n/,
@@ -297,7 +359,7 @@ test("ELK places 200 layered nodes within the acceptance budget", async () => {
   const nodes = Array.from({ length: count }, (_, index) => `n${index}: rectangle "Node ${index}"`).join("\n");
   const edges = Array.from({ length: count - 1 }, (_, index) => `n${Math.floor(index / 2)} -> n${index + 1}`).join("\n");
   const started = performance.now();
-  const drawing = await compileAsync(parseSource(`diagram "Scale" { arrange layered { gap 12 } ${nodes} ${edges} }`));
+  const drawing = await compileAsync(parseSource(`diagram "Scale" { arrange layered { gap = 12 } ${nodes} ${edges} }`));
   const elapsed = performance.now() - started;
   assert.equal(drawing.toJSON().elements.filter((element) => element.id.endsWith(":frame")).length, count);
   assert.ok(elapsed < budgetMs(4_000), `200-node asynchronous compile took ${elapsed.toFixed(1)} ms`);

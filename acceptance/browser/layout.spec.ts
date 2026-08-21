@@ -42,7 +42,7 @@ test("renders deterministic layered placement", async ({ page }) => {
   page.on("request", (request) => requests.push(request.url()));
   const source = `use "xdraw/architecture" as arch
   diagram "Layered layout" {
-    arrange layered { gap 30 }
+    arrange layered { gap = 30 }
     request: arch.person "Request"
     api: arch.system "API"
     worker: arch.system "Worker"

@@ -1,10 +1,6 @@
 import type { Endpoint, EndpointSide } from "../contracts/foundation.ts";
 
 const PORTS = Object.freeze({
-  east: "right",
-  west: "left",
-  north: "top",
-  south: "bottom",
   right: "right",
   left: "left",
   top: "top",

@@ -82,6 +82,51 @@ function point(x: number, y: number): Point {
   return [x, y];
 }
 
+function followsDirection(
+  actualStart: Point,
+  actualEnd: Point,
+  expectedStart: Point,
+  expectedEnd: Point,
+): boolean {
+  return (actualEnd[0] - actualStart[0]) * (expectedEnd[0] - expectedStart[0])
+    + (actualEnd[1] - actualStart[1]) * (expectedEnd[1] - expectedStart[1]) > 0;
+}
+
+function samePoint(actual: Point, expected: Point): boolean {
+  return actual[0] === expected[0] && actual[1] === expected[1];
+}
+
+function isSegment(
+  actualStart: Point,
+  actualEnd: Point,
+  expectedStart: Point,
+  expectedEnd: Point,
+): boolean {
+  return samePoint(actualStart, expectedStart) && samePoint(actualEnd, expectedEnd);
+}
+
+function endpointInteriorCollisions(
+  segmentStart: Point,
+  segmentEnd: Point,
+  index: number,
+  pathLength: number,
+  fromBounds: Bounds,
+  toBounds: Bounds,
+  start: Point,
+  startExit: Point,
+  endExit: Point,
+  end: Point,
+): number {
+  const leavesSource = index === 0
+    && samePoint(segmentStart, start)
+    && followsDirection(segmentStart, segmentEnd, start, startExit);
+  const entersTarget = index === pathLength - 2
+    && samePoint(segmentEnd, end)
+    && followsDirection(segmentStart, segmentEnd, endExit, end);
+  return Number(!leavesSource && segmentHitsBounds(segmentStart, segmentEnd, fromBounds))
+    + Number(!entersTarget && segmentHitsBounds(segmentStart, segmentEnd, toBounds));
+}
+
 function compactPath(points: readonly Point[]): Route {
   const compacted = points.filter((point, index) => {
     if (index && point[0] === points[index - 1][0] && point[1] === points[index - 1][1]) return false;
@@ -218,21 +263,28 @@ export function routeConnection(
       const segmentEnd = path[index + 1];
       length += Math.abs(segmentEnd[0] - segmentStart[0]) + Math.abs(segmentEnd[1] - segmentStart[1]);
       collisions += obstacles.filter((bounds) => segmentHitsBounds(segmentStart, segmentEnd, bounds)).length;
-      const leavesSource = segmentStart[0] === start[0]
-        && segmentStart[1] === start[1]
-        && segmentEnd[0] === startExit[0]
-        && segmentEnd[1] === startExit[1];
-      const entersTarget = segmentStart[0] === endExit[0]
-        && segmentStart[1] === endExit[1]
-        && segmentEnd[0] === end[0]
-        && segmentEnd[1] === end[1];
+      const sourceExitStub = isSegment(segmentStart, segmentEnd, start, startExit);
+      const targetEntryStub = isSegment(segmentStart, segmentEnd, endExit, end);
       if (options.avoidEndpointInteriors) {
-        if (!leavesSource && segmentHitsBounds(segmentStart, segmentEnd, fromBounds)) collisions += 1;
-        if (!entersTarget && segmentHitsBounds(segmentStart, segmentEnd, toBounds)) collisions += 1;
+        // Compaction may merge an exit stub into the first segment, or an entry
+        // stub into the last. A segment that travels outward from its endpoint
+        // border does not cross that endpoint's interior.
+        collisions += endpointInteriorCollisions(
+          segmentStart,
+          segmentEnd,
+          index,
+          path.length,
+          fromBounds,
+          toBounds,
+          start,
+          startExit,
+          endExit,
+          end,
+        );
       }
       for (const route of scene.routes) {
         for (let routeIndex = 0; routeIndex < route.length - 1; routeIndex += 1) {
-          if (!options.avoidEndpointInteriors || (!leavesSource && !entersTarget)) {
+          if (!options.avoidEndpointInteriors || (!sourceExitStub && !targetEntryStub)) {
             shared += sharedSegmentLength(segmentStart, segmentEnd, route[routeIndex], route[routeIndex + 1]);
           }
           if (segmentsCross(segmentStart, segmentEnd, route[routeIndex], route[routeIndex + 1])) crossings += 1;
