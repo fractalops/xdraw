@@ -2,6 +2,11 @@ import { liteAdaptor } from "@mathjax/src/mjs/adaptors/liteAdaptor.js";
 import { RegisterHTMLHandler } from "@mathjax/src/mjs/handlers/html.js";
 import { TeX } from "@mathjax/src/mjs/input/tex.js";
 import "@mathjax/src/mjs/input/tex/ams/AmsConfiguration.js";
+import "@mathjax/src/mjs/input/tex/boldsymbol/BoldsymbolConfiguration.js";
+import "@mathjax/src/mjs/input/tex/cancel/CancelConfiguration.js";
+import "@mathjax/src/mjs/input/tex/mathtools/MathtoolsConfiguration.js";
+import "@mathjax/src/mjs/input/tex/physics/PhysicsConfiguration.js";
+import "@mathjax/src/mjs/input/tex/units/UnitsConfiguration.js";
 import { mathjax } from "@mathjax/src/mjs/mathjax.js";
 import { SVG } from "@mathjax/src/mjs/output/svg.js";
 import "@mathjax/src/mjs/util/asyncLoad/esm.js";
@@ -12,7 +17,17 @@ const FORMULA_HEIGHT = 72;
 const adaptor = liteAdaptor();
 RegisterHTMLHandler(adaptor);
 const input = new TeX({
-  packages: ["base", "ams"],
+  // Five extensions beyond base and AMS, each one an import above, and each one
+  // rendered and looked at before being added here. They cover vectors and
+  // derivatives, units and fractions of units, struck-through terms, bold
+  // symbols, and the amsmath extensions people assume are already present.
+  //
+  // mhchem is deliberately absent. It loads and typesets formulae correctly, but
+  // its reaction arrow renders as blank space with this font, so `\ce{A -> B}`
+  // silently loses the arrow that carries the meaning. Plain `\longrightarrow`
+  // and `\xrightarrow` are unaffected, so it is specific to mhchem rather than
+  // to arrows. Worth revisiting; not worth shipping as a silent omission.
+  packages: ["base", "ams", "boldsymbol", "cancel", "mathtools", "physics", "units"],
   maxBuffer: 5 * 1024,
   maxTemplateSubtitutions: 1_000,
   formatError: (_jax: unknown, error: unknown) => {

@@ -23,6 +23,7 @@ import {
   type ExpressionNode,
   ExpressionError,
   evaluateExpression,
+  foldConstantExpressions,
   parseExpression,
   validateExpression,
 } from "./expression.ts";
@@ -40,6 +41,8 @@ export type CurvePoint = readonly [number, number];
 export interface SampleRequest {
   readonly x: string;
   readonly y: string;
+  /** Independent variable used by both coordinate expressions. Defaults to t. */
+  readonly variable?: string;
   readonly from: number;
   readonly to: number;
   readonly tolerance: number;
@@ -151,19 +154,24 @@ export function sampleCurve(request: SampleRequest): SampleResult {
 
   const parsed = parseBoth(request);
   if (typeof parsed === "string") return { status: "refused", reason: parsed };
-  const { x, y } = parsed;
+  const x = foldConstantExpressions(parsed.x);
+  const y = foldConstantExpressions(parsed.y);
 
-  const bound = new Set(["t"]);
+  const variable = request.variable ?? "t";
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(variable)) {
+    return { status: "refused", reason: `'${variable}' is not a valid independent variable` };
+  }
+  const bound = new Set([variable]);
   const issues = [...validateExpression(x, bound), ...validateExpression(y, bound)];
   if (issues.length) return { status: "refused", reason: issues[0].message };
 
-  const at = (t: number): CurvePoint => [
-    evaluateExpression(x, { t }),
-    evaluateExpression(y, { t }),
+  const at = (value: number): CurvePoint => [
+    evaluateExpression(x, { [variable]: value }),
+    evaluateExpression(y, { [variable]: value }),
   ];
 
   const enclose = (t0: number, t1: number): [Interval, Interval] => {
-    const span = new Map([["t", interval(Math.min(t0, t1), Math.max(t0, t1))]]);
+    const span = new Map([[variable, interval(Math.min(t0, t1), Math.max(t0, t1))]]);
     return [intervalEvaluate(x, span), intervalEvaluate(y, span)];
   };
 
@@ -197,11 +205,11 @@ export function sampleCurve(request: SampleRequest): SampleResult {
     const b = at(t1);
     const arc = encloseSpan(t0, t1, a, b);
     if (arc.extent === Infinity) {
-      refusal = `the curve is unbounded between t = ${near(t0)} and t = ${near(t1)}`;
+      refusal = `the curve is unbounded between ${variable} = ${near(t0)} and ${variable} = ${near(t1)}`;
       return;
     }
     if (arc.extent > maximumMagnitude) {
-      refusal = `the curve reaches ${arc.extent.toPrecision(4)} between t = ${near(t0)} and t = ${near(t1)}, `
+      refusal = `the curve reaches ${arc.extent.toPrecision(4)} between ${variable} = ${near(t0)} and ${variable} = ${near(t1)}, `
         + `beyond the limit of ${maximumMagnitude}`;
       return;
     }
@@ -210,7 +218,7 @@ export function sampleCurve(request: SampleRequest): SampleResult {
       return;
     }
     if (depth >= MAXIMUM_DEPTH) {
-      refusal = `the curve could not be sampled to a tolerance of ${request.tolerance} near t = ${near(t0)}`;
+      refusal = `the curve could not be sampled to a tolerance of ${request.tolerance} near ${variable} = ${near(t0)}`;
       return;
     }
     refine(t0, (t0 + t1) / 2, depth + 1);
@@ -219,7 +227,7 @@ export function sampleCurve(request: SampleRequest): SampleResult {
 
   const first = at(request.from);
   if (!Number.isFinite(first[0]) || !Number.isFinite(first[1])) {
-    return { status: "refused", reason: `the curve is not finite at t = ${request.from}` };
+    return { status: "refused", reason: `the curve is not finite at ${variable} = ${request.from}` };
   }
 
   for (let index = 0; index < SEED_SPANS; index += 1) {
@@ -240,9 +248,9 @@ export function sampleCurve(request: SampleRequest): SampleResult {
 }
 
 /** Exposed so callers can bound a curve without sampling it. */
-export function enclosureOf(source: string, over: Interval): Interval {
+export function enclosureOf(source: string, over: Interval, variable = "t"): Interval {
   const node = parseExpression(source);
-  const issues = validateExpression(node, new Set(["t"]));
+  const issues = validateExpression(node, new Set([variable]));
   if (issues.length) throw new ExpressionError(issues[0].message, issues[0].offset);
-  return intervalEvaluate(node, new Map([["t", over]])) ?? UNBOUNDED;
+  return intervalEvaluate(node, new Map([[variable, over]])) ?? UNBOUNDED;
 }

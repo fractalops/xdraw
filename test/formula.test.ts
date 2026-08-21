@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import { compile, compileAsync } from "../src/compile/pipeline.ts";
+import { compilePrepared as compile, compile as compileAsync } from "../src/compile/pipeline.ts";
 import { expandDocument } from "../src/language/expander.ts";
 import { FORMULA_LIMITS } from "../src/nodes/math/formula.ts";
 import { renderScenePng } from "../src/io/local-renderer.ts";
@@ -48,6 +48,32 @@ test("math.formula lowers exact TeX source into a formula node", () => {
   assert.equal(node.title, GAUSSIAN);
 });
 
+test("formula display-scale controls natural sizing and keeps ordinary visual styling", async () => {
+  const scaled = (amount: number) => `use "xdraw/math" as math
+diagram "Scaled" {
+  gaussian: math.formula """x^2 + y^2""" {
+    display-scale = ${amount}
+    opacity = 70
+    link = "https://example.com/formula"
+  }
+}`;
+  const small = formulaImage((await compileAsync(parseSource(scaled(0.5)))).toJSON());
+  const large = formulaImage((await compileAsync(parseSource(scaled(1.5)))).toJSON());
+  assert.ok(large.height > small.height);
+  assert.equal(small.opacity, 70);
+  assert.equal(small.link, "https://example.com/formula");
+});
+
+test("formula sizing has one source of truth", async () => {
+  await assert.rejects(
+    () => compileAsync(parseSource(`use "xdraw/math" as math
+diagram "Ambiguous" {
+  gaussian: math.formula """x""" { size = (300, 120); display-scale = 2 }
+}`)),
+    /may use size or display-scale, not both/u,
+  );
+});
+
 test("raw TeX preserves interpolation-like syntax literally", () => {
   const literal = `${String.raw`\text{`}${"${value}"}}`;
   const document = buildSemanticIR(parseSource(source(literal)));
@@ -60,12 +86,12 @@ test("raw TeX preserves interpolation-like syntax literally", () => {
 test("formula rendering is explicit about requiring asynchronous compilation", () => {
   assert.throws(
     () => compile(parseSource(source())),
-    /math\.formula requires asynchronous compilation with compileAsync/u,
+    /math\.formula requires compilation through the asynchronous public compile API/u,
   );
 });
 
 test("formula compilation does not reuse stale preparation state", async () => {
-  const document = buildSemanticIR(parseSource(source(String.raw`x = 1`)));
+  const document = parseSource(source(String.raw`x = 1`));
   const first = (await compileAsync(document)).toJSON();
   const node = document.statements.find(
     (statement): statement is NodeStatement => statement.type === "node" && statement.kind === "formula",
@@ -77,10 +103,10 @@ test("formula compilation does not reuse stale preparation state", async () => {
   const second = (await compileAsync(document)).toJSON();
   assert.notEqual(formulaImage(first).fileId, formulaImage(second).fileId);
   assert.equal(formulaImage(second).customData?.xdraw?.source, String.raw`x = 2`);
-  assert.throws(() => compile(document), /requires asynchronous compilation/u);
+  assert.throws(() => compile(document), /asynchronous public compile API/u);
 });
 
-test("compileAsync embeds deterministic sanitized SVG and formula metadata", async () => {
+test("compile embeds deterministic sanitized SVG and formula metadata", async () => {
   const first = (await compileAsync(parseSource(source()))).toJSON();
   const second = (await compileAsync(parseSource(source()))).toJSON();
   assert.deepEqual(second, first);
@@ -282,5 +308,30 @@ test("oversized formula output is rejected before it is embedded", async () => {
   await assert.rejects(
     () => compileAsync(parseSource(source(large))),
     /(?:byte output|pixel dimension) limit/u,
+  );
+});
+
+test("the enabled TeX extensions render, and a disabled one is still an error", async () => {
+  // Each of these is unavailable in plain TeX and comes from one of the packages
+  // wired in nodes/math/core.ts. They were rendered and looked at before being
+  // enabled, so this guards the wiring rather than MathJax itself.
+  for (const source of [
+    String.raw`\vb{F} = m\dv{\vb{v}}{t}`,
+    String.raw`\units{9.8}{m/s^2}`,
+    String.raw`\nicefrac{1}{2}`,
+    String.raw`\cancel{x} + y`,
+    String.raw`\boldsymbol{\alpha}`,
+    String.raw`a \coloneqq b`,
+  ]) {
+    const drawing = await compileAsync(parseSource(`use "xdraw/math" as math
+      diagram "TeX" { e: math.formula """${source}""" }`));
+    assert.ok(drawing.elements.length > 0, `${source} produced nothing`);
+  }
+  // mhchem is available in the dependency and deliberately not enabled: its
+  // reaction arrow renders blank, so it would lose the arrow without saying so.
+  await assert.rejects(
+    () => compileAsync(parseSource(`use "xdraw/math" as math
+      diagram "TeX" { e: math.formula """\\ce{A -> B}""" }`)),
+    /Undefined control sequence/,
   );
 });

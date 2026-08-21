@@ -2,10 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { renderScenePng, renderSceneSvg } from "../src/io/local-renderer.ts";
+import type { RenderableSceneInput } from "../src/io/local-renderer.ts";
 
-const scene = {
-  type: "excalidraw",
-  version: 2,
+const scene: RenderableSceneInput = {
   appState: { viewBackgroundColor: "#ffffff" },
   files: {},
   elements: [
@@ -46,13 +45,13 @@ test("local renderer rejects invalid frame and padding selectors", () => {
 });
 
 test("local renderer rejects malformed external scene data", () => {
-  assert.throws(() => renderSceneSvg(null), /scene must be an object/);
+  assert.throws(() => renderSceneSvg(null as never), /scene must be an object/);
   assert.throws(
     () => renderSceneSvg({ elements: [{ id: "bad", type: "rectangle", x: 0, y: 0, width: Number.NaN, height: 20 }] }),
     /element 'bad' width must be a finite number/,
   );
   assert.throws(
-    () => renderSceneSvg({ elements: [{ id: "line", type: "line", x: 0, y: 0, width: 20, height: 20, points: [[0, 0], [20]] }] }),
+    () => renderSceneSvg({ elements: [{ id: "line", type: "line", x: 0, y: 0, width: 20, height: 20, points: [[0, 0], [20]] }] } as never),
     /points\[1\] must be an \[x, y\] point/,
   );
   assert.throws(

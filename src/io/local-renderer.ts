@@ -253,11 +253,16 @@ function renderText(element: RenderableSceneElement): string {
   const alignment = element.textAlign ?? "left";
   const anchor = alignment === "center" ? "middle" : alignment === "right" ? "end" : "start";
   const x = (element.x ?? 0) + (alignment === "center" ? (element.width ?? 0) / 2 : alignment === "right" ? (element.width ?? 0) : 0);
+  // Excalidraw numbers its families Virgil 1, Helvetica 2, Cascadia 3, Lilita One 7.
+  // Name the real font first so a machine that has it renders what the editor
+  // renders, and keep the generic stand-ins behind it for machines that do not.
   const family = element.fontFamily === 3
-    ? "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+    ? "Cascadia, Cascadia Code, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
     : element.fontFamily === 7
-      ? "Arial Black, Arial, sans-serif"
-      : element.fontFamily === 1 ? "Virgil, Comic Sans MS, cursive" : "Arial, sans-serif";
+      ? "Lilita One, Arial Black, Arial, sans-serif"
+      : element.fontFamily === 1
+        ? "Virgil, Excalifont, Comic Sans MS, cursive"
+        : "Helvetica, Arial, sans-serif";
   const spans = lines.map((line, index) => (
     `<tspan x="${x}" dy="${index === 0 ? fontSize : lineHeight}">${escape(line)}</tspan>`
   )).join("");
@@ -273,7 +278,7 @@ function linearPoints(element: RenderableSceneElement): string {
  *
  * `freeDrawPath` returns the stroke's outline, so on its own a plotted circle is
  * a ring with nothing inside. Excalidraw fills the polygon through the raw
- * points when the stroke closes, and closes means first and last point within
+ * points = when the stroke closes, and closes means first and last point within
  * `LOOP_THRESHOLD` of each other; matching that keeps a preview agreeing with
  * what the editor shows rather than approximating it differently.
  *
@@ -357,7 +362,7 @@ function renderElement(
 }
 
 export function renderSceneSvg(scene: RenderableSceneInput, options: RenderSceneOptions = {}): string {
-  const { frameId, padding = 40, maxWidth, backgroundColor } = options;
+  const { frameId, padding = 20, maxWidth, backgroundColor } = options;
   if (!Number.isFinite(padding) || padding < 0) throw new Error("padding must be a non-negative number");
   if (maxWidth !== undefined && (!Number.isFinite(maxWidth) || maxWidth <= 0)) {
     throw new Error("maxWidth must be a positive number");

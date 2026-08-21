@@ -1,0 +1,24 @@
+use "xdraw/math" as math
+
+diagram "Coordinate plane" {
+  plane: math.plane "Signals" {
+    size = (680, 440)
+    x in [-pi, pi]
+    y in [-1.2, 1.2]
+    x-label = "t"
+    y-label = "amplitude"
+    grid = true
+    cross-zero = true
+
+    sine: math.plot "sin(x)" {
+      y = sin(x)
+      x in [-pi, pi]
+    }
+
+    cosine: math.plot "cos(x)" {
+      y = cos(x)
+      x in [-pi, pi]
+      stroke = "#dc2626"
+    }
+  }
+}

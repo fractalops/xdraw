@@ -5,9 +5,11 @@
 // its curve-describing properties do not leak into the style pass, and that a
 // curve which cannot be drawn fails when the document is read.
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { compile, parse } from "../src/index.ts";
+import { parse } from "../src/index.ts";
+import { compilePrepared as compile } from "../src/compile/pipeline.ts";
 import { renderSceneSvg } from "../src/io/local-renderer.ts";
 
 const TAU = 6.283185307179586;
@@ -36,18 +38,18 @@ function stroke(source: string): FreedrawElement {
 
 const lissajous = (extra = "") => `diagram "" {
   mark: math.plot {
-    at (100, 80)
+    at = (100, 80)
     x = 120 * sin(2*t)
     y = 110 * sin(3*t)
-    domain (0, tau)
+    t in [0, tau]
     ${extra}
   }
 }`;
 const withImport = (body: string) => `use "xdraw/math" as math\n\n${body}`;
 
 test("a plot compiles to an editable freehand element", () => {
-  const mark = stroke(withImport(lissajous(`stroke "#4d7c0f"
-    stroke-width 3`)));
+  const mark = stroke(withImport(lissajous(`stroke = "#4d7c0f"
+    stroke-width = 3`)));
 
   assert.equal(mark.type, "freedraw", "a plot is a freedraw once compiled");
   // The amplitudes are 120 and 110, so the curve spans 240 by 220 whatever the
@@ -72,17 +74,94 @@ test("a plot compiles to an editable freehand element", () => {
   assert.ok(Math.hypot(lastX - firstX, lastY - firstY) < 1, "a closed curve must return to its start");
 });
 
+test("value-level point projections use the same typed expression vocabulary", () => {
+  const mark = stroke(withImport(`diagram "Projection" {
+    mark: math.plot {
+      at = (0, 0)
+      x = x((4, 2)) + t
+      y = y((4, 2)) + t
+      t in [0, 10]
+    }
+  }`));
+  assert.equal(Math.round(mark.width), 10);
+  assert.equal(Math.round(mark.height), 10);
+});
+
+test("the README flower derives its leaf and centre from the stem geometry", () => {
+  const source = readFileSync(new URL("../examples/readme-flower.xdraw", import.meta.url), "utf8");
+  assert.match(source, /attach leaf\.origin to along\(stem, 0\.5\)/u);
+  assert.match(source, /attach petals\.center to end\(stem\)/u);
+  assert.match(source, /attach centre\.center to end\(stem\)/u);
+
+  const composed = compile(parse(source)).toJSON().elements;
+  const title = composed.find((element) => element.id === "document:title");
+  const petals = composed.find((element) => element.id === "petals:stroke");
+  assert.ok(title?.type === "text", "the flower must keep its document title");
+  assert.ok(petals?.type === "freedraw", "the flower must emit its petals");
+  const titleToFlower = petals.y - (title.y + title.height);
+  assert.ok(
+    titleToFlower >= 24 && titleToFlower <= 64,
+    `title-to-flower clearance must stay between 24 and 64 pixels, got ${titleToFlower}`,
+  );
+
+  const assertAttachments = (variant: string) => {
+    const elements = compile(parse(variant)).toJSON().elements;
+    const freedraw = (id: string) => {
+      const element = elements.find((candidate) => candidate.id === id);
+      assert.ok(element?.type === "freedraw", `missing ${id}`);
+      return element;
+    };
+    const absolutePoints = (element: ReturnType<typeof freedraw>) => (
+      element.points.map(([x, y]) => [element.x + x, element.y + y] as const)
+    );
+    const pointAtFraction = (points: readonly (readonly [number, number])[], fraction: number) => {
+      const lengths = points.slice(1).map((point, index) => (
+        Math.hypot(point[0] - points[index][0], point[1] - points[index][1])
+      ));
+      const target = lengths.reduce((total, length) => total + length, 0) * fraction;
+      let travelled = 0;
+      for (let index = 0; index < lengths.length; index += 1) {
+        if (travelled + lengths[index] < target) {
+          travelled += lengths[index];
+          continue;
+        }
+        const ratio = lengths[index] === 0 ? 0 : (target - travelled) / lengths[index];
+        return [
+          points[index][0] + (points[index + 1][0] - points[index][0]) * ratio,
+          points[index][1] + (points[index + 1][1] - points[index][1]) * ratio,
+        ] as const;
+      }
+      return points.at(-1)!;
+    };
+
+    const stemPoints = absolutePoints(freedraw("stem:stroke"));
+    const leafJoint = absolutePoints(freedraw("leaf:stroke"))[0];
+    const centre = freedraw("centre:stroke");
+    const centrePoint = [centre.x + centre.width / 2, centre.y + centre.height / 2] as const;
+    const stemMiddle = pointAtFraction(stemPoints, 0.5);
+    const stemEnd = pointAtFraction(stemPoints, 1);
+    assert.ok(Math.hypot(stemMiddle[0] - leafJoint[0], stemMiddle[1] - leafJoint[1]) <= 1);
+    assert.ok(Math.hypot(stemEnd[0] - centrePoint[0], stemEnd[1] - centrePoint[1]) <= 1);
+  };
+
+  assertAttachments(source);
+  assertAttachments(source
+    .replace("at = (260, 450)", "at = (340, 620)")
+    .replace("x = 10 * sin(t / 2)", "x = 36 * sin(t / 2)")
+    .replace("y = -250 * t / tau", "y = -310 * t / tau"));
+});
+
 test("the curve-describing properties do not reach the style pass", () => {
   // x, y, from, to and tolerance describe the curve rather than its appearance.
   // Left in the attribute bag they reach the style pass, which rejects any
   // attribute it does not recognise — "unsupported style property: x".
   assert.doesNotThrow(() => stroke(withImport(lissajous())));
-  assert.doesNotThrow(() => stroke(withImport(lissajous("tolerance 2"))));
+  assert.doesNotThrow(() => stroke(withImport(lissajous("tolerance = 2"))));
 });
 
 test("a finer tolerance produces a denser curve", () => {
-  const coarse = stroke(withImport(lissajous("tolerance 4")));
-  const fine = stroke(withImport(lissajous("tolerance 0.1")));
+  const coarse = stroke(withImport(lissajous("tolerance = 4")));
+  const fine = stroke(withImport(lissajous("tolerance = 0.1")));
   assert.ok(
     fine.points.length > coarse.points.length,
     `tolerance 0.1 gave ${fine.points.length} points, tolerance 4 gave ${coarse.points.length}`,
@@ -92,20 +171,20 @@ test("a finer tolerance produces a denser curve", () => {
 test("a curve that cannot be drawn fails when the document is read", () => {
   const withPole = withImport(`diagram "" {
     mark: math.plot {
-      at (0, 0)
+      at = (0, 0)
       x = 1 / t
       y = t
-      domain (0, 3)
+      t in [0, 3]
     }
   }`);
   assert.throws(() => stroke(withPole), /plot 'mark' could not be drawn/, "a pole must be reported");
 
   const tooLarge = withImport(`diagram "" {
     mark: math.plot {
-      at (0, 0)
+      at = (0, 0)
       x = t * 2000000
       y = t
-      domain (0, 1)
+      t in [0, 1]
     }
   }`);
   assert.throws(() => stroke(tooLarge), /could not be drawn.*beyond the limit of/s);
@@ -114,10 +193,10 @@ test("a curve that cannot be drawn fails when the document is read", () => {
 test("a plot is positioned at its `at` property", () => {
   const mark = stroke(withImport(`diagram "" {
     mark: math.plot {
-      at (300, 200)
+      at = (300, 200)
       x = 50 * cos(t)
       y = 50 * sin(t)
-      domain (0, tau)
+      t in [0, tau]
     }
   }`));
   // The curve starts at (50, 0) relative to `at`, and spans 100 by 100 centred
@@ -128,13 +207,13 @@ test("a plot is positioned at its `at` property", () => {
   assert.equal(Math.round(mark.y), 150);
 });
 
-test("the language rejects a plot that is missing what it needs", () => {
-  for (const missing of ["x", "y", "domain", "at"]) {
+test("the language rejects a plot that is missing its mathematics", () => {
+  for (const missing of ["x", "y", "interval"]) {
     const properties = new Map([
-      ["at", "at (0, 0)"],
+      ["at", "at = (0, 0)"],
       ["x", 'x = t'],
       ["y", 'y = t'],
-      ["domain", "domain (0, 1)"],
+      ["interval", "t in [0, 1]"],
     ]);
     properties.delete(missing);
     const source = withImport(`diagram "" {
@@ -146,37 +225,58 @@ test("the language rejects a plot that is missing what it needs", () => {
   }
 });
 
-test("a domain end may be a constant as well as a number", () => {
-  // The point of the interval kind: a full turn reads as `tau` rather than as
+test("an interval bound may be a constant as well as a number", () => {
+  // A full turn reads as `tau` rather than as
   // 6.283185307179586. The constants are the expression sublanguage's, so the
   // two cannot drift apart.
   const byConstant = stroke(withImport(`diagram "" {
-    mark: math.plot { at (0, 0); x = 50 * cos(t); y = 50 * sin(t); domain (0, tau) }
+    mark: math.plot { at = (0, 0); x = 50 * cos(t); y = 50 * sin(t); t in [0, tau] }
   }`));
   const byNumber = stroke(withImport(`diagram "" {
-    mark: math.plot { at (0, 0); x = 50 * cos(t); y = 50 * sin(t); domain (0, ${TAU}) }
+    mark: math.plot { at = (0, 0); x = 50 * cos(t); y = 50 * sin(t); t in [0, ${TAU}] }
   }`));
   assert.deepEqual(byConstant.points, byNumber.points, "tau and its value must agree exactly");
 
   const half = stroke(withImport(`diagram "" {
-    mark: math.plot { at (0, 0); x = 50 * cos(t); y = 50 * sin(t); domain (0, pi) }
+    mark: math.plot { at = (0, 0); x = 50 * cos(t); y = 50 * sin(t); t in [0, pi] }
   }`));
   assert.ok(half.points.length < byConstant.points.length, "half a turn needs fewer points than a whole one");
 });
 
-test("a domain rejects what is not a number or a known constant", () => {
-  const domain = (text: string) => withImport(`diagram "" {
-    mark: math.plot { at (0, 0); x = t; y = t; domain ${text} }
+test("an interval rejects malformed or unresolved bounds", () => {
+  const interval = (text: string) => withImport(`diagram "" {
+    mark: math.plot { at = (0, 0); x = t; y = t; t in ${text} }
   }`);
-  assert.throws(() => stroke(domain("(0, wobble)")), /domain|interval/i, "an unknown name must be rejected");
-  assert.throws(() => stroke(domain('(0, "1")')), /domain|interval/i, "a string must be rejected");
-  assert.throws(() => stroke(domain("(0, 1, 2)")), /domain|interval/i, "three ends must be rejected");
-  assert.throws(() => stroke(domain("5")), /domain|interval/i, "a bare number must be rejected");
+  assert.throws(() => stroke(interval("[0, wobble]")), /unknown name 'wobble'/, "an unknown name must be rejected");
+  assert.throws(() => stroke(interval('[0, "1"]')), /interval|expression/i, "a string must be rejected");
+  assert.throws(() => stroke(interval("[0, 1, 2]")), /interval/i, "three bounds must be rejected");
+  assert.throws(() => stroke(interval("5")), /expected|interval/i, "a bare number must be rejected");
+});
+
+test("a coordinate variable supplies its own coordinate expression", () => {
+  const mark = stroke(withImport(`diagram "" {
+    mark: math.plot { at = (0, 0); y = x^2; x in [-2, 2] }
+  }`));
+  assert.equal(Math.round(mark.width), 4);
+  assert.equal(Math.round(mark.height), 4);
+});
+
+test("a parametric plot may name its independent variable", () => {
+  const mark = stroke(withImport(`diagram "" {
+    mark: math.plot {
+      at = (0, 0)
+      x = 30 * cos(theta)
+      y = 30 * sin(theta)
+      theta in [0, tau]
+    }
+  }`));
+  assert.equal(Math.round(mark.width), 60);
+  assert.equal(Math.round(mark.height), 60);
 });
 
 test("an expression is written as an equation, not as a string", () => {
   const quoted = withImport(`diagram "" {
-    mark: math.plot { at (0, 0); x "60 * cos(t)"; y = 60 * sin(t); domain (0, tau) }
+    mark: math.plot { at = (0, 0); x = "60 * cos(t)"; y = 60 * sin(t); t in [0, tau] }
   }`);
   assert.throws(() => stroke(quoted), /expects expression, received string/, "a quoted expression must be rejected");
 });
@@ -186,15 +286,15 @@ test("an expression ends where the grammar ends it, without a delimiter", () => 
   // only an operator can continue it, so the next property name finishes it.
   // Nothing is delimited, and no newline is significant.
   const oneLine = stroke(withImport(`diagram "" {
-    mark: math.plot { at (0, 0); x = 60 * cos(t); y = 60 * sin(t); domain (0, tau); stroke "#111111" }
+    mark: math.plot { at = (0, 0); x = 60 * cos(t); y = 60 * sin(t); t in [0, tau]; stroke = "#111111" }
   }`));
   const manyLines = stroke(withImport(`diagram "" {
     mark: math.plot {
-      at (0, 0)
+      at = (0, 0)
       x = 60 * cos(t)
       y = 60 * sin(t)
-      domain (0, tau)
-      stroke "#111111"
+      t in [0, tau]
+      stroke = "#111111"
     }
   }`));
   assert.deepEqual(oneLine.points, manyLines.points, "line breaks must not change meaning");
@@ -207,11 +307,11 @@ test("a minus keeps its meaning inside an expression", () => {
   // tokenizer, which is why this stays a subtraction rather than silently
   // becoming the first operand alone.
   const flat = stroke(withImport(`diagram "" {
-    mark: math.plot { at (0, 0); x = 50 * t; y = 90 - 30; domain (0, 2) }
+    mark: math.plot { at = (0, 0); x = 50 * t; y = 90 - 30; t in [0, 2] }
   }`));
   assert.equal(Math.round(flat.height), 0, "y = 90 - 30 is constant, so the curve is flat");
   const descending = stroke(withImport(`diagram "" {
-    mark: math.plot { at (0, 0); x = t; y = 0 - t; domain (0, 100) }
+    mark: math.plot { at = (0, 0); x = t; y = 0 - t; t in [0, 100] }
   }`));
   assert.equal(Math.round(descending.height), 100);
 });
@@ -221,10 +321,10 @@ test("a mistake after '=' says what the mistake was", () => {
   // usually "unexpected end of expression" — true, and no help in finding the
   // problem. These are the three ways an author is likely to get it wrong.
   const document = (property: string) => withImport(`diagram "" {
-    mark: math.plot { at (0, 0); ${property}; y = t; domain (0, 1) }
+    mark: math.plot { at = (0, 0); ${property}; y = t; t in [0, 1] }
   }`);
-  assert.throws(() => parse(document('x "60 * cos(t)"')), /expects expression, received string/);
-  assert.throws(() => parse(document('x = "60 * cos(t)"')), /written after '=' without quotes/);
+  assert.throws(() => parse(document('x "60 * cos(t)"')), /expected '=' after property 'x'/);
+  assert.throws(() => parse(document('x = "60 * cos(t)"')), /expects expression, received string/);
   assert.throws(() => parse(document("x = ")), /expected an expression after '='/);
   assert.throws(() => parse(document("x = = t")), /expected an expression after '='/);
   // A genuine syntax error inside a well-formed expression must still report
@@ -239,10 +339,10 @@ test("a template parameter reaches a plot's equations", () => {
   const source = withImport(`diagram "" {
     petal: template(amp, freq) {
       curve: math.plot {
-        at (0, 0)
+        at = (0, 0)
         x = ${"$"}{amp} * cos(${"$"}{freq} * t) * cos(t)
         y = ${"$"}{amp} * cos(${"$"}{freq} * t) * sin(t)
-        domain (0, tau)
+        t in [0, tau]
       }
     }
     small: petal (40, 3)
@@ -260,9 +360,26 @@ test("a template parameter reaches a plot's equations", () => {
   );
 });
 
+test("a template parameter reaches an interval bound", () => {
+  const source = withImport(`diagram "" {
+    arc: template(limit) {
+      curve: math.plot {
+        at = (0, 0)
+        x = 50 * cos(t)
+        y = 50 * sin(t)
+        t in [0, ${"$"}{limit}]
+      }
+    }
+    half: arc (3.141592653589793)
+  }`);
+  const scene = compile(parse(source)).toJSON();
+  const curve = scene.elements.find((element) => element.id === "half.curve:stroke");
+  assert.ok(curve && curve.type === "freedraw");
+});
+
 test("a parameter no template supplies is reported, not passed to the sampler", () => {
   const orphan = withImport(`diagram "" {
-    mark: math.plot { at (0, 0); x = ${"$"}{amp} * t; y = t; domain (0, 1) }
+    mark: math.plot { at = (0, 0); x = ${"$"}{amp} * t; y = t; t in [0, 1] }
   }`);
   assert.throws(() => compile(parse(orphan)), /'\$\{amp\}' is not supplied by any template/);
 });
@@ -274,15 +391,15 @@ test("a plot may be placed from another element's measured geometry", () => {
   // number and producing `'flow.a.center_y60'`.
   const source = withImport(`diagram "" {
     flow: frame "F" {
-      arrange row { gap 40 }
+      arrange row { gap = 40 }
       a: rectangle "A"
       b: rectangle "B"
     }
     mark: math.plot {
-      at = (flow.a.right + 40, flow.a.center_y)
+      at = (flow.a.bounds.right + 40, y(flow.a.center))
       x = 60 * cos(t)
       y = 60 * sin(t)
-      domain (0, tau)
+      t in [0, tau]
     }
   }`);
   const scene = compile(parse(source)).toJSON();
@@ -305,7 +422,7 @@ test("a plot may sit inside a container", () => {
   for (const container of ["frame", "group", "section"]) {
     const source = withImport(`diagram "" {
       panel: ${container} "Panel" {
-        mark: math.plot { at (0, 0); x = 50 * cos(t); y = 50 * sin(t); domain (0, tau) }
+        mark: math.plot { at = (0, 0); x = 50 * cos(t); y = 50 * sin(t); t in [0, tau] }
       }
     }`);
     assert.doesNotThrow(() => compile(parse(source)), `a plot must nest inside a ${container}`);
@@ -315,20 +432,20 @@ test("a plot may sit inside a container", () => {
 test("a plot rejects an expression outside the sublanguage", () => {
   const source = withImport(`diagram "" {
     mark: math.plot {
-      at (0, 0)
+      at = (0, 0)
       x = wobble(t)
       y = t
-      domain (0, 1)
+      t in [0, 1]
     }
   }`);
   assert.throws(() => stroke(source), /unknown function 'wobble'/);
 
   const freeName = withImport(`diagram "" {
     mark: math.plot {
-      at (0, 0)
+      at = (0, 0)
       x = a * t
       y = t
-      domain (0, 1)
+      t in [0, 1]
     }
   }`);
   assert.throws(() => stroke(freeName), /unknown name 'a'/);
@@ -349,14 +466,14 @@ test("a closed curve can be filled", () => {
   // lowers to exactly that element, so withholding them at the constructor kept
   // a shaded region out of reach: the area under a curve, a feasible region, a
   // phase-space basin.
-  const element = stroke(withImport(lissajous('background "#c7d2fe"\n    fill-style solid')));
+  const element = stroke(withImport(lissajous('background = "#c7d2fe"\n    fill-style = solid')));
   assert.equal(element.backgroundColor, "#c7d2fe");
   assert.equal(element.fillStyle, "solid");
 
   // The hatch styles come along, because they were already in the palette.
   for (const style of ["hachure", "cross-hatch"]) {
     assert.doesNotThrow(
-      () => stroke(withImport(lissajous(`background "#fecaca"\n    fill-style ${style}`))),
+      () => stroke(withImport(lissajous(`background = "#fecaca"\n    fill-style = ${style}`))),
       `fill-style ${style} should be accepted`,
     );
   }
@@ -371,9 +488,9 @@ test("a filled closed curve reaches the rendered image, not just the JSON", () =
   // produces showed an empty ring while the JSON claimed a fill.
   const closed = `diagram "Filled" {
     ring: freedraw {
-      at (200, 200)
-      points ((0,0),(100,0),(100,100),(0,100),(0,0))
-      background "#c7d2fe"
+      at = (200, 200)
+      points = ((0,0),(100,0),(100,100),(0,100),(0,0))
+      background = "#c7d2fe"
     }
   }`;
   assert.match(renderSceneSvg(compile(parse(closed)).toJSON()), /c7d2fe/u);
@@ -384,9 +501,9 @@ test("a filled closed curve reaches the rendered image, not just the JSON", () =
   // the 8px Excalidraw allows does fill.
   const nearlyClosed = `diagram "Nearly" {
     ring: freedraw {
-      at (200, 200)
-      points ((0,0),(100,0),(100,100),(0,100),(0,5))
-      background "#fde68a"
+      at = (200, 200)
+      points = ((0,0),(100,0),(100,100),(0,100),(0,5))
+      background = "#fde68a"
     }
   }`;
   assert.match(renderSceneSvg(compile(parse(nearlyClosed)).toJSON()), /fde68a/u);

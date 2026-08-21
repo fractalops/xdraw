@@ -1,7 +1,8 @@
 /**
  * Draws the curves a document described.
  *
- * A plot is lowered as a description — its equations, its domain, its tolerance
+ * A plot is lowered as a description — its equations, independent variable,
+ * closed interval and tolerance
  * — rather than as points, and this pass turns it into the freehand stroke that
  * everything downstream already understands. It runs after templates have been
  * expanded and before the document is validated, which is the whole reason it
@@ -11,7 +12,8 @@
  * plotted curve exactly as they do to a drawn one.
  */
 import { sampleCurve } from "../language/curve-sampler.ts";
-import { offsetBy } from "../language/deferred.ts";
+import { demand, offsetBy } from "../language/deferred.ts";
+import { formatExpression, parseExpression, type ExpressionNode } from "../language/expression.ts";
 import type {
   DiagramDocument,
   FreedrawStatement,
@@ -32,6 +34,12 @@ export class PlotError extends Error {
 const UNRESOLVED_PARAMETER = /\$\{([A-Za-z_][A-Za-z0-9_-]*)\}/u;
 
 function draw(statement: PlotStatement): FreedrawStatement {
+  if (statement.equation) {
+    throw new PlotError(statement.id, "implicit equations require a math.plane");
+  }
+  if (statement.from === undefined || statement.to === undefined) {
+    throw new PlotError(statement.id, "standalone plots require an independent-variable interval");
+  }
   // A parameter that no template supplied is still text here, and would
   // otherwise reach the expression tokenizer as a stray '$'.
   const orphan = UNRESOLVED_PARAMETER.exec(statement.x) ?? UNRESOLVED_PARAMETER.exec(statement.y);
@@ -41,8 +49,9 @@ function draw(statement: PlotStatement): FreedrawStatement {
   const result = sampleCurve({
     x: statement.x,
     y: statement.y,
-    from: statement.from,
-    to: statement.to,
+    variable: statement.variable,
+    from: demand(statement.from, `plot '${statement.id}' interval`),
+    to: demand(statement.to, `plot '${statement.id}' interval`),
     tolerance: statement.tolerance,
   });
   if (result.status === "refused") throw new PlotError(statement.id, result.reason);
@@ -55,17 +64,22 @@ function draw(statement: PlotStatement): FreedrawStatement {
   // it keeps it a single value for the later pass to resolve; adding to it
   // directly concatenated a string with a number.
   const [originX, originY] = result.points[0];
+  const at = statement.at ?? [0, 0];
+  const offsetPoint: ExpressionNode = {
+    kind: "point",
+    x: { kind: "number", value: originX },
+    y: { kind: "number", value: originY },
+  };
   const drawn: FreedrawStatement = {
     ...statement,
     type: "freedraw",
-    at: [
-      offsetBy(statement.at[0], originX),
-      offsetBy(statement.at[1], originY),
-    ] as unknown as FreedrawStatement["at"],
+    at: typeof at === "string"
+      ? formatExpression({ kind: "binary", operator: "+", left: parseExpression(at), right: offsetPoint })
+      : [offsetBy(at[0], originX), offsetBy(at[1], originY)],
     points: result.points.map(([x, y]) => [x - originX, y - originY] as [number, number]),
     pressures: [],
     simulatePressure: false,
-  } as unknown as FreedrawStatement;
+  };
   // The span belongs to the source the author wrote, so a diagnostic about the
   // stroke still points at the plot that described it.
   const span = (statement as { span?: unknown }).span;
@@ -73,12 +87,12 @@ function draw(statement: PlotStatement): FreedrawStatement {
   return drawn;
 }
 
-function walk(statements: readonly SemanticStatement[]): SemanticStatement[] {
+function walk(statements: readonly SemanticStatement[], insideCartesian = false): SemanticStatement[] {
   return statements.map((statement) => {
-    if (statement.type === "plot") return draw(statement);
+    if (statement.type === "plot") return insideCartesian ? statement : draw(statement);
     const children = (statement as { statements?: readonly SemanticStatement[] }).statements;
     if (Array.isArray(children)) {
-      const replaced = walk(children);
+      const replaced = walk(children, statement.type === "node" && statement.kind === "cartesian");
       if (replaced.some((item, index) => item !== children[index])) {
         const copy = { ...statement, statements: replaced };
         const span = (statement as { span?: unknown }).span;

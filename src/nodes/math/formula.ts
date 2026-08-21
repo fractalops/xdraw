@@ -102,6 +102,12 @@ async function prepare(document: SemanticDocument): Promise<FormulaPreparation> 
     const source = node.authoredSource ?? node.title;
     const renderSource = normalizeFormulaSource(node.title);
     if (!renderSource) throw formulaError("XD1261", node, `formula '${node.id}' must not be empty`);
+    if (node.formulaScale !== undefined && (!(node.formulaScale > 0) || !Number.isFinite(node.formulaScale))) {
+      throw formulaError("XD1273", node, `formula '${node.id}' display-scale must be a positive finite number`);
+    }
+    if (node.formulaScale !== undefined && node.size !== undefined) {
+      throw formulaError("XD1274", node, `formula '${node.id}' may use size or display-scale, not both`);
+    }
     if (source.length > FORMULA_LIMITS.sourceCharacters || renderSource.length > FORMULA_LIMITS.sourceCharacters) {
       throw formulaError(
         "XD1262",
@@ -223,7 +229,7 @@ export function documentHasFormulas(document: SemanticDocument): boolean {
 function preparedFormula(node: NodeMeasurementTarget, preparation?: FormulaPreparation): PreparedFormula {
   const prepared = preparation?.formulas.get(node);
   if (!prepared) {
-    throw new Error("math.formula requires asynchronous compilation with compileAsync");
+    throw new Error("math.formula requires compilation through the asynchronous public compile API");
   }
   return prepared;
 }
@@ -234,7 +240,8 @@ export function formulaNodeMinimumWidth(
 ): number {
   if (!preparation) return 160;
   const prepared = preparedFormula(node, preparation);
-  return Math.min(480, Math.max(160, prepared.width * 1.5));
+  const scale = node.formulaScale ?? 1;
+  return Math.min(720, Math.max(120, prepared.width * 1.5 * scale));
 }
 
 export function planFormulaNode(
@@ -243,11 +250,12 @@ export function planFormulaNode(
   preparation?: FormulaPreparation,
 ): FormulaNodePlan {
   const prepared = preparedFormula(node, preparation);
+  const scale = node.formulaScale ?? 1;
   const naturalHeight = width * prepared.height / prepared.width;
   return Object.freeze({
     type: "formula",
     width,
-    height: node.size?.[1] ?? Math.min(MAX_AUTO_HEIGHT, naturalHeight),
+    height: node.size?.[1] ?? Math.min(MAX_AUTO_HEIGHT * scale, naturalHeight),
     naturalWidth: prepared.width,
     naturalHeight: prepared.height,
     fileId: prepared.fileId,
@@ -283,6 +291,8 @@ export function renderFormulaNode(
       height,
     }, plan.fileId, {
       locked: style.locked,
+      opacity: style.opacity,
+      link: style.link,
       groupIds,
       description: "Mathematical formula",
       customData: {

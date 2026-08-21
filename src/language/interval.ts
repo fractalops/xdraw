@@ -6,7 +6,7 @@
  * moves across that interval. That is the inclusion property, and it is what
  * lets the sampler prove a span is flat instead of probing a few points and
  * hoping. Without it, no finite number of samples says anything about the
- * points between them.
+ * points = between them.
  *
  * Every rule here must over-estimate rather than under-estimate. A range that
  * is too wide costs extra subdivision; a range that is too narrow silently
