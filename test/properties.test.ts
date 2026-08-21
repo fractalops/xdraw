@@ -3,7 +3,7 @@ import test from "node:test";
 
 import fc from "fast-check";
 
-import { compile, compileAsync } from "../src/compile/pipeline.ts";
+import { compilePrepared as compile, compile as compileAsync } from "../src/compile/pipeline.ts";
 import { alignBounds, anchor, box, column, distributeBounds, inset, row } from "../src/geometry.ts";
 import { measureRouteQuality } from "../src/routing/quality.ts";
 import { formatSceneResource, parseSceneDocument, parseSceneResource } from "../src/io/scene-document.ts";
@@ -12,6 +12,11 @@ import { getLibraryManifest } from "../src/language/registry.ts";
 import { tokenize } from "../src/language/tokenizer.ts";
 import { NOT_A_TYPO } from "../src/language/validator.ts";
 import { routeConnection } from "../src/routing/router.ts";
+import { planScenePatch } from "../src/excalidraw-api.ts";
+import type { Route } from "../src/contracts/foundation.ts";
+import type { DrawingJson } from "../src/contracts/render.ts";
+import type { SceneContentResource } from "../src/excalidraw-api.ts";
+import type { SceneResource } from "../src/io/scene-document.ts";
 
 const RUNS = Number.parseInt(process.env.XDRAW_PROPERTY_RUNS ?? "250", 10);
 const EXPENSIVE_RUNS = Math.min(RUNS, 25);
@@ -50,7 +55,7 @@ const point = fc.tuple(
   fc.integer({ min: -100, max: 100 }),
 );
 
-function quote(value) {
+function quote(value: string): string {
   return `"${value
     .replaceAll("\\", "\\\\")
     .replaceAll('"', '\\"')
@@ -58,35 +63,45 @@ function quote(value) {
     .replaceAll("\t", "\\t")}"`;
 }
 
-function assertDrawingIntegrity(drawing) {
+function assertDrawingIntegrity(drawing: DrawingJson): void {
   const ids = new Set(drawing.elements.map((element) => element.id));
   assert.equal(ids.size, drawing.elements.length);
 
   for (const element of drawing.elements) {
-    for (const key of ["x", "y", "width", "height"]) {
-      assert.ok(Number.isFinite(element[key]), `${element.id}.${key} must be finite`);
+    for (const [key, value] of [["x", element.x], ["y", element.y], ["width", element.width], ["height", element.height]] as const) {
+      assert.ok(Number.isFinite(value), `${element.id}.${key} must be finite`);
     }
     assert.ok(element.width >= 0 && element.height >= 0);
-    if (element.containerId) assert.ok(ids.has(element.containerId));
+    if ("containerId" in element && element.containerId) assert.ok(ids.has(element.containerId));
     for (const binding of element.boundElements ?? []) assert.ok(ids.has(binding.id));
-    if (element.startBinding) assert.ok(ids.has(element.startBinding.elementId));
-    if (element.endBinding) assert.ok(ids.has(element.endBinding.elementId));
+    if ((element.type === "arrow" || element.type === "line") && element.startBinding) {
+      assert.ok(ids.has(element.startBinding.elementId));
+    }
+    if ((element.type === "arrow" || element.type === "line") && element.endBinding) {
+      assert.ok(ids.has(element.endBinding.elementId));
+    }
   }
 }
 
-function validDocumentSource({ family, heading, labels, gap }) {
+function validDocumentSource({ family, heading, labels, gap }: {
+  family: string;
+  heading: string;
+  labels: string[];
+  gap: number;
+}): string {
   const [first, second, third] = labels;
+  assert.ok(first !== undefined && second !== undefined && third !== undefined);
   if (family === "core") {
     return `diagram ${quote(heading)} {
-      base: theme { font-family normal }
-      focus: style { stroke "#2563eb"; background "#dbeafe" }
+      base: theme { font-family = normal }
+      focus: style { stroke = "#2563eb"; background = "#dbeafe" }
       region: frame ${quote(first)} {
-        arrange row { gap ${gap} }
-        left: rectangle ${quote(second)} { style focus }
+        arrange row { gap = ${gap} }
+        left: rectangle ${quote(second)} { style = focus }
         right: ellipse ${quote(third)}
-        left@right -> right@left ${quote(heading)}
+        left@east -> right@west ${quote(heading)}
       }
-      caption: text ${quote(first)} { at (20, 320); wrap-width 240 }
+      caption: text ${quote(first)} { at = (20, 320); wrap-width = 240 }
     }`;
   }
   if (family === "template") {
@@ -122,7 +137,7 @@ function validDocumentSource({ family, heading, labels, gap }) {
     source: rectangle ${quote(first)}
     target: rectangle ${quote(second)}
     source -> target
-    note: annotations.note ${quote(third)} { attach target@bottom }
+    note: annotations.note ${quote(third)} { attach = target@south }
   }`;
 }
 
@@ -172,7 +187,7 @@ const invalidDocument = fc.record({
 test("property: scene resource addresses round-trip", () => {
   const segment = fc.stringMatching(/^[^:\r\n]{1,24}$/u).filter((value) => value.trim().length > 0);
   fc.assert(fc.property(segment, segment, segment, (workspace, collection, scene) => {
-    const resource = { provider: "excalidraw", workspace, collection, scene };
+    const resource: SceneResource = { provider: "excalidraw", workspace, collection, scene };
     assert.deepEqual(parseSceneResource(formatSceneResource(resource)), resource);
   }), { numRuns: RUNS });
 });
@@ -232,10 +247,12 @@ test("property: tokenizer metadata remains inside its source", () => {
         assert.equal(token.start.offset, token.offset);
         assert.equal(token.finish.offset, token.end);
       }
-      assert.equal(tokens.at(-1).type, "eof");
-      assert.equal(tokens.at(-1).offset, source.length);
+      const last = tokens.at(-1);
+      assert.ok(last);
+      assert.equal(last.type, "eof");
+      assert.equal(last.offset, source.length);
     } catch (error) {
-      if (error?.name !== "XDrawSyntaxError") throw error;
+      if (!(error instanceof Error) || error.name !== "XDrawSyntaxError") throw error;
     }
   }), { numRuns: RUNS });
 });
@@ -253,7 +270,7 @@ test("property: generated diagrams compile deterministically with valid referenc
       .slice(0, Math.max(0, items.length - 1))
       .flatMap((enabled, index) => enabled ? [`${items[index].id} -> ${items[index + 1].id}`] : []);
     const source = `diagram "Generated" {
-      arrange grid { columns 3; gap 24 }
+      arrange grid { columns = 3; gap = 24 }
       ${[...declarations, ...edges].join("\n")}
     }`;
     const first = compile(parseSource(source)).toJSON();
@@ -263,13 +280,43 @@ test("property: generated diagrams compile deterministically with valid referenc
   }), { numRuns: RUNS });
 });
 
+test("property: relative placement preserves authored gaps across measured sizes", () => {
+  fc.assert(fc.property(
+    fc.record({
+      firstWidth: fc.integer({ min: 80, max: 320 }),
+      firstHeight: fc.integer({ min: 60, max: 180 }),
+      secondWidth: fc.integer({ min: 80, max: 320 }),
+      secondHeight: fc.integer({ min: 60, max: 180 }),
+      gap: fc.integer({ min: 0, max: 800 }),
+    }),
+    ({ firstWidth, firstHeight, secondWidth, secondHeight, gap }) => {
+      const drawing = compile(parseSource(`diagram "Relative property" {
+        first: rectangle "First" { size = (${firstWidth}, ${firstHeight}) }
+        second: rectangle "Second" {
+          at = (first.bounds.right + ${gap}, y(first.center) - ${secondHeight / 2})
+          size = (${secondWidth}, ${secondHeight})
+        }
+      }`)).toJSON();
+      const first = drawing.elements.find((element) => element.id === "first:frame");
+      const second = drawing.elements.find((element) => element.id === "second:frame");
+      const container = drawing.elements.find((element) => element.id === "diagram:frame");
+      assert.ok(first && second && container);
+      assert.equal(second.x, first.x + first.width + gap);
+      assert.equal(second.y + second.height / 2, first.y + first.height / 2);
+      assert.ok(container.x + container.width >= second.x + second.width);
+      assertDrawingIntegrity(drawing);
+    },
+  ), { numRuns: RUNS });
+});
+
 test("property: route quality ignores route ordering and direction", () => {
   fc.assert(fc.property(
     fc.array(fc.array(point, { minLength: 2, maxLength: 8 }), { maxLength: 10 }),
     (routes) => {
-      const expected = measureRouteQuality(routes);
-      assert.deepEqual(measureRouteQuality([...routes].reverse()), expected);
-      assert.deepEqual(measureRouteQuality(routes.map((route) => [...route].reverse())), expected);
+      const typedRoutes = routes as Route[];
+      const expected = measureRouteQuality(typedRoutes);
+      assert.deepEqual(measureRouteQuality([...typedRoutes].reverse()), expected);
+      assert.deepEqual(measureRouteQuality(typedRoutes.map((route) => [...route].reverse() as Route)), expected);
     },
   ), { numRuns: RUNS });
 });
@@ -310,7 +357,7 @@ test("property: scene patch documents preserve their authored model", () => {
     const updated = new Set(authoredUpdates.map(({ target }) => target));
     const deletes = deleteCandidates.filter((target) => !updated.has(target));
     const updateSource = authoredUpdates
-      .map(({ target, title: value }) => `update ${target} { title ${quote(value)} }`)
+      .map(({ target, title: value }) => `update ${target} { title = ${quote(value)} }`)
       .join("\n");
     const deleteSource = deletes.map((target) => `delete ${target}`).join("\n");
     const addSource = add ? 'add { added: rectangle "Added" }' : "";
@@ -326,6 +373,73 @@ test("property: scene patch documents preserve their authored model", () => {
     })));
     assert.deepEqual(parsed.operation.deletes, deletes);
     assert.equal(Boolean(parsed.operation.additions), add);
+  }), { numRuns: RUNS });
+});
+
+test("property: arbitrary hosted scene patches preserve identities, bindings and order", () => {
+  const scenePatch = fc.record({
+    nodes: fc.uniqueArray(fc.record({ id: identifier, title }), {
+      selector: ({ id }) => id,
+      minLength: 1,
+      maxLength: 8,
+    }),
+    actions: fc.array(fc.constantFrom("keep", "update", "delete"), { maxLength: 8 }),
+    additions: fc.uniqueArray(identifier, { maxLength: 4 }),
+  });
+
+  fc.assert(fc.property(scenePatch, ({ nodes, actions, additions }) => {
+    const source = `diagram "Existing" { ${nodes.map(({ id, title: value }) => (
+      `${id}: rectangle ${quote(value || id)}`
+    )).join("\n")} }`;
+    const original = compile(parseSource(source)).toJSON();
+    const originalElements = original.elements.map((element) => {
+      const node = nodes.find(({ id }) => element.id === `${id}:frame`);
+      return node
+        ? { ...element, index: `a${nodes.indexOf(node)}`, customData: { ...(element.customData ?? {}), xdrawId: node.id } }
+        : element;
+    });
+    const content = { ...original, elements: originalElements } as SceneContentResource;
+    const updates = nodes.flatMap(({ id }, index) => actions[index] === "update"
+      ? [{ target: id, properties: { title: `updated ${id}`, x: index * 17 } }]
+      : []);
+    const deletes = nodes.flatMap(({ id }, index) => actions[index] === "delete" ? [id] : []);
+    const additionIds = additions.filter((id) => !nodes.some((node) => node.id === `new_${id}`))
+      .map((id) => `new_${id}`);
+    const additionDrawing = additionIds.length
+      ? compile(parseSource(`diagram "Additions" { ${additionIds.map((id) => `${id}: ellipse "New"`).join("\n")} }`)).toJSON()
+      : undefined;
+    const drawing = additionDrawing && {
+      ...additionDrawing,
+      elements: additionDrawing.elements.filter((element) => additionIds.some((id) => element.id.startsWith(`${id}:`))),
+    };
+    const snapshot = structuredClone(content);
+    const plan = planScenePatch(content, { updates, deletes, drawing }, 123_456);
+
+    assert.deepEqual(content, snapshot);
+    assert.equal(plan.updated, updates.length);
+    assert.equal(plan.deleted, deletes.length);
+    assert.equal(plan.added, drawing?.elements.length ?? 0);
+    for (const { target, properties } of updates) {
+      const shape = plan.elements.find((element) => element.customData?.xdrawId === target);
+      const originalShape = content.elements.find((element) => element.customData?.xdrawId === target);
+      assert.ok(shape && originalShape);
+      assert.equal(shape.version, originalShape.version + 1);
+      assert.equal(shape.x, properties.x);
+      const labelId = originalShape.boundElements?.find((bound) => bound.type === "text")?.id;
+      const label = plan.elements.find((element) => element.id === labelId);
+      assert.equal(label?.type, "text");
+      if (label?.type === "text") assert.equal(label.text, properties.title);
+    }
+    for (const target of deletes) {
+      const shape = plan.elements.find((element) => element.customData?.xdrawId === target);
+      assert.equal(shape?.isDeleted, true);
+      const labelId = content.elements.find((element) => element.customData?.xdrawId === target)
+        ?.boundElements?.find((bound) => bound.type === "text")?.id;
+      assert.equal(plan.elements.find((element) => element.id === labelId)?.isDeleted, true);
+    }
+    const added = plan.elements.slice(plan.elements.length - (drawing?.elements.length ?? 0));
+    assert.ok(added.every((element, index) => index === 0 || (element.index ?? "") > (added[index - 1].index ?? "")));
+    assert.equal(new Set(added.map(({ id }) => id)).size, added.length);
   }), { numRuns: RUNS });
 });
 
@@ -366,7 +480,7 @@ test("property: arranged children remain inside their frame", () => {
   fc.assert(fc.property(arrangement, ({ kind, gap, first, second }) => {
     const drawing = compile(parseSource(`diagram "Layout" {
       region: frame "Region" {
-        arrange ${kind} { gap ${gap} }
+        arrange ${kind} { gap = ${gap} }
         first: rectangle ${quote(first)}
         second: ellipse ${quote(second)}
       }
@@ -443,19 +557,20 @@ test("property: a row grows every child by the same amount", () => {
   });
   fc.assert(fc.property(rowCase, ({ widths, gap }) => {
     const children = widths
-      .map((width, index) => `n${index}: rectangle "N${index}" { size (${width}, 80) }`)
+      .map((width, index) => `n${index}: rectangle "N${index}" { size = (${width}, 80) }`)
       .join("\n");
     const drawing = compile(parseSource(`diagram "Row" {
-      arrange grid { columns 1; width 1400 }
+      arrange grid { columns = 1; width = 1400 }
       strip: frame "Strip" {
-        arrange row { gap ${gap} }
+        arrange row { gap = ${gap} }
         ${children}
       }
     }`)).toJSON();
-    const rendered = widths.map((_, index) => (
-      drawing.elements.find((element) => element.id === `strip.n${index}:frame`)
-    ));
-    assert.ok(rendered.every(Boolean), "every child renders");
+    const rendered = widths.map((_, index) => {
+      const element = drawing.elements.find((candidate) => candidate.id === `strip.n${index}:frame`);
+      assert.ok(element, "every child renders");
+      return element;
+    });
     // Free space is shared equally, so differences between authored widths
     // survive exactly while the widths themselves do not.
     const grown = rendered.map((element, index) => Math.round(element.width) - widths[index]);
@@ -474,24 +589,27 @@ test("property: a column keeps the width each child asked for", () => {
   const columnCase = fc.array(fc.integer({ min: 60, max: 600 }), { minLength: 1, maxLength: 4 });
   fc.assert(fc.property(columnCase, (widths) => {
     const children = widths
-      .map((width, index) => `n${index}: rectangle "N${index}" { size (${width}, 80) }`)
+      .map((width, index) => `n${index}: rectangle "N${index}" { size = (${width}, 80) }`)
       .join("\n");
     const drawing = compile(parseSource(`diagram "Column" {
-      arrange grid { columns 1; width 1400 }
+      arrange grid { columns = 1; width = 1400 }
       stack: frame "Stack" {
-        arrange column { gap 10 }
+        arrange column { gap = 10 }
         ${children}
       }
     }`)).toJSON();
     widths.forEach((authored, index) => {
       const element = drawing.elements.find((item) => item.id === `stack.n${index}:frame`);
+      assert.ok(element);
       assert.equal(Math.round(element.width), authored, `column child ${index} keeps its authored width`);
     });
   }), { numRuns: RUNS });
 });
 
 test("property: a single-keystroke typo of a constructor is corrected", () => {
-  const names = getLibraryManifest("xdraw/core").constructors.map((item) => item.name);
+  const manifest = getLibraryManifest("xdraw/core");
+  assert.ok(manifest);
+  const names = manifest.constructors.map((item) => item.name);
   const known = new Set(names);
 
   // delete, substitute, or transpose one character
@@ -524,7 +642,7 @@ test("property: a single-keystroke typo of a constructor is corrected", () => {
       parseSource(`diagram "D" { a: ${typo} "A" }`);
       return; // parsed for some other reason; nothing to assert
     } catch (error) {
-      message = String(error.message);
+      message = String(error instanceof Error ? error.message : error);
     }
     if (!message.includes("unknown constructor")) return;
     const suggested = /did you mean '([^']+)'/u.exec(message)?.[1];

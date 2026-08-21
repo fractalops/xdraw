@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile } from "../src/compile/pipeline.ts";
+import { compilePrepared as compile } from "../src/compile/pipeline.ts";
 import { parseSource } from "../src/language/parser.ts";
 
 const TABLE_SOURCE = `
@@ -69,7 +69,7 @@ test("tables retain node placement, connector binding, and frame ownership", () 
     use "xdraw/table" as table
     diagram "Nested" {
       area: frame "Area" {
-        locked true
+        locked = true
         arrange row {}
         orders: table.table "Orders" {
           table.header "Order" "Total"

@@ -1,6 +1,6 @@
 import { renderCompilation } from "./render.ts";
 import { prepareLayeredLayout } from "../layout/elk/prepare.ts";
-import { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "../language/semantic.ts";
+import { buildSemanticIR, cloneSemanticDocument } from "../language/semantic.ts";
 import { expandDocument } from "../language/expander.ts";
 import { drawPlots } from "./plot-pass.ts";
 import { expandRepeats } from "../language/repetition.ts";
@@ -13,13 +13,13 @@ type CompileInput = DiagramDocument | SemanticDocument;
 
 export interface CompileOptions {
   syntaxHighlighting?: boolean;
+  /** Emit container-geometry remarks alongside diagnostics. */
+  remarks?: boolean;
 }
 
 function normalizeCompileInput(document: CompileInput): SemanticDocument {
   if (document.type === "semantic-document") {
-    const diagnostics = validateSemanticDocument(document);
-    if (diagnostics.length) throw new DiagnosticError(diagnostics);
-    return document;
+    return cloneSemanticDocument(document);
   }
   // Curves are drawn after templates expand and before validation, so a
   // template may supply a value to an equation and the freehand limits still
@@ -27,15 +27,19 @@ function normalizeCompileInput(document: CompileInput): SemanticDocument {
   return buildSemanticIR(drawPlots(expandDocument(expandRepeats(document))));
 }
 
-export function compile(document: CompileInput, options: CompileOptions = {}): Drawing {
+/** Internal synchronous seam for inputs that require no asynchronous preparation. */
+export function compilePrepared(document: CompileInput, options: CompileOptions = {}): Drawing {
   const scene = normalizeCompileInput(document);
   if (documentHasFormulas(scene)) {
-    throw new Error("math.formula requires asynchronous compilation with compileAsync");
+    throw new Error("math.formula requires compilation through the asynchronous public compile API");
   }
   return renderCompilation(scene, options);
 }
 
-export async function compileAsync(document: CompileInput): Promise<Drawing> {
+export async function compile(document: DiagramDocument, options: CompileOptions = {}): Promise<Drawing> {
+  if (!document || document.type !== "diagram") {
+    throw new TypeError("public compiler input must be a diagram document; semantic documents are an internal stage");
+  }
   const scene = normalizeCompileInput(document);
   const syntax = prepareDocumentSyntaxHighlighting(document);
   const formulaPreparation = await prepareDocumentFormulas(scene);
@@ -43,5 +47,5 @@ export async function compileAsync(document: CompileInput): Promise<Drawing> {
     syntax,
     prepareLayeredLayout(scene, { formulaPreparation }),
   ]);
-  return renderCompilation(scene, { syntaxHighlighting: true }, layered.bounds, formulaPreparation);
+  return renderCompilation(scene, { ...options, syntaxHighlighting: true }, layered.bounds, formulaPreparation);
 }

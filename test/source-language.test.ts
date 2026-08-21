@@ -2,9 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { resolveAssets } from "../src/io/assets.ts";
-import { compile } from "../src/compile/pipeline.ts";
+import { compilePrepared as compile } from "../src/compile/pipeline.ts";
 import { MemoryFileSystem } from "../src/io/filesystem.ts";
 import { parseSource, parseSyntax } from "../src/language/parser.ts";
+import { GEOMETRY_STATEMENT_KINDS, isSourceGeometryStatement } from "../src/language/geometry-statements.ts";
+import type { GeometryStatementKind } from "../src/contracts/foundation.ts";
+import { requireArrow, requireElementById } from "../test-support/assertions.ts";
+import type { SourceDeclaration } from "../src/contracts/language.ts";
 
 const FLOW = `
 use "xdraw/palette" as palette
@@ -14,15 +18,15 @@ diagram "Request lifecycle" {
   subtitle "A compact flow"
 
   flow: process.lane "Processing" {
-    arrange row { gap 55 }
+    arrange row { gap = 55 }
 
-    request: rectangle "Request" { style palette.info }
+    request: rectangle "Request" { style = palette.info }
     validate: rectangle "Validate" {
-      body "Check the request"
-      style palette.warning
+      body = "Check the request"
+      style = palette.warning
     }
-    publish: rectangle "Publish" { style palette.success }
-    request@right -> validate@left -> publish@left
+    publish: rectangle "Publish" { style = palette.success }
+    request@east -> validate@west -> publish@west
   }
 }`;
 
@@ -32,9 +36,15 @@ test("parses generic declarations without architecture-specific grammar", () => 
     { source: "xdraw/palette", alias: "palette" },
     { source: "xdraw/process", alias: "process" },
   ]);
-  const flow = syntax.diagram.statements.find((statement) => statement.id === "flow");
+  const flow = syntax.diagram.statements.find((statement): statement is SourceDeclaration => (
+    "id" in statement && statement.id === "flow"
+  ));
+  assert.ok(flow);
   assert.equal(flow.constructor, "process.lane");
-  assert.equal(flow.statements.find((statement) => statement.id === "validate").constructor, "rectangle");
+  const validate = flow.statements.find((statement): statement is SourceDeclaration => (
+    "id" in statement && statement.id === "validate"
+  ));
+  assert.equal(validate?.constructor, "rectangle");
 });
 
 test("lowers generic declarations through the production compiler", () => {
@@ -48,14 +58,15 @@ test("lowers generic declarations through the production compiler", () => {
 test("qualified references and anchors remain unambiguous after lowering", () => {
   const document = parseSource(`diagram "Namespaces" {
     source: frame "Source" {
-      api: rectangle "API" { at (80, 120); size (220, 100) }
+      api: rectangle "API" { at = (80, 120); size = (220, 100) }
     }
     target: frame "Target" {
-      store: ellipse "Store" { at (480, 120); size (220, 100) }
+      store: ellipse "Store" { at = (480, 120); size = (220, 100) }
     }
-    transfer: source.api@right -> target.store@left "copies"
+    transfer: source.api@east -> target.store@west "copies"
   }`);
   const connection = document.statements.find((statement) => statement.type === "connection");
+  assert.ok(connection?.type === "connection");
   assert.deepEqual(connection.nodes, ["source.api.right", "target.store.left"]);
   const drawing = compile(document).toJSON();
   assert.ok(drawing.elements.some((element) => element.type === "arrow"));
@@ -98,22 +109,22 @@ test("sections remain visible and distinct from frames and groups", () => {
 
 test("arrangements own nested groups and flowing text", () => {
   const drawing = compile(parseSource(`diagram "Comparison" {
-    arrange compact { width 1600 }
+    arrange compact { width = 1600 }
     comparison: frame "Comparison" {
-      arrange column { gap 24 }
+      arrange column { gap = 24 }
       histories: group {
-        arrange row { gap 32 }
+        arrange row { gap = 32 }
         source: frame "Source" { source_row: rectangle "Version 12" }
         target: frame "Target" { target_row: rectangle "Version 0" }
-        source.source_row@right -> target.target_row@left "copied"
+        source.source_row@east -> target.target_row@west "copied"
       }
       explanation: text "The copied rows have a new path and version history."
     }
   }`)).toJSON();
 
-  const source = drawing.elements.find((element) => element.id === "comparison.histories.source");
-  const target = drawing.elements.find((element) => element.id === "comparison.histories.target");
-  const explanation = drawing.elements.find((element) => element.id === "comparison.explanation");
+  const source = requireElementById(drawing.elements, "comparison.histories.source");
+  const target = requireElementById(drawing.elements, "comparison.histories.target");
+  const explanation = requireElementById(drawing.elements, "comparison.explanation");
   assert.ok(source.x < target.x);
   assert.ok(explanation.y > source.y + source.height);
   assert.ok(drawing.elements.some((element) => element.type === "arrow"));
@@ -228,7 +239,7 @@ test("templates expand hygienically from constructor declarations", () => {
     use "xdraw/palette" as palette
     diagram "Services" {
       service: template(name, visual_style) {
-        api: arch.system "${"${name}"} API" { style $visual_style }
+        api: arch.system "${"${name}"} API" { style = $visual_style }
         store: arch.database "${"${name}"} store"
         api -> store
       }
@@ -259,6 +270,42 @@ test("templates compose without leaking identifiers", () => {
   ]) assert.ok(drawing.elements.some((element) => element.id === id));
 });
 
+test("document bindings compose with template parameters in one expression", () => {
+  const drawing = compile(parseSource(`diagram "Bound template" {
+    let unit = 24
+    card: template(columns) {
+      item: rectangle "Item" { size = (\${columns} * unit, 4 * unit) }
+    }
+    result: card(5)
+  }`)).toJSON();
+  const frame = drawing.elements.find((item) => item.id === "result.item:frame");
+  assert.ok(frame);
+  assert.deepEqual([frame.width, frame.height], [120, 96]);
+});
+
+test("containers arrange heterogeneous children in a fixed-column grid", () => {
+  const drawing = compile(parseSource(`diagram "Nested grid" {
+    panel: frame "Panel" {
+      arrange grid { columns = 2; gap = 24 }
+      a: rectangle "A"
+      b: rectangle "B" { body = "taller body wraps over more than one line" }
+      c: rectangle "C"
+      d: rectangle "D"
+    }
+  }`)).toJSON();
+  const frame = (id: string) => {
+    const value = drawing.elements.find((item) => item.id === `${id}:frame`);
+    assert.ok(value);
+    return value;
+  };
+  const [a, b, c, d] = ["panel.a", "panel.b", "panel.c", "panel.d"].map(frame);
+  assert.equal(a.y, b.y);
+  assert.equal(c.y, d.y);
+  assert.equal(a.x, c.x);
+  assert.equal(b.x, d.x);
+  assert.ok(c.y >= Math.max(a.y + a.height, b.y + b.height) + 24);
+});
+
 test("template diagnostics report missing parameters and cycles", () => {
   assert.throws(
     () => compile(parseSource('diagram "Missing" { item: template(name) { node: rectangle "${name}" }; use: item() }')),
@@ -276,33 +323,43 @@ test("template diagnostics report missing parameters and cycles", () => {
 
 test("named styles, frame locks, and connector waypoints share property syntax", () => {
   const drawing = compile(parseSource(`diagram "Controls" {
-    focus: style { stroke "#059669"; background "#ecfdf5" }
+    focus: style { stroke = "#059669"; background = "#ecfdf5" }
     workspace: frame "Workspace" {
-      locked true
-      source: rectangle "Source" { at (80, 120); size (180, 90); style focus }
-      target: ellipse "Target" { at (520, 120); size (180, 90) }
-      source@right -> target@left {
-        via ((300, 165), (440, 165))
-        start-label "caller"
+      locked = true
+      source: rectangle "Source" { at = (80, 120); size = (180, 90); style = focus }
+      target: ellipse "Target" { at = (520, 120); size = (180, 90) }
+      source@east -> target@west {
+        via = ((300, 165), (440, 165))
+        start-label = "caller"
       }
     }
   }`)).toJSON();
-  assert.equal(drawing.elements.find((element) => element.id === "workspace").locked, true);
+  assert.equal(requireElementById(drawing.elements, "workspace").locked, true);
   assert.ok(drawing.elements.some((element) => element.type === "arrow"));
+});
+
+test("every property uses explicit assignment", () => {
+  for (const source of [
+    'diagram "Bad" { a: rectangle "A" { locked true } }',
+    'diagram "Bad" { arrange row { gap 24 }; a: rectangle "A" }',
+    'diagram "Bad" { a: rectangle "A"; a -> a { route elbow } }',
+  ]) {
+    assert.throws(() => parseSource(source), /expected '=' after property/u);
+  }
 });
 
 test("connection route properties select the rendered path style", () => {
   const drawing = compile(parseSource(`use "xdraw/connectors" as connectors
   diagram "Curved connection" {
-    left: connectors.junction "" { at (80, 120); size (8, 8); opacity 0 }
-    right: connectors.junction "" { at (420, 120); size (8, 8); opacity 0 }
-    left@right -> right@left {
-      route curved
-      via ((220, 220), (300, 220))
-      head none
+    left: connectors.junction "" { at = (80, 120); size = (8, 8); opacity = 0 }
+    right: connectors.junction "" { at = (420, 120); size = (8, 8); opacity = 0 }
+    left@east -> right@west {
+      route = curved
+      via = ((220, 220), (300, 220))
+      head = none
     }
   }`)).toJSON();
-  const edge = drawing.elements.find((element) => element.id === "document:connection:0:0");
+  const edge = requireArrow(drawing.elements, "document:connection:0:0");
 
   assert.deepEqual(edge.roundness, { type: 2 });
   assert.equal(edge.endArrowhead, null);
@@ -314,10 +371,10 @@ test("rightward tree arrangements preserve qualified node identities", () => {
     diagram "Language design" {
       map: section "XDraw" {
         arrange tree {
-          root root
-          direction right
-          level-gap 90
-          sibling-gap 28
+          root = root
+          direction = right
+          level-gap = 90
+          sibling-gap = 28
         }
         root: rectangle "XDraw"
         syntax: rectangle "Syntax"
@@ -330,9 +387,9 @@ test("rightward tree arrangements preserve qualified node identities", () => {
     }
   `)).toJSON();
 
-  const root = drawing.elements.find((element) => element.id === "map.root:frame");
-  const syntax = drawing.elements.find((element) => element.id === "map.syntax:frame");
-  const ids = drawing.elements.find((element) => element.id === "map.ids:frame");
+  const root = requireElementById(drawing.elements, "map.root:frame");
+  const syntax = requireElementById(drawing.elements, "map.syntax:frame");
+  const ids = requireElementById(drawing.elements, "map.ids:frame");
   assert.ok(root.x < syntax.x);
   assert.ok(syntax.x < ids.x);
   const arrows = drawing.elements.filter((element) => element.type === "arrow");
@@ -346,7 +403,7 @@ test("tree arrangements reject ambiguous and cyclic topology", () => {
   assert.throws(
     () => parseSource(`diagram "Ambiguous" {
       map: frame "Map" {
-        arrange tree { root root }
+        arrange tree { root = root }
         root: rectangle "Root"
         first: rectangle "First"
         second: rectangle "Second"
@@ -359,7 +416,7 @@ test("tree arrangements reject ambiguous and cyclic topology", () => {
   assert.throws(
     () => parseSource(`diagram "Cycle" {
       map: frame "Map" {
-        arrange tree { root root }
+        arrange tree { root = root }
         root: rectangle "Root"
         child: rectangle "Child"
         root -> child
@@ -377,7 +434,7 @@ test("notes attach to semantic anchors and remain connectable", () => {
       source: rectangle "Source snapshot"
       target: rectangle "Candidate output"
       source -> target "compare"
-      mismatch: annotations.note "Three records differ" { attach target@bottom }
+      mismatch: annotations.note "Three records differ" { attach = target@south }
       owner: annotations.callout "Confirm expected semantics"
       owner -> mismatch
     }
@@ -417,54 +474,58 @@ test("assets, images, and library icons resolve through the normal asset pipelin
     use "xdraw/assets" as assets
     diagram "Portable assets" {
       logo: asset "mark.svg"
-      hero: image(logo) { at (100, 100); size (320, 160); fit contain; alt "Mark" }
-      mark: assets.icon(logo) { at (470, 120); size (80, 80); fit contain }
+      hero: image(logo) { at = (100, 100); size = (320, 160); fit = contain; alt = "Mark" }
+      mark: assets.icon(logo) { at = (470, 120); size = (80, 80); fit = contain }
     }
   `);
   const drawing = compile(await resolveAssets(document, filesystem)).toJSON();
 
-  assert.equal(drawing.elements.find((element) => element.id === "hero").type, "image");
-  assert.equal(drawing.elements.find((element) => element.id === "mark").type, "image");
+  assert.equal(requireElementById(drawing.elements, "hero").type, "image");
+  assert.equal(requireElementById(drawing.elements, "mark").type, "image");
   assert.equal(Object.keys(drawing.files).length, 1);
 });
 
 test("precision transforms resolve namespaced selections before geometry", () => {
   const drawing = compile(parseSource(`diagram "Geometry" {
     workspace: frame "Workspace" {
-      first: rectangle "First" { at (80, 100); size (100, 80) }
-      second: rectangle "Second" { at (330, 180); size (140, 100) }
-      third: rectangle "Third" { at (700, 260); size (120, 90) }
+      first: rectangle "First" { at = (80, 100); size = (100, 80) }
+      second: rectangle "Second" { at = (330, 180); size = (140, 100) }
+      third: rectangle "Third" { at = (700, 260); size = (120, 90) }
+      fourth: rectangle "Fourth" { at = (900, 340); size = (100, 80) }
+      fifth: rectangle "Fifth" { at = (1113, 427); size = (100, 80) }
       align top (first, second, third)
       distribute x (first, second, third)
       match-size (first, third) height
-      offset (second) by (10, 0)
+      offset (fourth) by (10, 0)
       rotate (third) 15
-      snap (first) to 10
+      snap (fifth) to 10
     }
   }`)).toJSON();
   const frames = ["first", "second", "third"].map((id) => (
-    drawing.elements.find((element) => element.id === `workspace.${id}:frame`)
+    requireElementById(drawing.elements, `workspace.${id}:frame`)
   ));
   assert.equal(frames[0].y, frames[1].y);
   assert.equal(frames[0].height, frames[2].height);
   assert.notEqual(frames[2].angle, 0);
+  assert.equal(requireElementById(drawing.elements, "workspace.fourth:frame").x, 910);
+  assert.equal(requireElementById(drawing.elements, "workspace.fifth:frame").x % 10, 0);
 });
 
 test("deeply nested documents fail with a diagnostic rather than a stack overflow", () => {
   // Recursive descent has no natural floor: past a few hundred frames the
   // parser used to die with RangeError, which callers catching syntax errors
   // never see coming.
-  const deep = (depth) => `diagram "D" {${'f: frame "F" {'.repeat(depth)}a: rectangle "A"${"}".repeat(depth)}}`;
+  const deep = (depth: number) => `diagram "D" {${'f: frame "F" {'.repeat(depth)}a: rectangle "A"${"}".repeat(depth)}}`;
   assert.doesNotThrow(() => parseSource(deep(40)));
-  let error;
+  let error: unknown;
   try {
     parseSource(deep(5_000));
   } catch (caught) {
     error = caught;
   }
-  assert.ok(error, "expected deeply nested source to be rejected");
-  assert.doesNotMatch(String(error.message), /call stack/i, "must not surface as a stack overflow");
-  assert.match(String(error.message), /nest/i);
+  assert.ok(error instanceof Error, "expected deeply nested source to be rejected");
+  assert.doesNotMatch(error.message, /call stack/i, "must not surface as a stack overflow");
+  assert.match(error.message, /nest/i);
 });
 
 test("errors name the import that provides an unresolved constructor", () => {
@@ -493,8 +554,8 @@ test("every suggestion produces a document that actually compiles", () => {
   // Matching the wording of a suggestion proves nothing. Apply it and reparse:
   // that is what a reader does, and it is where the first version failed.
   const applied = [
-    ['diagram "D" { a: rectangle "A" { fill "#eee" } }', 'diagram "D" { a: rectangle "A" { background "#eee" } }'],
-    ['diagram "D" { a: rectangle "A" { backgroud "#eee" } }', 'diagram "D" { a: rectangle "A" { background "#eee" } }'],
+    ['diagram "D" { a: rectangle "A" { fill "#eee" } }', 'diagram "D" { a: rectangle "A" { background = "#eee" } }'],
+    ['diagram "D" { a: rectangle "A" { backgroud "#eee" } }', 'diagram "D" { a: rectangle "A" { background = "#eee" } }'],
     ['diagram "D" { f: math.formula """x^2""" }', 'use "xdraw/math" as math\ndiagram "D" { f: math.formula """x^2""" }'],
     ['diagram "D" { n: note "hi" }', 'use "xdraw/annotations" as annotations\ndiagram "D" { n: annotations.note "hi" }'],
   ];
@@ -508,18 +569,18 @@ test("suggestions stay silent when the replacement would not be usable", () => {
   // 'size' is the right concept for width, but it takes a pair, so naming it
   // alone sends the reader into a second error. 'radius' has no counterpart:
   // roughness is sketchiness, not corner rounding.
-  const message = (source) => {
-    try { parseSource(source); return ""; } catch (error) { return String(error.message); }
+  const message = (source: string) => {
+    try { parseSource(source); return ""; } catch (error) { return String(error instanceof Error ? error.message : error); }
   };
-  assert.match(message('diagram "D" { a: rectangle "A" { width 100 } }'), /size \(width, height\)/);
-  assert.doesNotMatch(message('diagram "D" { a: rectangle "A" { radius 4 } }'), /did you mean/);
+  assert.match(message('diagram "D" { a: rectangle "A" { width = 100 } }'), /size \(width, height\)/);
+  assert.doesNotMatch(message('diagram "D" { a: rectangle "A" { radius = 4 } }'), /did you mean/);
 });
 
 test("unknown properties suggest the XDraw name for familiar vocabulary", () => {
   // Vocabulary carried over from CSS and other tools is not a misspelling, so
   // edit distance cannot find it: 'fill' is closer to 'fit' than 'background'.
-  const attempt = (property, value = '"#eee"') => () =>
-    parseSource(`diagram "D" { a: rectangle "A" { ${property} ${value} } }`);
+  const attempt = (property: string, value = '"#eee"') => () =>
+    parseSource(`diagram "D" { a: rectangle "A" { ${property} = ${value} } }`);
   assert.throws(attempt("fill"), /did you mean 'background'/);
   assert.throws(attempt("color"), /did you mean 'stroke'/);
   assert.throws(attempt("width", "100"), /did you mean 'size \(width, height\)'/);
@@ -531,7 +592,7 @@ test("unknown properties suggest the XDraw name for familiar vocabulary", () => 
 
   // Something unrelated must not attract a bogus suggestion.
   assert.throws(attempt("xyzzy"), /does not accept property 'xyzzy'/);
-  assert.doesNotThrow(() => parseSource('diagram "D" { a: rectangle "A" { background "#eee" } }'));
+  assert.doesNotThrow(() => parseSource('diagram "D" { a: rectangle "A" { background = "#eee" } }'));
 });
 
 test("mistyped constructors and arrangements suggest the intended name", () => {
@@ -546,22 +607,22 @@ test("mistyped constructors and arrangements suggest the intended name", () => {
     /did you mean 'ellipse'/,
   );
   assert.throws(
-    () => parseSource('diagram "D" { arrange gird { columns 2 }\na: rectangle "A" }'),
+    () => parseSource('diagram "D" { arrange gird { columns = 2 }\na: rectangle "A" }'),
     /did you mean 'grid'/,
   );
   assert.throws(
-    () => parseSource('diagram "D" { f: frame "F" { arrange colum { gap 4 }\na: rectangle "A" } }'),
+    () => parseSource('diagram "D" { f: frame "F" { arrange colum { gap = 4 }\na: rectangle "A" } }'),
     /did you mean 'column'/,
   );
 
   // Applying the suggestion must produce something that compiles.
   assert.doesNotThrow(() => parseSource('diagram "D" { a: rectangle "A" }'));
-  assert.doesNotThrow(() => parseSource('diagram "D" { arrange grid { columns 2 }\na: rectangle "A" }'));
+  assert.doesNotThrow(() => parseSource('diagram "D" { arrange grid { columns = 2 }\na: rectangle "A" }'));
 
   // Nothing close enough must attract a guess.
   assert.throws(() => parseSource('diagram "D" { a: qqqqqqq "A" }'), /unknown constructor 'qqqqqqq'/);
   assert.doesNotMatch(
-    (() => { try { parseSource('diagram "D" { a: qqqqqqq "A" }'); return ""; } catch (error) { return String(error.message); } })(),
+    (() => { try { parseSource('diagram "D" { a: qqqqqqq "A" }'); return ""; } catch (error) { return String(error instanceof Error ? error.message : error); } })(),
     /did you mean/,
   );
 });
@@ -571,8 +632,8 @@ test("words that mean something else in this domain get no constructor suggestio
   // cleanly into a code block, so the reader is told to write something that
   // silently produces the wrong element. Distance cannot separate these:
   // 'node' to 'code' is one edit with a margin of three over the runner-up.
-  const message = (source) => {
-    try { parseSource(source); return ""; } catch (error) { return String(error.message); }
+  const message = (source: string) => {
+    try { parseSource(source); return ""; } catch (error) { return String(error instanceof Error ? error.message : error); }
   };
   for (const word of ["node", "state"]) {
     const reported = message(`diagram "D" { a: ${word} "A" }`);
@@ -583,4 +644,37 @@ test("words that mean something else in this domain get no constructor suggestio
   // Genuine typos still get help.
   assert.match(message('diagram "D" { a: rectangel "A" }'), /did you mean 'rectangle'/);
   assert.match(message('diagram "D" { a: cod "A" }'), /did you mean 'code'/);
+});
+
+test("every geometry statement kind is parsed and survives into the semantic document", () => {
+  // One list feeds the parser, the semantic pass and the geometry pass. This walks
+  // each kind through all three, so a kind added to the list but wired into none of
+  // them fails here rather than being silently dropped at whichever stage was missed.
+  const sources: Record<GeometryStatementKind, string> = {
+    alignment: "align left (a, b)",
+    distribution: "distribute x (a, b, c)",
+    offset: "offset (a) by (5, 5)",
+    "match-size": "match-size (a, b) width",
+    rotation: "rotate (a) 15",
+    snap: "snap (a) to 10",
+    layer: "bring-to-front (a)",
+  };
+  assert.deepEqual(
+    Object.keys(sources).sort(),
+    [...GEOMETRY_STATEMENT_KINDS].sort(),
+    "a geometry statement kind has no case here",
+  );
+  for (const [kind, statement] of Object.entries(sources)) {
+    const source = `diagram "Geometry" {
+      a: rectangle "A" { at = (0, 0); size = (100, 60) }
+      b: rectangle "B" { at = (200, 0); size = (140, 80) }
+      c: rectangle "C" { at = (400, 0); size = (100, 60) }
+      ${statement}
+    }`;
+    const parsed = parseSyntax(source).diagram.statements.filter(isSourceGeometryStatement);
+    assert.equal(parsed.length, 1, `${kind} did not parse as a geometry statement`);
+    assert.equal(parsed[0]?.type, kind);
+    const semantic = compile(parseSource(source)).elements;
+    assert.ok(semantic.length > 0, `${kind} did not compile`);
+  }
 });

@@ -14,7 +14,8 @@ import test from "node:test";
 
 import fc from "fast-check";
 
-import { compile, parse } from "../src/index.ts";
+import { parse } from "../src/index.ts";
+import { compilePrepared as compile } from "../src/compile/pipeline.ts";
 
 import {
   UnresolvedError,
@@ -138,11 +139,11 @@ test("names from different stages compose in one expression", () => {
     let card = 100
     let unit = 40
     flow: frame "F" {
-      arrange row { gap 40 }
+      arrange row { gap = 40 }
       a: rectangle "A"
       b: rectangle "B"
     }
-    both: text "x" { count 2; at = (card + unit * index + flow.a.right, 300) }
+    both: text "x" { count = 2; at = (card + unit * index + flow.a.bounds.right, 300) }
   }`;
   const scene = compile(parse(source)).toJSON();
   const placed = ["both.0", "both.1"].map((id) => {

@@ -7,11 +7,10 @@ export type ManifestValueKind =
   | "identifier"
   | "number"
   | "boolean"
-  | "pair"
+  | "point"
   | "points"
   | "numbers"
   | "strings"
-  | "interval"
   | "expression"
   | "endpoint";
 
@@ -32,6 +31,7 @@ export type ManifestElementKind =
   | "architecture-system"
   | "architecture-system-boundary"
   | "card"
+  | "cartesian"
   | "code"
   | "decision"
   | "ellipse"

@@ -15,12 +15,15 @@ import {
   CONSTANTS,
   ExpressionError,
   FUNCTIONS,
+  TYPED_FUNCTIONS,
   MAXIMUM_NESTING,
   MAXIMUM_NODES,
   type ExpressionNode,
   evaluateExpression,
+  evaluateValueExpression,
   formatExpression,
   freeNames,
+  inferExpressionKind,
   parseExpression,
   substituteNames,
   validateExpression,
@@ -38,7 +41,7 @@ test("the vocabulary is closed", () => {
 });
 
 test("a dotted name is one name, not property access", () => {
-  // `flow.ingest.right` names an element's geometry, so a dot is part of an
+  // `flow.ingest.east` names an element's geometry, so a dot is part of an
   // identifier. That makes `foo.bar(t)` parse, where it used to be a syntax
   // error — but it is still closed, because nothing binds the name and the
   // vocabulary is consulted by exact match rather than by walking anything.
@@ -47,7 +50,7 @@ test("a dotted name is one name, not property access", () => {
   assert.match(issues("foo.bar(t)")[0].message, /unknown function 'foo\.bar'/);
   assert.match(issues("a.b.c")[0].message, /unknown name 'a\.b\.c'/);
   assert.match(issues("t.constructor")[0].message, /unknown name 't\.constructor'/);
-  assert.deepEqual([...freeNames(parseExpression("flow.ingest.right + 40"))], ["flow.ingest.right"]);
+  assert.deepEqual([...freeNames(parseExpression("flow.ingest.east + (40, 0)"))], ["flow.ingest.east"]);
   // And a bound dotted name evaluates like any other.
   assert.equal(evaluateExpression(parseExpression("a.b + 1"), { "a.b": 41 }), 42);
   assert.throws(() => evaluateExpression(parseExpression("a.b"), { t: 1 }), /unknown name 'a\.b'/);
@@ -75,6 +78,37 @@ test("arithmetic follows the conventions it is written in", () => {
   assert.equal(value("100 / 5 / 2"), 10, "division is left-associative");
   assert.equal(value("1 - 2 + 3"), 2, "+ and - share a precedence level");
   assert.equal(value("8 / 4 * 2"), 4, "* and / share a precedence level");
+});
+
+test("points are values with mathematical vector arithmetic", () => {
+  const point = (source: string) => evaluateValueExpression(parseExpression(source), {});
+  assert.deepEqual(point("(1, 2) + (3, 4)"), [4, 6]);
+  assert.deepEqual(point("(5, 7) - (2, 3)"), [3, 4]);
+  assert.deepEqual(point("2 * (3, 4)"), [6, 8]);
+  assert.deepEqual(point("(6, 8) / 2"), [3, 4]);
+  assert.deepEqual(point("-(3, -4)"), [-3, 4]);
+  assert.throws(() => point("(1, 2) * (3, 4)"), /does not accept those point operands/u);
+  assert.throws(() => point("true + 1"), /boolean/u);
+});
+
+test("x and y project constant points without waiting for geometry", () => {
+  assert.equal(evaluateExpression(parseExpression("x((4, 2))"), {}), 4);
+  assert.equal(evaluateExpression(parseExpression("y((4, 2))"), {}), 2);
+});
+
+test("path operations are typed before sampled geometry exists", () => {
+  const kind = (source: string) => inferExpressionKind(
+    parseExpression(source),
+    (name) => name === "curve" ? "path" : null,
+  );
+  assert.equal(kind("end(curve)").kind, "point");
+  assert.equal(kind("length(curve)").kind, "number");
+  assert.equal(kind("x(along(curve, 0.5))").kind, "number");
+  assert.match(kind("sin(curve)").issues[0]?.message ?? "", /must be number, received path/u);
+  assert.match(kind("end((1, 2))").issues[0]?.message ?? "", /must be path, received point/u);
+  assert.deepEqual(TYPED_FUNCTIONS.names, [
+    "x", "y", "start", "end", "midpoint", "along", "tangent", "length",
+  ]);
 });
 
 test("unknown names, unknown functions, and wrong arity fail before evaluation", () => {

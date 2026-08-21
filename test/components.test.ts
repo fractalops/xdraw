@@ -42,18 +42,20 @@ test("connect composes an arrow and optional label", () => {
   const to = box(200, 0, 100, 50);
   const elements = connect("edge", from, to, { label: "moves" });
   assert.deepEqual(elements.map((element) => element.type), ["arrow", "text"]);
-  assert.equal(elements[0].points[1][0], 100);
+  const edge = elements[0];
+  assert.ok(edge?.type === "arrow");
+  assert.equal(edge.points[1][0], 100);
 });
 
 test("connect rejects paths that cannot form a segment", () => {
   const from = box(0, 0, 100, 50);
   const to = box(200, 0, 100, 50);
-  assert.throws(() => connect("empty", from, to, { points: [], label: "moves" }), /at least two points/);
-  assert.throws(() => connect("single", from, to, { points: [[0, 0]], endLabel: "target" }), /at least two points/);
+  assert.throws(() => connect("empty", from, to, { points: [] as never, label: "moves" }), /at least two points/);
+  assert.throws(() => connect("single", from, to, { points: [[0, 0]] as never, endLabel: "target" }), /at least two points/);
 });
 
 test("tone rejects prototype names and invalid overrides", () => {
-  assert.throws(() => tone("toString"), /unknown tone/);
+  assert.throws(() => tone("toString" as never), /unknown tone/);
   assert.throws(() => tone("info", { stroke: undefined }), /must be a non-empty color string/);
   assert.throws(() => tone("info", { background: "" }), /must be a non-empty color string/);
 });
@@ -74,7 +76,7 @@ test("a shrunk single word fits without breaking mid-word", () => {
   // the width, which floating point then rounds a hair over. wrapTextToWidth
   // rejects it and splits the word, so a title renders as "SourceDocumen\nt".
   const width = 168;
-  for (const [word, family] of [["SourceDocument", 2], ["SemanticDocument", 3], ["DiagramDocument", 2]]) {
+  for (const [word, family] of [["SourceDocument", 2], ["SemanticDocument", 3], ["DiagramDocument", 2]] as const) {
     const size = fitTextSize(word, width, 22, 12, family);
     assert.ok(
       measureTextWidth(word, size, family) <= width,
@@ -231,7 +233,7 @@ test("a node smaller than twice its padding still draws", () => {
   }
 
   // A label on a node this short would be laid out taller than the box holding
-  // it, so XD1211 says so rather than the picture quietly going wrong. That is
+  // it, so XD1246 says so rather than the picture quietly going wrong. That is
   // asserted in test/semantic-diagnostics.test.ts; here we only need the drawing
   // not to throw.
 

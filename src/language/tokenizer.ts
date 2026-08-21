@@ -1,4 +1,4 @@
-import { parseExpressionPrefix } from "./expression.ts";
+import { parseExpressionPrefix, type ExpressionNode } from "./expression.ts";
 import type {
   SourceLocation,
   Token,
@@ -6,7 +6,7 @@ import type {
   TokenType,
 } from "../contracts/foundation.ts";
 
-const SYMBOLS = new Set<TokenType>(["{", "}", "(", ")", ":", ",", ";", "@", "$"]);
+const SYMBOLS = new Set<TokenType>(["{", "}", "(", ")", "[", "]", ":", ",", ";", "@", "$", "="]);
 
 function lineStarts(source: string): number[] {
   const starts = [0];
@@ -84,7 +84,7 @@ function expressionFailure(source: string, offset: number, error: unknown): stri
 }
 
 
-interface ComputedPair {
+interface ClosedInterval {
   readonly open: number;
   readonly comma: number;
   readonly close: number;
@@ -92,18 +92,6 @@ interface ComputedPair {
   readonly right: string;
 }
 
-/**
- * Reads `(a, b)` after an `=`, where a and b are expressions.
- *
- * A single parenthesised expression looks the same until a top-level comma
- * appears, and an expression can never contain one, so the comma is the whole
- * test. Anything else — no parenthesis, no comma, more than one comma —
- * returns null and the caller reads one expression as usual.
- *
- * A newline inside the parentheses is ordinary whitespace, as it is everywhere
- * else in the language. Refusing one made the construct most likely to grow
- * long enough to want wrapping the one that could not be wrapped.
- */
 /**
  * A copy of the source in which every `${name}` is a plain identifier of the
  * same length, so the expression grammar can measure how far the expression
@@ -115,32 +103,48 @@ function probeParameters(source: string): string {
   return source.replace(PARAMETER, (match, name: string) => `_${name.replace(/-/gu, "_")}__`.slice(0, match.length).padEnd(match.length, "_"));
 }
 
-function computedPair(source: string, from: number): ComputedPair | null {
-  let index = from;
-  while (index < source.length && /\s/.test(source[index])) index += 1;
-  if (source[index] !== "(") return null;
-  const open = index;
-  let depth = 0;
+function sourceScalar(node: ExpressionNode): boolean {
+  return node.kind === "number"
+    || node.kind === "boolean"
+    || node.kind === "name"
+    || (node.kind === "negate" && node.operand.kind === "number");
+}
+
+/**
+ * Parentheses are shared by mathematical points and recursive source tuples.
+ * Keep literal/identifier tuples in the source grammar so manifests can later
+ * classify them as points, point lists, number lists, or string lists. A point
+ * containing operators or calls remains one expression token.
+ */
+function sourceTuple(node: ExpressionNode): boolean {
+  return node.kind === "point"
+    && ((sourceScalar(node.x) && sourceScalar(node.y))
+      || node.x.kind === "point"
+      || node.y.kind === "point");
+}
+
+/** Reads the two expression bounds in `[a, b]`, ignoring parentheses inside them. */
+function closedInterval(source: string, from: number): ClosedInterval | null {
+  if (source[from] !== "[") return null;
+  let parentheses = 0;
   let comma = -1;
-  for (index = open; index < source.length; index += 1) {
+  for (let index = from + 1; index < source.length; index += 1) {
     const char = source[index];
-    if (char === "(") depth += 1;
-    else if (char === ")") {
-      depth -= 1;
-      if (depth === 0) {
-        if (comma === -1) return null;
-        return {
-          open, comma, close: index,
-          left: source.slice(open + 1, comma),
-          right: source.slice(comma + 1, index),
-        };
-      }
-    } else if (char === "," && depth === 1) {
+    if (char === "(") parentheses += 1;
+    else if (char === ")") parentheses -= 1;
+    else if (char === "," && parentheses === 0) {
       if (comma !== -1) return null;
       comma = index;
-    } else if (char === '"') {
-      // A quote means this is not a pair of expressions — an expression cannot
-      // contain one — so stop rather than scanning to the end of the document.
+    } else if (char === "]" && parentheses === 0) {
+      if (comma === -1) return null;
+      return {
+        open: from,
+        comma,
+        close: index,
+        left: source.slice(from + 1, comma),
+        right: source.slice(comma + 1, index),
+      };
+    } else if (char === '"' || parentheses < 0) {
       return null;
     }
   }
@@ -229,28 +233,54 @@ export function tokenize(source: string): TokenList {
       // two numbers the way this tokenizer would read it.
       const start = offset;
       offset += 1;
-      const pair = computedPair(source, offset);
-      if (pair) {
-        // `at = (a, b)`. A pair is two expressions, and an expression cannot
-        // contain a top-level comma, so the comma is what tells them apart from
-        // a single parenthesised expression such as `(t + 1) * 2`.
-        tokens.push(token(source, starts, "(", "(", start, pair.open + 1));
-        tokens.push(token(source, starts, "expression", pair.left.trim(), pair.open + 1, pair.comma));
-        tokens.push(token(source, starts, ",", ",", pair.comma, pair.comma + 1));
-        tokens.push(token(source, starts, "expression", pair.right.trim(), pair.comma + 1, pair.close));
-        tokens.push(token(source, starts, ")", ")", pair.close, pair.close + 1));
-        offset = pair.close + 1;
+      tokens.push(token(source, starts, "=", "=", start, offset));
+      let valueStart = offset;
+      while (valueStart < source.length && /\s/u.test(source[valueStart])) valueStart += 1;
+      const bindingAssignment = tokens.at(-3)?.value === "let";
+      // Strings and endpoints belong to the document value grammar rather
+      // than the mathematical expression grammar.
+      if (source[valueStart] === '"'
+          || (source[valueStart] === "$" && source[valueStart + 1] !== "{")
+          || /^[A-Za-z_][A-Za-z0-9_.-]*\s*@/u.test(source.slice(valueStart))) {
         continue;
       }
       let parsed;
       try {
-        parsed = parseExpressionPrefix(probeParameters(source.slice(offset)));
+        parsed = parseExpressionPrefix(probeParameters(source.slice(valueStart)));
       } catch (error) {
-        throw new SyntaxError(expressionFailure(source, offset, error), source, offset);
+        if (source[valueStart] === "(") continue;
+        throw new SyntaxError(expressionFailure(source, valueStart, error), source, valueStart);
       }
-      const end = offset + parsed.end;
-      tokens.push(token(source, starts, "expression", source.slice(offset, end).trim(), start, end));
+      const parsedSource = source.slice(valueStart, valueStart + parsed.end);
+      if (!bindingAssignment
+          && source[valueStart] === "("
+          && !parsedSource.includes("${")
+          && sourceTuple(parsed.node)) continue;
+      const end = valueStart + parsed.end;
+      tokens.push(token(source, starts, "expression", source.slice(valueStart, end).trim(), valueStart, end));
       offset = end;
+      continue;
+    }
+    if (char === "[") {
+      const interval = closedInterval(source, offset);
+      if (!interval || !interval.left.trim() || !interval.right.trim()) {
+        throw new SyntaxError("expected a closed interval such as [0, tau]", source, offset);
+      }
+      for (const [text, start] of [[interval.left, interval.open + 1], [interval.right, interval.comma + 1]] as const) {
+        try {
+          const candidate = probeParameters(text.trim());
+          const parsed = parseExpressionPrefix(candidate);
+          if (candidate.slice(parsed.end).trim()) throw new Error("unexpected content after interval bound");
+        } catch (error) {
+          throw new SyntaxError(expressionFailure(source, start, error), source, start);
+        }
+      }
+      tokens.push(token(source, starts, "[", "[", interval.open, interval.open + 1));
+      tokens.push(token(source, starts, "expression", interval.left.trim(), interval.open + 1, interval.comma));
+      tokens.push(token(source, starts, ",", ",", interval.comma, interval.comma + 1));
+      tokens.push(token(source, starts, "expression", interval.right.trim(), interval.comma + 1, interval.close));
+      tokens.push(token(source, starts, "]", "]", interval.close, interval.close + 1));
+      offset = interval.close + 1;
       continue;
     }
     if (SYMBOLS.has(char as TokenType)) {
@@ -265,10 +295,25 @@ export function tokenize(source: string): TokenList {
       offset += number[0].length;
       continue;
     }
-    const identifier = source.slice(offset).match(/^[A-Za-z_][A-Za-z0-9_.-]*/);
+    // A leading sign belongs to a bare literal outside the expression grammar.
+    const identifier = source.slice(offset).match(/^-?[A-Za-z_][A-Za-z0-9_.-]*/);
     if (identifier) {
       tokens.push(token(source, starts, "identifier", identifier[0], offset, offset + identifier[0].length));
       offset += identifier[0].length;
+      const previous = tokens.at(-2);
+      const beforePrevious = tokens.at(-3);
+      if (identifier[0] === "to" && beforePrevious?.value === "attach" && previous?.type === "identifier") {
+        let valueStart = offset;
+        while (valueStart < source.length && /\s/u.test(source[valueStart])) valueStart += 1;
+        try {
+          const parsed = parseExpressionPrefix(source.slice(valueStart));
+          const end = valueStart + parsed.end;
+          tokens.push(token(source, starts, "expression", source.slice(valueStart, end).trim(), valueStart, end));
+          offset = end;
+        } catch (error) {
+          throw new SyntaxError(expressionFailure(source, valueStart, error), source, valueStart);
+        }
+      }
       continue;
     }
     throw new SyntaxError(`unexpected character ${JSON.stringify(char)}`, source, offset);

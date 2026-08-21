@@ -37,23 +37,23 @@ function wrap(body: string): string {
 }
 
 const CASES: ReadonlyArray<readonly [code: string, source: string]> = [
-  ["XD1003", wrap('s: style { stroke "#fff" }\ns: style { stroke "#000" }')],
-  ["XD1007", wrap("a: theme { font-family normal }\nb: theme { font-family normal }")],
+  ["XD1003", wrap('s: style { stroke = "#fff" }\ns: style { stroke = "#000" }')],
+  ["XD1007", wrap("a: theme { font-family = normal }\nb: theme { font-family = normal }")],
   ["XD1002", wrap('a: rectangle "A"\nb: rectangle "B"\na -> ghost')],
-  ["XD1004", wrap('a: rectangle "A" { style missing }')],
+  ["XD1004", wrap('a: rectangle "A" { style = missing }')],
   ["XD1101", wrap('a: rectangle "A"\nalign left (a, a)')],
   ["XD1104", wrap('a: rectangle "A"\nb: rectangle "B"\nsnap (a, b) to 0')],
   ["XD1107", wrap('a: rectangle "A"\nalign left (a)')],
   ["XD1109", wrap('a: rectangle "A"\nb: rectangle "B"\ndistribute x (a, b)')],
-  ["XD1209", wrap('a: rectangle "A" { size (0, 10) }')],
-  ["XD1210", wrap('a: rectangle "A" { size (20, 60) }')],
-  ["XD1211", wrap('a: rectangle "A" { size (300, 30) }')],
-  ["XD1228", wrap('a: freedraw { at (0, 0); points ((0,0),(200,0)); background "#c7d2fe" }')],
+  ["XD1209", wrap('a: rectangle "A" { size = (0, 10) }')],
+  ["XD1210", wrap('a: rectangle "A" { size = (20, 60) }')],
+  ["XD1246", wrap('a: rectangle "A" { size = (300, 30) }')],
+  ["XD1228", wrap('a: freedraw { at = (0, 0); points = ((0,0),(200,0)); background = "#c7d2fe" }')],
   ["XD1212", 'use "xdraw/annotations" as ann\ndiagram "Checks" { n: ann.note "Floating" }'],
-  ["XD1213", wrap("arrange grid { width 0 }")],
-  ["XD1232", wrap('a: rectangle "A"\nb: rectangle "B"\na -> b { width 0 }')],
-  ["XD1235", wrap("arrange row { gap -1 }")],
-  ["XD1243", wrap("arrange grid { columns 0 }")],
+  ["XD1213", wrap("arrange grid { width = 0 }")],
+  ["XD1232", wrap('a: rectangle "A"\nb: rectangle "B"\na -> b { width = 0 }')],
+  ["XD1235", wrap("arrange row { gap = -1 }")],
+  ["XD1243", wrap("arrange grid { columns = 0 }")],
 ];
 
 for (const [code, source] of CASES) {
@@ -70,7 +70,7 @@ test("XD1245 caps display text that feeds measurement", () => {
   const long = "x".repeat(10_001);
   assert.ok(codes(wrap(`a: rectangle "${long}"`)).includes("XD1245"));
   assert.ok(codes(wrap(`t: text "${long}"`)).includes("XD1245"));
-  assert.ok(codes(wrap(`a: rectangle "A" { body "${long}" }`)).includes("XD1245"));
+  assert.ok(codes(wrap(`a: rectangle "A" { body = "${long}" }`)).includes("XD1245"));
 });
 
 test("XD1245 covers every string that reaches measurement", () => {
@@ -103,11 +103,11 @@ test("diagnostics keep a stable order across independent rule families", () => {
   // not reorder what callers already see. Note that the order is neither source
   // order nor code order — it follows the sequence of checks inside the visitor.
   const source = wrap([
-    's: style { stroke "#fff" }',
-    's: style { stroke "#000" }',
-    'a: rectangle "A" { size (0, 10) }',
-    'b: rectangle "B" { style missing }',
-    "arrange grid { columns 0 }",
+    's: style { stroke = "#fff" }',
+    's: style { stroke = "#000" }',
+    'a: rectangle "A" { size = (0, 10) }',
+    'b: rectangle "B" { style = missing }',
+    "arrange grid { columns = 0 }",
   ].join("\n"));
   assert.deepEqual(codes(source), ["XD1003", "XD1209", "XD1243", "XD1004"]);
 });
@@ -116,6 +116,7 @@ test("diagnostics keep a stable order across independent rule families", () => {
 // A family that loses a rule during refactoring fails here rather than silently
 // accepting invalid documents.
 const IR_CASES: ReadonlyArray<readonly [family: string, code: string, statements: SemanticStatement[]]> = [
+  ["cartesian-structure", "XD1280", [statement({ type: "node", id: "chart", kind: "cartesian", statements: [] })]],
   ["container-membership", "XD1240", [statement({ type: "sequence", id: "s", statements: [statement({ type: "node", id: "n", kind: "rectangle" })] })]],
   ["container-membership", "XD1241", [statement({ type: "tree", id: "t", statements: [statement({ type: "node", id: "n", kind: "rectangle" })] })]],
   ["container-membership", "XD1250", [statement({ type: "node", id: "tb", kind: "table", statements: [statement({ type: "node", id: "n", kind: "rectangle" })] })]],
@@ -174,7 +175,7 @@ const IR_CASES: ReadonlyArray<readonly [family: string, code: string, statements
   ["freedraw", "XD1225", [statement({ type: "freedraw", id: "f", at: [0, 0], points: [[0, 0], [1, 1]], pressures: [5], simulatePressure: true })]],
   ["freedraw", "XD1226", [statement({ type: "freedraw", id: "f", at: [0, 0], points: [[0, 0], [1, 1]], simulatePressure: 3 })]],
   ["node-size", "XD1209", [statement({ type: "node", id: "n", kind: "rectangle", size: [0, 10] })]],
-  ["node-size", "XD1210", [statement({ type: "node", id: "n", kind: "rectangle", size: [20, 60] })]],
+  ["node-size", "XD1210", [statement({ type: "node", id: "n", kind: "rectangle", title: "N", size: [20, 60] })]],
   ["node-size", "XD1244", [statement({ type: "node", id: "n", kind: "decision", title: "T", size: [50, 50] })]],
 ];
 
@@ -188,10 +189,25 @@ for (const [family, code, statements] of IR_CASES) {
 test("every diagnostic code in the registry has a rule test", () => {
   // Guards against a rule being added without coverage. Update alongside
   // VALIDATION_RULES in src/language/semantic.ts.
-  assert.equal(new Set(IR_CASES.map(([, code]) => code)).size, 60);
+  assert.equal(new Set(IR_CASES.map(([, code]) => code)).size, 61);
 });
 
 test("a malformed geometry selection halts the remaining geometry rules", () => {
   // geometry-selection returns true, so XD1106 for the bad mode never fires.
   assert.deepEqual(irCodes(statement({ type: "alignment", ids: "nope", mode: "sideways" })), ["XD1105"]);
+});
+
+test("a small node is only measured against a label it actually has", () => {
+  // XD1210 now gated on there being a label, matching XD1246 on the other axis.
+  // A seed on a phyllotaxis spiral or a tick mark is a legitimate 10px shape,
+  // and the message names a label, so it cannot be right when there is none.
+  // An omitted label is the id, so an empty string is how a document says it
+  // wants no label at all.
+  assert.deepEqual(codes(wrap('dot: ellipse "" { size = (10, 10) }')), []);
+  assert.deepEqual(codes(wrap('tick: rectangle "" { size = (3, 26) }')), []);
+  assert.deepEqual(codes(wrap('named: ellipse "N" { size = (10, 10) }')), ["XD1210"]);
+  // A body is a label for this purpose, so it still has to fit.
+  assert.deepEqual(codes(wrap('bodied: ellipse "" { size = (10, 10); body = "detail" }')), ["XD1210"]);
+  // Omitting the label leaves the id as the label, which does have to fit.
+  assert.deepEqual(codes(wrap('dot: ellipse { size = (10, 10) }')), ["XD1210"]);
 });

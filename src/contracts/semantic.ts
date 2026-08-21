@@ -1,7 +1,10 @@
 import type {
   AlignmentMode,
+  AttachmentAnchor,
   DiagnosticNode,
+  DeferredPoint,
   EmbeddedAssetFiles,
+  GeometryStatementKind,
   Point,
   ResolvedAsset,
   SourceSpan,
@@ -18,7 +21,7 @@ export interface ExpansionMetadata {
 
 export interface StatementMetadata extends DiagnosticNode {
   id?: string;
-  at?: Point;
+  at?: DeferredPoint;
   size?: Point;
   statements?: SemanticStatement[];
   semanticId?: string;
@@ -47,13 +50,20 @@ export interface LayoutStatement extends StatementMetadata {
 }
 
 export interface GeometryStatement extends StatementMetadata {
-  type: "alignment" | "distribution" | "offset" | "match-size" | "rotation" | "snap" | "layer";
+  type: GeometryStatementKind;
   ids: string[];
   mode?: string;
   axis?: string;
   by?: Point;
   degrees?: number;
   grid?: number;
+}
+
+export interface AttachmentStatement extends StatementMetadata {
+  type: "attachment";
+  moving: string;
+  anchor: AttachmentAnchor;
+  target: string;
 }
 
 interface RenderableGeometryStatementBase extends StatementMetadata {
@@ -206,7 +216,7 @@ export interface RenderableCodeStatement extends Omit<CodeStatement, "lineNumber
 export interface FreedrawStatement extends StatementMetadata {
   type: "freedraw";
   id: string;
-  at: Point;
+  at: DeferredPoint;
   points: Point[];
   pressures: number[];
   simulatePressure: unknown;
@@ -221,16 +231,33 @@ export interface FreedrawStatement extends StatementMetadata {
 export interface PlotStatement extends StatementMetadata {
   type: "plot";
   id: string;
-  at: Point;
+  /** Drawing-space origin for a standalone plot; omitted for a Cartesian series or the default origin. */
+  at?: DeferredPoint;
+  label?: string;
+  /** The independent variable bound over the closed interval from..to. */
+  variable: string;
   x: string;
   y: string;
-  from: number;
-  to: number;
+  from?: number | string;
+  to?: number | string;
+  /** The zero set of this expression when the plot is implicit. */
+  equation?: string;
   tolerance: number;
   attributes: StatementAttributes;
 }
 
+export interface CoordinatePlaneConfiguration {
+  xDomain?: readonly [number | string, number | string];
+  yDomain?: readonly [number | string, number | string];
+  xLabel?: string;
+  yLabel?: string;
+  grid: boolean;
+  crossZero: boolean;
+  tickCount: number;
+}
+
 export interface RenderableFreedrawStatement extends Omit<FreedrawStatement, "simulatePressure"> {
+  at: Point;
   simulatePressure: boolean;
 }
 
@@ -247,15 +274,18 @@ export interface NodeStatement extends NestedStatement {
   authoredSource?: string;
   tone?: string;
   attributes: StatementAttributes;
-  at?: Point;
+  at?: DeferredPoint;
   size?: Point;
+  /** Natural formula display multiplier; meaningful only for formula nodes. */
+  formulaScale?: number;
+  plane?: CoordinatePlaneConfiguration;
 }
 
 export interface TextStatement extends StatementMetadata {
   type: "text";
   id: string;
   value: string;
-  at: Point;
+  at: DeferredPoint;
   width?: number;
   align: string;
   fontSize?: number;
@@ -309,6 +339,7 @@ export type SemanticStatement =
   | SubtitleStatement
   | LayoutStatement
   | GeometryStatement
+  | AttachmentStatement
   | ConnectionStatement
   | TemplateStatement
   | TemplateUseStatement
@@ -334,7 +365,8 @@ export type SemanticStatement =
 
 export interface DiagramDocument extends StatementMetadata {
   type: "diagram";
-  title: string;
+  /** Omitted for a patch addition block, which is not a standalone titled diagram. */
+  title?: string;
   statements: SemanticStatement[];
   source?: string;
   comments?: readonly unknown[];
@@ -350,9 +382,13 @@ export interface SemanticReference {
   targetObject?: SemanticDocument | SemanticStatement;
 }
 
+declare const semanticDocumentStage: unique symbol;
+
 export interface SemanticDocument extends DiagnosticNode {
+  /** Nominal stage marker: semantic documents are produced by the compiler, not assembled as object literals. */
+  readonly [semanticDocumentStage]: true;
   type: "semantic-document";
-  title: string;
+  title?: string;
   statements: SemanticStatement[];
   objects: Map<string, SemanticDocument | SemanticStatement>;
   origins: Map<string, SourceSpan | null>;

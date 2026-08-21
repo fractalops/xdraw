@@ -1,4 +1,6 @@
 export type Point = [number, number];
+/** A point carried honestly until layout/geometry can evaluate it. */
+export type DeferredPoint = Point | string | [number | string, number | string];
 export type StyleStrokeStyle = "solid" | "dashed" | "dotted";
 export type StyleFillStyle = "solid" | "hachure" | "cross-hatch";
 
@@ -41,8 +43,35 @@ export interface Bounds {
 }
 
 export type Axis = "x" | "y";
+export type CompassAnchor =
+  | "center"
+  | "north"
+  | "north-east"
+  | "east"
+  | "south-east"
+  | "south"
+  | "south-west"
+  | "west"
+  | "north-west";
+export type AttachmentAnchor = CompassAnchor | "origin";
 export type AlignmentMode = "left" | "center-x" | "right" | "top" | "center-y" | "bottom";
 export type SpacingPreset = "tight" | "normal" | "airy";
+
+/**
+ * The precision-placement statements, applied after automatic layout.
+ *
+ * Both IR stages carry the same set, so this is the one place it is written.
+ * The runtime companion is `GEOMETRY_STATEMENT_KINDS` in
+ * `language/geometry-statements.ts`, which will not compile if the two drift.
+ */
+export type GeometryStatementKind =
+  | "alignment"
+  | "distribution"
+  | "offset"
+  | "match-size"
+  | "rotation"
+  | "snap"
+  | "layer";
 
 export interface SourceLocation {
   offset?: number;
@@ -52,7 +81,7 @@ export interface SourceLocation {
 }
 
 export type TokenType =
-  | "{" | "}" | "(" | ")" | ":" | "," | ";" | "@" | "$"
+  | "{" | "}" | "(" | ")" | "[" | "]" | ":" | "," | ";" | "@" | "$" | "="
   | "arrow" | "line" | "namespace" | "comment" | "string" | "number" | "expression"
   | "identifier" | "eof";
 
@@ -80,9 +109,47 @@ export interface DiagnosticNode {
   file?: string;
 }
 
-export type DiagnosticSeverity = "error" | "warning";
+/**
+ * `remark` is informational and opt-in: a record of what the compiler decided,
+ * rather than something wrong. Kept distinct from `warning` so a consumer can
+ * filter it out, and so enabling remarks never changes what a warning means.
+ */
+export type DiagnosticSeverity = "error" | "warning" | "remark";
 
-export interface Diagnostic {
+/**
+ * The numbers a diagnostic may carry, as a closed vocabulary.
+ *
+ * Closed so that codes cannot each invent a synonym for the same quantity: a
+ * value = the author asked for against the value the compiler used, and space
+ * content = needs against the space it has. A new name is a deliberate addition
+ * here rather than a local choice at one call site.
+ */
+/**
+ * How a run of diagnostics is presented. Rendering is a consumer of the
+ * diagnostic record rather than the compiler's job, so the record carries the
+ * facts and this decides who is reading.
+ */
+export type DiagnosticFormat = "text" | "json";
+
+export type DiagnosticMeasure = "requested" | "resolved" | "required" | "available";
+
+/**
+ * Machine-readable facts behind a diagnostic's prose.
+ *
+ * The message stays the human surface and is unaffected by these. They exist so
+ * a consumer, a test asserting an invariant or a future fix applier, does not
+ * have to parse an English sentence to recover numbers the compiler already had.
+ */
+export interface DiagnosticDetails {
+  /** Element ids the diagnostic is about, in the order its message names them. */
+  subjects?: readonly string[];
+  /** The quantities behind the message. */
+  measures?: Readonly<Partial<Record<DiagnosticMeasure, number>>>;
+  /** Source a document can accept unchanged to clear the diagnostic. */
+  suggestion?: string;
+}
+
+export interface Diagnostic extends DiagnosticDetails {
   code: string;
   severity: DiagnosticSeverity;
   message: string;
@@ -91,8 +158,9 @@ export interface Diagnostic {
 
 export interface DiagnosticCollector {
   diagnostics: Diagnostic[];
-  error(code: string, message: string, node?: DiagnosticNode | null): Diagnostic;
-  warn(code: string, message: string, node?: DiagnosticNode | null): Diagnostic;
+  error(code: string, message: string, node?: DiagnosticNode | null, details?: DiagnosticDetails): Diagnostic;
+  warn(code: string, message: string, node?: DiagnosticNode | null, details?: DiagnosticDetails): Diagnostic;
+  remark(code: string, message: string, node?: DiagnosticNode | null, details?: DiagnosticDetails): Diagnostic;
 }
 
 export interface Segment {

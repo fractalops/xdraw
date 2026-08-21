@@ -2,7 +2,7 @@
  * Size limits for text the compiler must measure.
  *
  * Display text is measured grapheme by grapheme and wrapped before placement,
- * at roughly 13 microseconds per character, so an uncapped label can hold
+ * at = roughly 13 microseconds per character, so an uncapped label can hold
  * compilation for tens of seconds. Code is budgeted separately and far more
  * generously: a code block is expected to be long, and is measured per line.
  */

@@ -28,8 +28,8 @@ const repetitionProperties = [
   { name: "count", kind: "number", required: false, synopsis: "Repeat this many times, identified by position." },
 ] as const;
 const positionProperties = [
-  { name: "at", kind: "pair", required: false, synopsis: "Absolute position." },
-  { name: "size", kind: "pair", required: false, synopsis: "Explicit size." },
+  { name: "at", kind: "point", required: false, synopsis: "Absolute position." },
+  { name: "size", kind: "point", required: false, synopsis: "Explicit size." },
   ...repetitionProperties,
 ] as const;
 const visualProperties = [
@@ -136,6 +136,17 @@ const contentChildren: ChildPolicyManifest = {
   }],
 };
 
+const cartesianSeriesChildren: ChildPolicyManifest = {
+  mode: "roles",
+  roles: [{
+    name: "series",
+    accepts: ["plot"],
+    minimum: 1,
+    maximum: null,
+    synopsis: "Curves expressed in chart data coordinates.",
+  }],
+};
+
 export const CORE_LIBRARY_MANIFEST = defineLibraryManifest({
   schemaVersion: 1,
   name: "xdraw/core",
@@ -162,7 +173,7 @@ export const CORE_LIBRARY_MANIFEST = defineLibraryManifest({
       arguments: [{ name: "value", kind: "string", required: true, variadic: false, synopsis: "Text content." }],
       properties: textProperties,
     }),
-    simpleConstructor("code", "code", "code", "Syntax-highlighted source text.", "sample: code \"select 1\" { language sql }", {
+    simpleConstructor("code", "code", "code", "Syntax-highlighted source text.", "sample: code \"select 1\" { language = sql }", {
       arguments: [{ name: "source", kind: "string", required: true, variadic: false, synopsis: "Source text." }],
       properties: [
         { name: "highlight", kind: "boolean", required: false, synopsis: "Enable syntax highlighting." },
@@ -172,10 +183,10 @@ export const CORE_LIBRARY_MANIFEST = defineLibraryManifest({
       ],
       defaults: { properties: { highlight: false, "line-numbers": true } },
     }),
-    simpleConstructor("freedraw", "freedraw", "freedraw", "Freehand stroke.", "line: freedraw { at (0, 0); points ((0, 0), (20, 10)) }", {
+    simpleConstructor("freedraw", "freedraw", "freedraw", "Freehand stroke.", "line: freedraw { at = (0, 0); points = ((0, 0), (20, 10)) }", {
       arguments: noArguments,
       properties: [
-        { name: "at", kind: "pair", required: true, synopsis: "Stroke origin." },
+        { name: "at", kind: "point", required: true, synopsis: "Stroke origin." },
         { name: "background", kind: "string", required: false, synopsis: "Background color." },
         { name: "fill-style", kind: "identifier", required: false, synopsis: "Fill style." },
         { name: "link", kind: "string", required: false, synopsis: "Hyperlink." },
@@ -191,11 +202,11 @@ export const CORE_LIBRARY_MANIFEST = defineLibraryManifest({
         { name: "style", kind: "identifier", required: false, synopsis: "Named style or palette tone." },
       ],
     }),
-    simpleConstructor("style", "style", null, "Reusable visual style.", "primary: style { stroke \"#1d4ed8\" }", {
+    simpleConstructor("style", "style", null, "Reusable visual style.", "primary: style { stroke = \"#1d4ed8\" }", {
       arguments: noArguments,
       properties: styleProperties,
     }),
-    simpleConstructor("theme", "theme", null, "Diagram theme.", "brand: theme { stroke \"#1d4ed8\" }", {
+    simpleConstructor("theme", "theme", null, "Diagram theme.", "brand: theme { stroke = \"#1d4ed8\" }", {
       arguments: noArguments,
       properties: styleProperties,
     }),
@@ -203,11 +214,11 @@ export const CORE_LIBRARY_MANIFEST = defineLibraryManifest({
       arguments: [{ name: "source", kind: "string", required: true, variadic: false, synopsis: "Asset source." }],
       properties: [],
     }),
-    simpleConstructor("image", "image", "image", "Placed image asset.", "mark: image(logo) { at (0, 0); size (120, 80) }", {
+    simpleConstructor("image", "image", "image", "Placed image asset.", "mark: image(logo) { at = (0, 0); size = (120, 80) }", {
       arguments: [{ name: "asset", kind: "identifier", required: true, variadic: false, synopsis: "Asset name." }],
       properties: [
-        { name: "at", kind: "pair", required: true, synopsis: "Image position." },
-        { name: "size", kind: "pair", required: true, synopsis: "Image size." },
+        { name: "at", kind: "point", required: true, synopsis: "Image position." },
+        { name: "size", kind: "point", required: true, synopsis: "Image size." },
         { name: "alt", kind: "string", required: false, synopsis: "Alternative text." },
         { name: "fit", kind: "identifier", required: false, synopsis: "Image fit mode." },
       ],
@@ -299,11 +310,11 @@ export const STANDARD_LIBRARY_MANIFESTS = normalizeLibraryCatalog([
     name: "xdraw/assets",
     documentation: docs("Asset-based visual elements.", "use \"xdraw/assets\" as assets"),
     values: [],
-    constructors: [simpleConstructor("icon", "icon", "icon", "Placed icon asset.", "mark: assets.icon(logo) { at (0, 0); size (48, 48) }", {
+    constructors: [simpleConstructor("icon", "icon", "icon", "Placed icon asset.", "mark: assets.icon(logo) { at = (0, 0); size = (48, 48) }", {
       arguments: [{ name: "asset", kind: "identifier", required: true, variadic: false, synopsis: "Asset name." }],
       properties: [
-        { name: "at", kind: "pair", required: true, synopsis: "Icon position." },
-        { name: "size", kind: "pair", required: true, synopsis: "Icon size." },
+        { name: "at", kind: "point", required: true, synopsis: "Icon position." },
+        { name: "size", kind: "point", required: true, synopsis: "Icon size." },
         { name: "alt", kind: "string", required: false, synopsis: "Alternative text." },
         { name: "fit", kind: "identifier", required: false, synopsis: "Icon fit mode." },
         { name: "locked", kind: "boolean", required: false, synopsis: "Whether the icon is locked." },
@@ -316,7 +327,7 @@ export const STANDARD_LIBRARY_MANIFESTS = normalizeLibraryCatalog([
     documentation: docs("Notes and callouts.", "use \"xdraw/annotations\" as annotations"),
     values: [],
     constructors: [
-      simpleConstructor("note", "note", "note", "Informational note.", "item: rectangle \"Item\"; context: annotations.note \"Context\" { attach item@bottom }", {
+      simpleConstructor("note", "note", "note", "Informational note.", "item: rectangle \"Item\"; context: annotations.note \"Context\" { attach = item@south }", {
         properties: [{ name: "attach", kind: "endpoint", required: false, synopsis: "Element anchor to annotate." }],
       }),
       simpleConstructor("callout", "node", "card", "Emphasized callout.", "warning: annotations.callout \"Review\"", {
@@ -384,33 +395,64 @@ export const STANDARD_LIBRARY_MANIFESTS = normalizeLibraryCatalog([
           synopsis: "Raw triple-quoted TeX formula source.",
         }],
         properties: [
-          { name: "size", kind: "pair", required: false, synopsis: "Formula display box." },
+          { name: "size", kind: "point", required: false, synopsis: "Formula display box." },
+          ...repetitionProperties,
+          { name: "display-scale", kind: "number", required: false, synopsis: "Multiplier for the formula's natural display size." },
+          { name: "link", kind: "string", required: false, synopsis: "Hyperlink." },
           { name: "locked", kind: "boolean", required: false, synopsis: "Whether the formula is locked." },
+          { name: "opacity", kind: "number", required: false, synopsis: "Formula opacity." },
+          { name: "style", kind: "identifier", required: false, synopsis: "Named style or palette tone." },
         ],
       }),
-      simpleConstructor("plot", "plot", "freedraw", "Parametric curve plotted from expressions.", `mark: math.plot {
-  at (0, 0)
+      simpleConstructor("plot", "plot", "freedraw", "Function or parametric curve plotted over a closed interval.", `mark: math.plot {
+  at = (0, 0)
   x = 120 * sin(2*t)
   y = 110 * sin(3*t)
-  domain (0, tau)
-}`, {
-        arguments: noArguments,
+  t in [0, tau]
+      }`, {
+        arguments: optionalLabel,
         properties: [
-          { name: "at", kind: "pair", required: true, synopsis: "Curve origin." },
+          { name: "at", kind: "point", required: false, synopsis: "Curve origin; defaults to (0, 0) outside a coordinate plane." },
           { name: "background", kind: "string", required: false, synopsis: "Fill color for a closed curve." },
+          ...repetitionProperties,
           { name: "fill-style", kind: "identifier", required: false, synopsis: "Fill style." },
-          { name: "x", kind: "expression", required: true, synopsis: "Expression for the x coordinate, in t." },
-          { name: "y", kind: "expression", required: true, synopsis: "Expression for the y coordinate, in t." },
-          { name: "domain", kind: "interval", required: true, synopsis: "Parameter range, as (start, end)." },
+          { name: "equation", kind: "expression", required: false, synopsis: "Implicit equation expressed as a zero set in x and y." },
+          { name: "x", kind: "expression", required: false, synopsis: "Expression for the x coordinate; inferred when x is independent." },
+          { name: "y", kind: "expression", required: false, synopsis: "Expression for the y coordinate; inferred when y is independent." },
           { name: "tolerance", kind: "number", required: false, synopsis: "Greatest permitted departure from the curve, in pixels." },
           { name: "link", kind: "string", required: false, synopsis: "Hyperlink." },
           { name: "locked", kind: "boolean", required: false, synopsis: "Whether the curve is locked." },
           { name: "opacity", kind: "number", required: false, synopsis: "Element opacity." },
           { name: "roughness", kind: "number", required: false, synopsis: "Stroke roughness." },
           { name: "stroke", kind: "string", required: false, synopsis: "Stroke color." },
+          { name: "stroke-style", kind: "identifier", required: false, synopsis: "Solid, dashed, or dotted stroke." },
           { name: "stroke-width", kind: "number", required: false, synopsis: "Stroke width." },
           { name: "style", kind: "identifier", required: false, synopsis: "Named style or palette tone." },
         ],
+      }),
+      simpleConstructor("plane", "node", "cartesian", "Coordinate plane with planned axes and mathematical plots.", `plane: math.plane "Signals" {
+  size = (680, 440)
+  x in [-pi, pi]
+  y in [-1.2, 1.2]
+  x-label = "t"
+  y-label = "amplitude"
+  grid = true
+
+  sine: math.plot "sin(t)" {
+    y = sin(x)
+    x in [-pi, pi]
+  }
+}`, {
+        properties: [
+          ...visualProperties,
+          { name: "x-label", kind: "string", required: false, synopsis: "Horizontal axis label." },
+          { name: "y-label", kind: "string", required: false, synopsis: "Vertical axis label." },
+          { name: "grid", kind: "boolean", required: false, synopsis: "Show grid lines at major ticks." },
+          { name: "cross-zero", kind: "boolean", required: false, synopsis: "Place axes on zero when zero is visible." },
+          { name: "tick-count", kind: "number", required: false, synopsis: "Target major tick count on each axis." },
+        ],
+        children: cartesianSeriesChildren,
+        defaults: { properties: { grid: true, "cross-zero": false, "tick-count": 5 } },
       }),
     ],
   },

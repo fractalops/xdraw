@@ -1,5 +1,6 @@
 import { hasValidFreedrawPoints, hasValidFreedrawPressures } from "./freedraw-policy.ts";
 import type { Diagnostic, EmbeddedAssetFiles } from "../contracts/foundation.ts";
+import type { CompilationMeasurements } from "../contracts/measurements.ts";
 import type {
   DrawingAppState,
   DrawingElement,
@@ -48,6 +49,7 @@ export class Drawing {
   files: EmbeddedAssetFiles;
   appState: DrawingAppState;
   readonly diagnostics!: Diagnostic[];
+  readonly measurements!: CompilationMeasurements | null;
   readonly syntaxHighlighting!: boolean;
   highlightRunsUsed!: number;
 
@@ -62,9 +64,15 @@ export class Drawing {
     };
     Object.defineProperties(this, {
       diagnostics: { value: options.diagnostics ?? [], enumerable: false },
+      measurements: { value: options.measurements ?? null, writable: true, enumerable: false },
       syntaxHighlighting: { value: options.syntaxHighlighting ?? false, enumerable: false },
       highlightRunsUsed: { value: 0, writable: true, enumerable: false },
     });
+  }
+
+  withMeasurements(measurements: CompilationMeasurements): this {
+    Object.defineProperty(this, "measurements", { value: measurements, writable: true, enumerable: false });
+    return this;
   }
 
   add(...elements: DrawingElementInput[]): this {

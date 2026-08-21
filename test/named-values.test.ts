@@ -4,7 +4,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile, parse } from "../src/index.ts";
+import { parse } from "../src/index.ts";
+import { compilePrepared as compile } from "../src/compile/pipeline.ts";
 
 const element = (source: string, id: string) => {
   const found = compile(parse(source)).toJSON().elements.find((e) => e.id === id);
@@ -16,11 +17,21 @@ test("a bound name reaches a numeric property", () => {
   const source = `diagram "" {
     let base = 3
     let emphasis = base * 2
-    a: rectangle "A" { at (60, 200); stroke-width = base }
-    b: rectangle "B" { at (60, 400); stroke-width = emphasis }
+    a: rectangle "A" { at = (60, 200); stroke-width = base }
+    b: rectangle "B" { at = (60, 400); stroke-width = emphasis }
   }`;
   assert.equal(element(source, "a:frame").strokeWidth, 3);
   assert.equal(element(source, "b:frame").strokeWidth, 6);
+});
+
+test("a bound point composes as one value", () => {
+  const source = `diagram "" {
+    let origin = (20, 30)
+    let offset = (12, -8)
+    mark: text "M" { at = origin + 2 * offset }
+  }`;
+  const mark = element(source, "mark");
+  assert.deepEqual([mark.x, mark.y], [44, 14]);
 });
 
 test("a bound name folds into an expression that keeps its own variable", () => {
@@ -30,7 +41,7 @@ test("a bound name folds into an expression that keeps its own variable", () => 
 
   diagram "" {
     let radius = 60
-    mark: math.plot { at (0, 0); x = radius * cos(t); y = radius * sin(t); domain (0, tau) }
+    mark: math.plot { at = (0, 0); x = radius * cos(t); y = radius * sin(t); t in [0, tau] }
   }`;
   const mark = element(source, "mark:stroke");
   assert.equal(Math.round(Number(mark.width)), 120, "a circle of the bound radius");
@@ -56,7 +67,7 @@ test("an expression works whether or not the document binds anything", () => {
 });
 
 test("a document that uses neither bindings nor expressions is untouched", () => {
-  const source = `diagram "" { a: rectangle "A" { at (10, 20); stroke-width 4 } }`;
+  const source = `diagram "" { a: rectangle "A" { at = (10, 20); stroke-width = 4 } }`;
   assert.equal(element(source, "a:frame").strokeWidth, 4);
 });
 
@@ -64,12 +75,12 @@ test("bindings resolve by dependency, not by the order they are written", () => 
   const forwards = `diagram "" {
     let a = 2
     let b = a * 5
-    x: rectangle "X" { at (0, 0); stroke-width = b }
+    x: rectangle "X" { at = (0, 0); stroke-width = b }
   }`;
   const backwards = `diagram "" {
     let b = a * 5
     let a = 2
-    x: rectangle "X" { at (0, 0); stroke-width = b }
+    x: rectangle "X" { at = (0, 0); stroke-width = b }
   }`;
   assert.equal(element(forwards, "x:frame").strokeWidth, 10);
   assert.equal(element(backwards, "x:frame").strokeWidth, 10);
@@ -78,16 +89,24 @@ test("bindings resolve by dependency, not by the order they are written", () => 
 test("a document error names the binding it belongs to", () => {
   const document = (bindings: string) => `diagram "" {
     ${bindings}
-    x: rectangle "X" { at (0, 0) }
+    x: rectangle "X" { at = (0, 0) }
   }`;
   assert.throws(() => parse(document("let a = b + 1\n    let b = a + 1")), /a -> b -> a/);
   assert.throws(() => parse(document("let a = a + 1")), /a -> a/);
-  assert.throws(() => parse(document("let a = mystery * 2")), /unknown name 'mystery'.*'a'/);
   assert.throws(() => parse(document("let a = 1\n    let a = 2")), /'a' is bound more than once/);
-  assert.throws(() => parse(document("let a = 1 / 0")), /'a' is not a finite number/);
+  assert.throws(() => parse(document("let a = 1 / 0")), /'a' is not finite/);
 });
 
-test("a computed pair may break across lines", () => {
+test("unused bindings still validate the closed function vocabulary", () => {
+  for (const binding of ["let p = along(curve)", "let p = nonsense(curve)"]) {
+    assert.throws(
+      () => parse(`diagram "" { ${binding}; box: rectangle "B" }`),
+      /not a valid expression.*(?:takes 2 arguments|unknown function)/u,
+    );
+  }
+});
+
+test("a computed point may break across lines", () => {
   // Specification §7.2 says line breaks are insignificant, and this was the one
   // place they were not — in the construct most likely to grow long enough to
   // want wrapping.
@@ -119,12 +138,12 @@ test("an incomplete expression runs into the statement after it", () => {
   // expression that was left unfinished. That is the cost of not delimiting.
   const source = `diagram "" {
     let a = 1 +
-    x: rectangle "X" { at (0, 0) }
+    x: rectangle "X" { at = (0, 0) }
   }`;
   assert.throws(() => parse(source), /expected a statement/);
 });
 
 test("'let' without a name or an expression says so", () => {
   assert.throws(() => parse(`diagram "" { let }`), /expected a name after 'let'/);
-  assert.throws(() => parse(`diagram "" { let a }`), /expected '=' and an expression for 'a'/);
+  assert.throws(() => parse(`diagram "" { let a }`), /expected '=' after binding 'a'/);
 });

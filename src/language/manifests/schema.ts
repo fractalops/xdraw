@@ -29,11 +29,10 @@ const VALUE_KINDS = new Set<ManifestValueKind>([
   "identifier",
   "number",
   "boolean",
-  "pair",
+  "point",
   "points",
   "numbers",
   "strings",
-  "interval",
   "expression",
   "endpoint",
 ]);
@@ -74,6 +73,7 @@ const ELEMENT_KINDS = new Set<ManifestElementKind>([
   "architecture-system",
   "architecture-system-boundary",
   "card",
+  "cartesian",
   "code",
   "decision",
   "ellipse",
@@ -212,15 +212,11 @@ function matchesKind(value: JsonValue, kind: ManifestValueKind): boolean {
   if (kind === "expression") return typeof value === "string";
   if (kind === "number") return typeof value === "number";
   if (kind === "boolean") return typeof value === "boolean";
-  if (kind === "pair") {
+  if (kind === "point") {
     return Array.isArray(value) && value.length === 2 && value.every((item) => typeof item === "number");
   }
   if (kind === "numbers") return Array.isArray(value) && value.every((item) => typeof item === "number");
   if (kind === "strings") return Array.isArray(value) && value.every((item) => typeof item === "string");
-  if (kind === "interval") {
-    return Array.isArray(value) && value.length === 2
-      && value.every((item) => typeof item === "number" || typeof item === "string");
-  }
   if (kind === "points") {
     return Array.isArray(value) && value.every((point) => (
       Array.isArray(point) && point.length === 2 && point.every((item) => typeof item === "number")

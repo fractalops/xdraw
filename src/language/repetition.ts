@@ -14,7 +14,8 @@
  * `index`, `count`, and item, reaching expressions through the same
  * substitution templates already use.
  */
-import { advance, scope } from "./deferred.ts";
+import { advance, advanceValue, scope } from "./deferred.ts";
+import { isSemanticGeometryStatement } from "./geometry-statements.ts";
 import type { DiagramDocument, SemanticStatement } from "../contracts/semantic.ts";
 
 export class RepetitionError extends Error {
@@ -169,10 +170,22 @@ function instantiate(statement: SemanticStatement, repetition: Repetition): Sema
   for (const key of ["title", "value", "authoredSource"] as const) {
     if (typeof clone[key] === "string") clone[key] = substituteInstance(clone[key], repetition, id);
   }
+  if (clone.type === "plot") {
+    for (const key of ["x", "y", "equation", "from", "to"] as const) {
+      if (typeof clone[key] !== "string") continue;
+      const substituted = substituteInstance(clone[key], repetition, id);
+      const resolved = substituted.includes("${") ? substituted : advance(substituted, names);
+      clone[key] = key === "x" || key === "y" || key === "equation" ? String(resolved) : resolved;
+    }
+  }
   // A pair is folded to numbers here rather than left as text: every name it
   // could hold is now known, and leaving it would put the burden on a later
   // pass that has no reason to know about repetition.
   for (const key of ["at", "size"] as const) {
+    if (typeof clone[key] === "string") {
+      clone[key] = advanceValue(clone[key], names);
+      continue;
+    }
     if (!Array.isArray(clone[key])) continue;
     // A pair is advanced through this instance's names. Anything still waiting
     // belongs to a later stage — an outer repeat, or geometry layout has not
@@ -198,7 +211,8 @@ function instantiate(statement: SemanticStatement, repetition: Repetition): Sema
 
 /** Replaces every repeated declaration in a document with its instances. */
 export function expandRepeats(document: DiagramDocument): DiagramDocument {
-  const statements = expandRepetitions(document.statements);
+  const collections = new Map<string, string[]>();
+  const statements = rewriteCollectionSelections(expandRepetitions(document.statements, collections), collections);
   if (statements.length === document.statements.length
       && statements.every((statement, index) => statement === document.statements[index])) {
     return document;
@@ -212,7 +226,10 @@ export function expandRepeats(document: DiagramDocument): DiagramDocument {
 }
 
 /** Replaces every repeated declaration with its instances. */
-export function expandRepetitions(statements: readonly SemanticStatement[]): SemanticStatement[] {
+export function expandRepetitions(
+  statements: readonly SemanticStatement[],
+  collections = new Map<string, string[]>(),
+): SemanticStatement[] {
   return statements.flatMap((statement) => {
     // Children expand first. An inner repeat's `at` mentions its own index, and
     // instantiating the outer declaration folds every pair it contains — which
@@ -221,7 +238,7 @@ export function expandRepetitions(statements: readonly SemanticStatement[]): Sem
     const children = (statement as { statements?: readonly SemanticStatement[] }).statements;
     let subject = statement;
     if (Array.isArray(children)) {
-      const expanded = expandRepetitions(children);
+      const expanded = expandRepetitions(children, collections);
       if (expanded.length !== children.length
           || expanded.some((child, index) => child !== children[index])) {
         const copy = { ...statement, statements: expanded };
@@ -232,6 +249,39 @@ export function expandRepetitions(statements: readonly SemanticStatement[]): Sem
     }
     const repetitions = repetitionsOf(subject);
     if (!repetitions) return [subject];
-    return repetitions.map((repetition) => instantiate(subject, repetition));
+    const instances = repetitions.map((repetition) => instantiate(subject, repetition));
+    const owner = (subject as { id?: string }).id;
+    if (owner) collections.set(owner, instances.map((instance) => (instance as { id: string }).id));
+    return instances;
+  });
+}
+
+/**
+ * A repeated declaration is also a collection selector. Geometry statements
+ * name that declaration exactly as they would a single element; this pass
+ * replaces the collection name with its stable instance identities before
+ * validation and solving. No geometry implementation needs repetition logic.
+ */
+function rewriteCollectionSelections(
+  statements: readonly SemanticStatement[],
+  collections: ReadonlyMap<string, readonly string[]>,
+): SemanticStatement[] {
+  return statements.map((statement) => {
+    let result = statement;
+    if (isSemanticGeometryStatement(statement)) {
+      const ids = statement.ids.flatMap((id) => collections.get(id) ?? [id]);
+      if (ids.length !== statement.ids.length || ids.some((id, index) => id !== statement.ids[index])) {
+        result = { ...statement, ids };
+      }
+    }
+    if (result.statements) {
+      const children = rewriteCollectionSelections(result.statements, collections);
+      if (children.some((child, index) => child !== result.statements![index])) {
+        result = { ...result, statements: children } as SemanticStatement;
+      }
+    }
+    const span = (statement as { span?: unknown }).span;
+    if (span && result !== statement) Object.defineProperty(result, "span", { value: span, enumerable: false });
+    return result;
   });
 }

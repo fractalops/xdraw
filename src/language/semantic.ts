@@ -1,3 +1,4 @@
+import { isSemanticGeometryStatement as isGeometryStatement } from "./geometry-statements.ts";
 import { isHighlightLanguage } from "./registry.ts";
 import {
   MAX_CODE_LINE_CHARACTERS,
@@ -14,6 +15,21 @@ import {
   MAX_FREEDRAW_POINTS,
 } from "../excalidraw/freedraw-policy.ts";
 import { validateTableNode } from "../nodes/table.ts";
+import { validateCartesianNode } from "../nodes/cartesian.ts";
+import {
+  analyzeRelativeCoordinate,
+  analyzeRelativePoint,
+  RelativePositionError,
+  type LinearGeometryExpression,
+} from "./relative-position.ts";
+import {
+  type ExpressionNode,
+  expressionPathReferences,
+  freeNames,
+  inferExpressionKind,
+  parseExpression,
+} from "./expression.ts";
+import { ANCHORS, splitAnchorName, splitGeometryName } from "./geometry-names.ts";
 import type {
   ConnectionStatement,
   DecisionBranchStatement,
@@ -28,6 +44,7 @@ import type {
 import type {
   Diagnostic,
   DiagnosticNode,
+  DeferredPoint,
   Point,
   SourceLocation,
   SourceSpan,
@@ -38,15 +55,18 @@ const PORTS = new Set([
 ]);
 
 const DEFINITIONS = new Set<SemanticStatement["type"]>([
-  "lane", "group", "frame", "section", "tree", "branch", "leaf", "participant", "note", "callout", "node", "text", "layout-text", "code", "image", "icon", "freedraw",
+  "lane", "group", "frame", "section", "tree", "branch", "leaf", "participant", "note", "callout", "node", "text", "layout-text", "code", "image", "icon", "freedraw", "plot",
 ]);
 const SPACING = new Set(["tight", "normal", "airy"]);
 const ALIGNMENT_MODES = new Set(["left", "center-x", "right", "top", "center-y", "bottom"]);
 const DISTRIBUTION_AXES = new Set(["x", "y"]);
 const CODE_GEOMETRY_OPERATIONS = new Set<GeometryStatement["type"]>(["alignment", "distribution", "offset", "snap"]);
 const FREEDRAW_GEOMETRY_OPERATIONS = new Set<GeometryStatement["type"]>(["alignment", "distribution", "offset", "rotation", "snap"]);
+const PLACED_BOX_TYPES = new Set<SemanticStatement["type"]>([
+  "node", "participant", "branch", "leaf", "code", "lane", "group", "frame", "section", "sequence", "tree",
+]);
 
-type SemanticContext = "document" | "sequence" | "container" | "table" | "tree";
+type SemanticContext = "document" | "sequence" | "container" | "table" | "plane" | "tree";
 
 interface ValidationReference {
   id?: string;
@@ -64,10 +84,6 @@ interface SemanticIndex {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function isGeometryStatement(statement: SemanticStatement): statement is GeometryStatement {
-  return ["alignment", "distribution", "offset", "match-size", "rotation", "snap", "layer"].includes(statement.type);
 }
 
 /**
@@ -219,6 +235,8 @@ function collectStatements(
       ? "sequence"
       : statement.type === "node" && statement.kind === "table"
         ? "table"
+      : statement.type === "node" && statement.kind === "cartesian"
+        ? "plane"
       : ["lane", "group", "frame", "section"].includes(statement.type)
         ? "container"
         : statement.type === "tree" || statement.type === "branch"
@@ -238,9 +256,14 @@ type SemanticValidationDocument = DiagnosticNode
  */
 interface ValidationState {
   readonly diagnostics: Diagnostic[];
+  /** Complete declaration index, independent of source order. */
   readonly definitions: Map<string, SemanticStatement>;
+  /** Declarations encountered by the ordered duplicate-id rule. */
+  readonly seenDefinitions: Map<string, SemanticStatement>;
   readonly references: ValidationReference[];
   readonly styles: Map<string, StyleStatement>;
+  readonly relativeReferences: Array<{ owner: SemanticStatement; ownerId: string; target: string }>;
+  readonly attachments: Map<string, Extract<SemanticStatement, { type: "attachment" }>>;
   theme: ThemeStatement | undefined;
   freedrawPointCount: number;
 }
@@ -257,6 +280,105 @@ interface ValidationState {
 interface ValidationRule {
   readonly family: string;
   apply(statement: SemanticStatement, context: SemanticContext, state: ValidationState): boolean | void;
+}
+
+interface DeferredPositionCarrier {
+  type: string;
+  id?: string;
+  at?: DeferredPoint;
+  size?: Point;
+}
+
+function recordRelativeReference(
+  statement: SemanticStatement,
+  carrier: DeferredPositionCarrier,
+  element: string,
+  state: ValidationState,
+): void {
+  recordGeometryDependency(statement, carrier.id ?? "?", element, state);
+}
+
+function recordGeometryDependency(
+  statement: SemanticStatement,
+  ownerId: string,
+  element: string,
+  state: ValidationState,
+): void {
+  const target = state.definitions.get(element);
+  if (!target) {
+    state.diagnostics.push(diagnostic(
+      "XD1272",
+      `node '${ownerId}' relative position references unknown element '${element}'`,
+      statement,
+    ));
+  } else if (!PLACED_BOX_TYPES.has(target.type)) {
+    state.diagnostics.push(diagnostic(
+      "XD1272",
+      `node '${ownerId}' relative position references '${element}', which has no layout box`,
+      statement,
+    ));
+  } else {
+    state.relativeReferences.push({ owner: statement, ownerId, target: element });
+  }
+}
+
+function validateRelativeNodePosition(
+  statement: SemanticStatement,
+  carrier: DeferredPositionCarrier,
+  state: ValidationState,
+): void {
+  const recorded = new Set<string>();
+  try {
+    const expressions: readonly LinearGeometryExpression[] = typeof carrier.at === "string"
+      ? Object.values(analyzeRelativePoint(carrier.at))
+      : (carrier.at ?? []).filter((coordinate): coordinate is string => typeof coordinate === "string")
+        .map((coordinate) => analyzeRelativeCoordinate(coordinate));
+    for (const expression of expressions) {
+      for (const reference of expression.terms) {
+        if (recorded.has(reference.element)) continue;
+        recorded.add(reference.element);
+        recordRelativeReference(statement, carrier, reference.element, state);
+      }
+    }
+  } catch (error) {
+    const detail = error instanceof RelativePositionError ? error.message : String(error);
+    state.diagnostics.push(diagnostic(
+      "XD1272",
+      `node '${carrier.id ?? "?"}' relative position is invalid: ${detail}`,
+      statement,
+    ));
+  }
+}
+
+function reportUnresolvedPoint(
+  statement: SemanticStatement,
+  carrier: DeferredPositionCarrier,
+  key: "at" | "size",
+  state: ValidationState,
+): void {
+  const value = carrier[key];
+  const unresolved = (typeof value === "string" ? [value] : value ?? [])
+    .filter((part): part is string => typeof part === "string")
+    .map((part) => `'${part}'`)
+    .join(" and ");
+  state.diagnostics.push(diagnostic(
+    "XD1272",
+    `${carrier.type} '${carrier.id ?? "?"}' ${key} could not be resolved to numbers: ${unresolved}. `
+    + "A name must be bound with 'let'; only nodes, text, plots, and freehand may be placed from another element's geometry",
+    statement,
+  ));
+}
+
+function validateDeferredPosition(statement: SemanticStatement, state: ValidationState): void {
+  // Detached positions resolve after layout. A node instead contributes a
+  // required relation to the geometry solver's dependency graph.
+  const carrier: DeferredPositionCarrier = statement;
+  if (["text", "freedraw", "plot"].includes(carrier.type)) return;
+  for (const key of ["at", "size"] as const) {
+    if (!isPendingPoint(carrier[key])) continue;
+    if (carrier.type === "node" && key === "at") validateRelativeNodePosition(statement, carrier, state);
+    else reportUnresolvedPoint(statement, carrier, key, state);
+  }
 }
 
 const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
@@ -286,6 +408,22 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
       }
       if ((statement.type === "table-header" || statement.type === "table-row") && context !== "table") {
         state.diagnostics.push(diagnostic("XD1251", `${statement.type} must be declared inside a table`, statement));
+      }
+      if (context === "plane" && statement.type !== "plot") {
+        state.diagnostics.push(diagnostic("XD1287", `coordinate plane may contain only plot series, not ${statement.type}`, statement));
+      }
+      if (statement.type === "plot" && context !== "plane") {
+        state.diagnostics.push(diagnostic("XD1287", "plot series without an at position must be declared inside a coordinate plane", statement));
+      }
+    },
+  },
+  {
+    family: "cartesian-structure",
+    apply(statement, _context, state) {
+      if (statement.type === "node" && statement.kind === "cartesian") {
+        state.diagnostics.push(...validateCartesianNode(statement).map((issue) => (
+          diagnostic(issue.code, issue.message, issue.node)
+        )));
       }
     },
   },
@@ -347,7 +485,7 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
     family: "unique-ids",
     apply(statement, _context, state) {
       if (DEFINITIONS.has(statement.type) && statement.id) {
-        const previous = state.definitions.get(statement.id);
+        const previous = state.seenDefinitions.get(statement.id);
         if (previous) {
           state.diagnostics.push(diagnostic(
             "XD1001",
@@ -355,7 +493,7 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
             statement,
           ));
         } else {
-          state.definitions.set(statement.id, statement);
+          state.seenDefinitions.set(statement.id, statement);
         }
       }
     },
@@ -483,7 +621,7 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
     family: "layout",
     apply(statement, context, state) {
       if (statement.type === "layout") {
-        const supported = context === "document" ? ["compact", "grid", "layered"] : ["row", "column"];
+        const supported = context === "document" ? ["compact", "grid", "layered"] : ["row", "column", "grid"];
         if (!supported.includes(statement.kind)) {
           state.diagnostics.push(diagnostic(
             "XD1201",
@@ -645,27 +783,7 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
   {
     family: "deferred-position",
     apply(statement, _context, state) {
-      // A pair whose parts are still text names something layout has not
-      // produced yet. Only text and freehand may wait for it: they are drawn
-      // where they are told and take no part in layout, so resolving them
-      // afterwards cannot move what they measured. A node placed this way
-      // would displace the very box it referred to, and used to reach the
-      // layout engine and die there with an internal message.
-      const carrier = statement as unknown as { type: string; id?: string; at?: unknown; size?: unknown };
-      if (carrier.type === "text" || carrier.type === "freedraw" || carrier.type === "plot") return;
-      for (const key of ["at", "size"] as const) {
-        if (!isPendingPoint(carrier[key])) continue;
-        const unresolved = (carrier[key] as unknown[])
-          .filter((part): part is string => typeof part === "string")
-          .map((part) => `'${part}'`)
-          .join(" and ");
-        state.diagnostics.push(diagnostic(
-          "XD1272",
-          `${carrier.type} '${carrier.id ?? "?"}' ${key} could not be resolved to numbers: ${unresolved}. `
-          + "A name must be bound with 'let'; only text and freehand may be placed from another element's geometry",
-          statement,
-        ));
-      }
+      validateDeferredPosition(statement, state);
     },
   },
   {
@@ -677,10 +795,10 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
         // produced yet. It is resolved after layout, and reports there if it
         // cannot be; here it is pending rather than malformed.
         if (!isPendingPoint(statement.at) && !isFinitePoint(statement.at)) {
-          state.diagnostics.push(diagnostic("XD1220", "freedraw at must be a finite coordinate pair", statement));
+          state.diagnostics.push(diagnostic("XD1220", "freedraw at must be a finite point", statement));
         }
         if (!hasValidFreedrawPoints(points)) {
-          state.diagnostics.push(diagnostic("XD1221", "freedraw points must contain at least two finite coordinate pairs", statement));
+          state.diagnostics.push(diagnostic("XD1221", "freedraw points must contain at least two finite points", statement));
         } else {
           state.freedrawPointCount += points.length;
           if (points.length > MAX_FREEDRAW_POINTS) {
@@ -717,28 +835,303 @@ const VALIDATION_RULES: readonly ValidationRule[] = Object.freeze([
           state.diagnostics.push(diagnostic("XD1209", "node size must use positive dimensions", statement));
         } else if (statement.kind === "decision" && statement.title && (width < 96 || height < 72)) {
           state.diagnostics.push(diagnostic("XD1244", "decision size must be at least 96 by 72", statement));
-        } else if (statement.kind !== "junction" && width <= 40) {
+        } else if (statement.kind !== "junction" && width <= 40 && hasLabel(statement)) {
+          // Gated on there being a label for the same reason the height rule
+          // below is: the message names one, so it cannot be right when there is
+          // none. A 10px unlabelled shape is a seed on a phyllotaxis spiral or a
+          // dot in a stipple, and `junction` should not have to be borrowed to
+          // draw one.
           state.diagnostics.push(diagnostic("XD1210", "node width must be greater than 40 to contain its label", statement));
         } else if (statement.kind !== "junction" && height <= 40 && hasLabel(statement)) {
-          // The width rule's missing half. A short node used to fail loudly when
+          // The width rule's other half. A short node used to fail loudly when
           // its padding could not fit, and now the padding gives way instead, so
           // nothing else would notice that a label is being laid out taller than
           // the box that holds it. Gated on there being a label, because an
           // unlabelled node this short is a tick mark and perfectly legitimate.
-          state.diagnostics.push(diagnostic("XD1211", "node height must be greater than 40 to contain its label", statement));
+          state.diagnostics.push(diagnostic("XD1246", "node height must be greater than 40 to contain its label", statement));
         }
       }
     },
   },
 ] satisfies readonly ValidationRule[]);
 
+function validateRotatedRelativeReferences(
+  statements: readonly SemanticStatement[],
+  state: ValidationState,
+): void {
+  const rotated = new Set<string>();
+  collectStatements(statements, (statement) => {
+    if (statement.type === "rotation") statement.ids.forEach((id) => rotated.add(id));
+  });
+  for (const reference of state.relativeReferences) {
+    if (!rotated.has(reference.target)) continue;
+    state.diagnostics.push(diagnostic(
+      "XD1272",
+      `node '${reference.ownerId}' relative position cannot read rotated element '${reference.target}'`,
+      reference.owner,
+    ));
+  }
+}
+
+function validateAttachmentPaths(
+  statement: Extract<SemanticStatement, { type: "attachment" }>,
+  expression: ExpressionNode,
+  geometryTargets: ReadonlySet<string>,
+  attachmentMovers: ReadonlySet<string>,
+  state: ValidationState,
+): void {
+  for (const path of expressionPathReferences(expression)) {
+    const target = state.definitions.get(path);
+    if (target?.type !== "freedraw") continue;
+    state.relativeReferences.push({ owner: statement, ownerId: statement.moving, target: path });
+    if (!isFinitePoint(target.at)) {
+      state.diagnostics.push(diagnostic(
+        "XD1290",
+        `attachment cannot read path '${path}' until that path has a fixed numeric position`,
+        statement,
+      ));
+    }
+    if (geometryTargets.has(path)) {
+      state.diagnostics.push(diagnostic(
+        "XD1290",
+        `attachment cannot read path '${path}' because a geometry statement moves it`,
+        statement,
+      ));
+    }
+    if (attachmentMovers.has(path)) {
+      state.diagnostics.push(diagnostic(
+        "XD1290",
+        `attachment cannot read path '${path}' because another attachment moves it`,
+        statement,
+      ));
+    }
+  }
+}
+
+function validateAttachmentMover(
+  statement: Extract<SemanticStatement, { type: "attachment" }>,
+  rotated: ReadonlySet<string>,
+  state: ValidationState,
+): boolean {
+  const moving = state.definitions.get(statement.moving);
+  if (!moving) {
+    state.diagnostics.push(diagnostic("XD1290", `attachment moves unknown element '${statement.moving}'`, statement));
+    return false;
+  }
+    if (statement.anchor !== "origin" && !(ANCHORS as readonly string[]).includes(statement.anchor)) {
+      state.diagnostics.push(diagnostic("XD1290", `attachment anchor '${statement.anchor}' is not valid`, statement));
+      return false;
+    }
+    if (moving.type !== "node" && moving.type !== "freedraw") {
+      state.diagnostics.push(diagnostic(
+        "XD1290",
+        `attachment mover '${statement.moving}' must be a node or path, not ${moving.type}`,
+        statement,
+      ));
+    }
+    if (statement.anchor === "origin" && moving.type !== "freedraw") {
+      state.diagnostics.push(diagnostic("XD1290", "attachment anchor 'origin' is only defined for paths", statement));
+    }
+    if (moving.type === "node" && isPendingPoint(moving.at)) {
+      state.diagnostics.push(diagnostic(
+        "XD1290",
+        `node '${statement.moving}' cannot have both a relative at expression and an attachment`,
+        statement,
+      ));
+    }
+    if (rotated.has(statement.moving) && statement.anchor !== "center") {
+      state.diagnostics.push(diagnostic(
+        "XD1290",
+        `rotated attachment mover '${statement.moving}' may use only its center anchor`,
+        statement,
+      ));
+    }
+    const previous = state.attachments.get(statement.moving);
+    if (previous) {
+      state.diagnostics.push(diagnostic("XD1290", `element '${statement.moving}' may have only one attachment`, statement));
+    } else {
+      state.attachments.set(statement.moving, statement);
+    }
+  return true;
+}
+
+function validateAttachment(
+  statement: Extract<SemanticStatement, { type: "attachment" }>,
+  geometryTargets: ReadonlySet<string>,
+  rotated: ReadonlySet<string>,
+  attachmentMovers: ReadonlySet<string>,
+  state: ValidationState,
+): void {
+    if (!validateAttachmentMover(statement, rotated, state)) return;
+
+    let expression;
+    try {
+      expression = parseExpression(statement.target);
+    } catch (error) {
+      state.diagnostics.push(diagnostic("XD1290", `attachment target is invalid: ${String(error)}`, statement));
+      return;
+    }
+    const type = inferExpressionKind(expression, (name) => {
+      if (splitGeometryName(name)) return "number";
+      if (splitAnchorName(name)) return "point";
+      return state.definitions.get(name)?.type === "freedraw" ? "path" : null;
+    });
+    if (type.kind !== "point" || type.issues.length) {
+      const detail = type.issues.map((issue) => issue.message).join("; ") || `received ${type.kind ?? "an invalid value"}`;
+      state.diagnostics.push(diagnostic("XD1290", `attachment target must be a point: ${detail}`, statement));
+      return;
+    }
+
+    const recordedBoxes = new Set<string>();
+    for (const name of freeNames(expression)) {
+      const reference = splitGeometryName(name) ?? splitAnchorName(name);
+      if (!reference || recordedBoxes.has(reference.element)) continue;
+      recordedBoxes.add(reference.element);
+      recordGeometryDependency(statement, statement.moving, reference.element, state);
+    }
+    validateAttachmentPaths(statement, expression, geometryTargets, attachmentMovers, state);
+}
+
+function validateAttachments(
+  statements: readonly SemanticStatement[],
+  state: ValidationState,
+): void {
+  const geometryTargets = new Set<string>();
+  const rotated = new Set<string>();
+  const attachmentMovers = new Set<string>();
+  collectStatements(statements, (statement) => {
+    if (statement.type === "attachment") attachmentMovers.add(statement.moving);
+    if (isGeometryStatement(statement) && statement.type !== "layer" && Array.isArray(statement.ids)) {
+      statement.ids.forEach((id) => geometryTargets.add(id));
+      if (statement.type === "rotation") statement.ids.forEach((id) => rotated.add(id));
+    }
+  });
+
+  collectStatements(statements, (statement) => {
+    if (statement.type === "attachment") {
+      validateAttachment(statement, geometryTargets, rotated, attachmentMovers, state);
+    }
+  });
+}
+
+function validateDetachedGeometryExpressions(
+  statements: readonly SemanticStatement[],
+  state: ValidationState,
+): void {
+  const geometryTargets = new Set<string>();
+  const attachmentMovers = new Set<string>();
+  collectStatements(statements, (statement) => {
+    if (statement.type === "attachment") attachmentMovers.add(statement.moving);
+    if (isGeometryStatement(statement) && statement.type !== "layer" && Array.isArray(statement.ids)) {
+      statement.ids.forEach((id) => geometryTargets.add(id));
+    }
+  });
+  const symbolKind = (name: string) => {
+    if (splitGeometryName(name)) return "number" as const;
+    if (splitAnchorName(name)) return "point" as const;
+    return state.definitions.get(name)?.type === "freedraw" ? "path" as const : null;
+  };
+  collectStatements(statements, (statement) => {
+    if (statement.type !== "text" && statement.type !== "freedraw") return;
+    if (statement.at === undefined) return;
+    const sources = typeof statement.at === "string"
+      ? [{ source: statement.at, expected: "point" as const }]
+      : Array.isArray(statement.at) ? statement.at.flatMap((value) => (
+        typeof value === "string" ? [{ source: value, expected: "number" as const }] : []
+      )) : [];
+    for (const { source, expected } of sources) {
+      let expression;
+      try {
+        expression = parseExpression(source);
+      } catch (error) {
+        state.diagnostics.push(diagnostic("XD1291", `${statement.type} '${statement.id}' position is invalid: ${String(error)}`, statement));
+        continue;
+      }
+      const typed = inferExpressionKind(expression, symbolKind);
+      if (typed.kind !== expected || typed.issues.length) {
+        const detail = typed.issues.map((issue) => issue.message).join("; ") || `expected ${expected}, received ${typed.kind}`;
+        state.diagnostics.push(diagnostic("XD1291", `${statement.type} '${statement.id}' position is invalid: ${detail}`, statement));
+        continue;
+      }
+      for (const path of expressionPathReferences(expression)) {
+        const target = state.definitions.get(path);
+        if (target?.type !== "freedraw") continue;
+        if (!isFinitePoint(target.at)) {
+          state.diagnostics.push(diagnostic("XD1291", `path '${path}' cannot be read before its position is resolved`, statement));
+        }
+        if (geometryTargets.has(path)) {
+          state.diagnostics.push(diagnostic("XD1291", `path '${path}' cannot be read because a geometry statement moves it`, statement));
+        }
+        if (attachmentMovers.has(path)) {
+          state.diagnostics.push(diagnostic("XD1291", `path '${path}' cannot be read because an attachment moves it`, statement));
+        }
+      }
+    }
+  });
+}
+
+function validateRelativeReferenceCycles(state: ValidationState): void {
+  const graph = new Map<string, Set<string>>();
+  const owners = new Map<string, SemanticStatement>();
+  for (const reference of state.relativeReferences) {
+    const owner = reference.ownerId;
+    owners.set(owner, reference.owner);
+    const targets = graph.get(owner) ?? new Set<string>();
+    targets.add(reference.target);
+    graph.set(owner, targets);
+  }
+  const complete = new Set<string>();
+  const active = new Set<string>();
+  const stack: string[] = [];
+  const reported = new Set<string>();
+  const visit = (id: string): void => {
+    if (complete.has(id)) return;
+    if (active.has(id)) {
+      const start = stack.indexOf(id);
+      const cycle = [...stack.slice(start), id];
+      const key = [...new Set(cycle)].sort().join("|");
+      if (!reported.has(key)) {
+        reported.add(key);
+        state.diagnostics.push(diagnostic(
+          "XD1272",
+          `relative placement cycle: ${cycle.join(" -> ")}`,
+          owners.get(stack.at(-1) ?? id) ?? owners.get(id),
+        ));
+      }
+      return;
+    }
+    active.add(id);
+    stack.push(id);
+    for (const target of [...(graph.get(id) ?? [])].sort()) {
+      if (graph.has(target)) visit(target);
+    }
+    stack.pop();
+    active.delete(id);
+    complete.add(id);
+  };
+  for (const id of [...graph.keys()].sort()) visit(id);
+}
+
 export function validateSemanticDocument(document: SemanticValidationDocument): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   const definitions = new Map<string, SemanticStatement>();
+  collectStatements(document.statements, (statement) => {
+    if (DEFINITIONS.has(statement.type) && statement.id && !definitions.has(statement.id)) {
+      definitions.set(statement.id, statement);
+    }
+  });
   const references: ValidationReference[] = [];
   const styles = new Map<string, StyleStatement>();
   const state: ValidationState = {
-    diagnostics, definitions, references, styles, theme: undefined, freedrawPointCount: 0,
+    diagnostics,
+    definitions,
+    seenDefinitions: new Map(),
+    references,
+    styles,
+    relativeReferences: [],
+    attachments: new Map(),
+    theme: undefined,
+    freedrawPointCount: 0,
   };
 
   if (typeof document.title === "string" && document.title.length > MAX_TEXT_CHARACTERS) {
@@ -754,6 +1147,11 @@ export function validateSemanticDocument(document: SemanticValidationDocument): 
       if (rule.apply(statement, context, state)) return;
     }
   });
+
+  validateAttachments(document.statements, state);
+  validateDetachedGeometryExpressions(document.statements, state);
+  validateRotatedRelativeReferences(document.statements, state);
+  validateRelativeReferenceCycles(state);
 
   collectStatements(document.statements, (statement) => {
     if (statement.type === "node" || statement.type === "text" || statement.type === "layout-text") {
@@ -806,9 +1204,10 @@ export function validateSemanticDocument(document: SemanticValidationDocument): 
   return diagnostics;
 }
 
-/** A coordinate pair whose parts are expressions awaiting layout. */
+/** A point whose coordinates are expressions awaiting layout. */
 function isPendingPoint(value: unknown): boolean {
-  return Array.isArray(value) && value.length === 2 && value.some((part) => typeof part === "string");
+  return typeof value === "string"
+    || (Array.isArray(value) && value.length === 2 && value.some((part) => typeof part === "string"));
 }
 
 export function buildSemanticIR(ast: DiagramDocument): SemanticDocument {
@@ -819,14 +1218,14 @@ export function buildSemanticIR(ast: DiagramDocument): SemanticDocument {
   lowered.statements = lowerDecisionBranches(lowered.statements);
   const diagnostics = validateSemanticDocument(lowered);
   if (diagnostics.length) throw new DiagnosticError(diagnostics);
-  const ir: SemanticDocument = {
+  const ir = {
     type: "semantic-document",
     title: lowered.title,
     statements: lowered.statements,
     objects: new Map(),
     origins: new Map(),
     references: [],
-  };
+  } as unknown as SemanticDocument;
   if (lowered.span) Object.defineProperty(ir, "span", { value: lowered.span, enumerable: false });
   const index = indexSemanticObjects(ir);
   Object.defineProperties(ir, {
@@ -840,4 +1239,43 @@ export function buildSemanticIR(ast: DiagramDocument): SemanticDocument {
     assetFiles: { value: ast.assetFiles ?? {}, enumerable: false },
   });
   return ir;
+}
+
+function sourceOnlySemanticStatement(statements: readonly SemanticStatement[]): SemanticStatement | null {
+  for (const statement of statements) {
+    if (statement.type === "template" || statement.type === "use" || statement.type === "decision-branch") return statement;
+    const nested = statement.statements ? sourceOnlySemanticStatement(statement.statements) : null;
+    if (nested) return nested;
+  }
+  return null;
+}
+
+/** Own and re-index a validated semantic tree before any geometry resolution mutates it. */
+export function cloneSemanticDocument(document: SemanticDocument): SemanticDocument {
+  const statements = cloneNode(document.statements);
+  const sourceOnly = sourceOnlySemanticStatement(statements);
+  if (sourceOnly) {
+    throw new TypeError(`semantic document contains source-only '${sourceOnly.type}' statement`);
+  }
+  const owned = {
+    type: "semantic-document",
+    title: document.title,
+    statements,
+    objects: new Map(),
+    origins: new Map(),
+    references: [],
+  } as unknown as SemanticDocument;
+  for (const key of ["span", "source", "comments", "tokens", "ast", "assetFiles"] as const) {
+    const value = document[key];
+    if (value !== undefined) Object.defineProperty(owned, key, { value, enumerable: false });
+  }
+  const diagnostics = validateSemanticDocument(owned);
+  if (diagnostics.length) throw new DiagnosticError(diagnostics);
+  const index = indexSemanticObjects(owned);
+  Object.defineProperties(owned, {
+    objects: { value: index.objects, enumerable: false },
+    origins: { value: index.origins, enumerable: false },
+    references: { value: index.references, enumerable: false },
+  });
+  return owned;
 }

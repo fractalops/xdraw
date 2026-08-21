@@ -5,7 +5,7 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
 import "./viewer.css";
 
-import { compileAsync } from "../src/compile/pipeline.ts";
+import { compile } from "../src/compile/pipeline.ts";
 import { synchronizeEndpointLabels } from "../src/routing/labels.ts";
 import { resolveAssets } from "../src/io/assets.ts";
 import { parseSource } from "../src/language/parser.ts";
@@ -28,7 +28,7 @@ function Viewer() {
     resolveAssets(parseSource(source), browserFilesystem)
       .then(async (document) => {
         if (!active) return;
-        const compiled = (await compileAsync(document)).toJSON();
+        const compiled = (await compile(document)).toJSON();
         if (!active) return;
         (window as typeof window & { __xdrawCompiled?: unknown }).__xdrawCompiled = structuredClone(compiled);
         setScene(restore({

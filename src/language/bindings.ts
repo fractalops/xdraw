@@ -1,5 +1,5 @@
 /**
- * Named values: a document may bind a number to a name and reuse it.
+ * Named values: a document may bind a value to a name and reuse it.
  *
  * Names resolve by what they depend on rather than by where they appear, so a
  * document reads in whatever order suits its author. That ordering is the only
@@ -8,17 +8,21 @@
  * find them — a cycle reports the path that closes it, an unbound name reports
  * who used it — rather than looping or defaulting to zero.
  *
- * Bindings are constants. They may use the expression sublanguage's functions
- * and constants and each other, and nothing else, so they can be resolved while
- * the document is read.
+ * Scalar and point constants resolve while the document is read. Geometry
+ * values, including path aliases, remain symbolic until layout and sampling
+ * have produced the geometry they name.
  */
 import {
   CONSTANTS,
   ExpressionError,
   FUNCTIONS,
+  TYPED_FUNCTIONS,
   evaluateExpression,
+  evaluateValueExpression,
   freeNames,
+  inferExpressionKind,
   parseExpression,
+  validateExpressionFunctions,
   type ExpressionNode,
 } from "./expression.ts";
 
@@ -59,11 +63,14 @@ function parseAll(bindings: readonly SourceBinding[]): Map<string, ParsedBinding
     if (CONSTANTS.has(name)) {
       throw new BindingError(`'${name}' is a constant of the expression language and cannot be bound`, name);
     }
-    if (FUNCTIONS.has(name)) {
+    if (FUNCTIONS.has(name) || TYPED_FUNCTIONS.has(name)) {
       throw new BindingError(`'${name}' is a function of the expression language and cannot be bound`, name);
     }
     try {
-      parsed.set(name, { name, node: parseExpression(source) });
+      const node = parseExpression(source);
+      const [issue] = validateExpressionFunctions(node);
+      if (issue) throw new BindingError(`'${name}' is not a valid expression: ${issue.message}`, name);
+      parsed.set(name, { name, node });
     } catch (error) {
       const detail = error instanceof ExpressionError ? error.message : String(error);
       throw new BindingError(`'${name}' is not a valid expression: ${detail}`, name);
@@ -110,4 +117,90 @@ export function resolveBindings(bindings: readonly SourceBinding[]): Map<string,
 
   for (const { name } of parsed.values()) visit(name, []);
   return values;
+}
+
+/**
+ * Resolve bindings as expression trees instead of requiring every binding to
+ * already be a number. This is the authoring symbol table: points and aliases
+ * to paths survive until geometry exists, while cycles remain document errors.
+ */
+export function resolveBindingExpressions(
+  bindings: readonly SourceBinding[],
+): Map<string, ExpressionNode> {
+  const parsed = parseAll(bindings);
+  const resolved = new Map<string, ExpressionNode>();
+  const visiting = new Set<string>();
+
+  const substitute = (node: ExpressionNode): ExpressionNode => {
+    switch (node.kind) {
+      case "number": return node;
+      case "boolean": return node;
+      case "point": return { kind: "point", x: substitute(node.x), y: substitute(node.y) };
+      case "name": return resolved.get(node.name) ?? node;
+      case "negate": return { kind: "negate", operand: substitute(node.operand) };
+      case "binary": return { ...node, left: substitute(node.left), right: substitute(node.right) };
+      case "call": return { ...node, args: node.args.map(substitute) };
+    }
+  };
+
+  const visit = (name: string, path: readonly string[]): void => {
+    if (resolved.has(name)) return;
+    if (visiting.has(name)) {
+      const loop = [...path.slice(path.indexOf(name)), name];
+      throw new BindingError(`'${name}' depends on itself: ${loop.join(" -> ")}`, name);
+    }
+    const own = parsed.get(name);
+    if (!own) return;
+    visiting.add(name);
+    for (const dependency of freeNames(own.node)) {
+      if (parsed.has(dependency)) visit(dependency, [...path, name]);
+    }
+    visiting.delete(name);
+    const value = substitute(own.node);
+    if (freeNames(value).size === 0) {
+      const typed = inferExpressionKind(value, () => null);
+      if (typed.issues.length) {
+        throw new BindingError(`'${name}' is not a valid value: ${typed.issues.map((issue) => issue.message).join("; ")}`, name);
+      }
+      try {
+        const constant = evaluateValueExpression(value, {});
+        const finite = typeof constant === "number"
+          ? Number.isFinite(constant)
+          : typeof constant === "boolean" || constant.every(Number.isFinite);
+        if (!finite) throw new BindingError(`'${name}' is not finite`, name);
+      } catch (error) {
+        if (error instanceof BindingError) throw error;
+        // Geometry functions are intentionally unresolved until paths and
+        // element bounds exist. Their eventual consumer reports bad calls.
+      }
+    }
+    resolved.set(name, value);
+  };
+
+  for (const { name } of parsed.values()) visit(name, []);
+  return resolved;
+}
+
+/** Inline a resolved binding table into an arbitrary expression. */
+export function expandBindingExpression(
+  node: ExpressionNode,
+  bindings: ReadonlyMap<string, ExpressionNode>,
+): ExpressionNode {
+  switch (node.kind) {
+    case "number": return node;
+    case "boolean": return node;
+    case "point": return {
+      kind: "point",
+      x: expandBindingExpression(node.x, bindings),
+      y: expandBindingExpression(node.y, bindings),
+    };
+    case "name": return bindings.get(node.name) ?? node;
+    case "negate": return { kind: "negate", operand: expandBindingExpression(node.operand, bindings) };
+    case "binary": return {
+      ...node,
+      left: expandBindingExpression(node.left, bindings),
+      right: expandBindingExpression(node.right, bindings),
+    };
+    case "call": return { ...node, args: node.args.map((arg) => expandBindingExpression(arg, bindings)) };
+  }
 }

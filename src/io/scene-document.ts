@@ -49,7 +49,7 @@ export interface SceneReplaceOperation {
   diagram: DiagramDocument;
 }
 
-export type SceneAdditionDocument = Omit<DiagramDocument, "title"> & { title?: string };
+export type SceneAdditionDocument = DiagramDocument;
 
 export interface ScenePatchOperation {
   type: "patch";
@@ -107,10 +107,11 @@ function updateValue(
   source: string,
 ): string | number {
   if (NUMERIC_UPDATE_PROPERTIES.has(property)) {
-    if (typeof token.value !== "number" || !Number.isFinite(token.value)) {
+    const numeric = typeof token.value === "number" ? token.value : Number(token.value);
+    if (!Number.isFinite(numeric)) {
       throw new SyntaxError(`update property '${property}' requires a number`, source, token.offset);
     }
-    return token.value;
+    return numeric;
   }
   if (typeof token.value !== "string") {
     throw new SyntaxError(`update property '${property}' requires text`, source, token.offset);
@@ -168,11 +169,18 @@ export function parseSceneDocument(source: string): SceneDocument {
   };
   const word = (value?: string, message?: string): string => String(take("identifier", value, message).value);
 
+  // A segment is a bare word, or a quoted string when the name it addresses is not
+  // one: `list` and `pull` accept 'Infrastructure Engineering' as a collection, and
+  // an address that works there should be writable here too.
+  const segment = (message: string): string => (peek("string")
+    ? String(take("string").value)
+    : word(undefined, message));
+
   word("scene", "expected 'scene'");
-  const parts = [word(undefined, "expected scene provider")];
+  const parts = [segment("expected scene provider")];
   while (peek("namespace")) {
     take("namespace");
-    parts.push(word(undefined, "expected resource segment after '::'"));
+    parts.push(segment("expected resource segment after '::'"));
   }
   if (parts.length !== 4) {
     throw new SyntaxError(
@@ -230,8 +238,9 @@ export function parseSceneDocument(source: string): SceneDocument {
             throw new SyntaxError(`unsupported update property '${key}'`, source, keyToken.offset);
           }
           const property = key as SceneUpdateProperty;
+          take("=", undefined, `expected '=' after update property '${key}'`);
           const valueToken = tokens[index];
-          if (!["identifier", "string", "number"].includes(valueToken.type)) {
+          if (!["identifier", "string", "number", "expression"].includes(valueToken.type)) {
             throw new SyntaxError(`expected a value for '${key}'`, source, valueToken.offset);
           }
           index += 1;

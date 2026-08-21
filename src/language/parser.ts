@@ -1,3 +1,4 @@
+import { isSourceGeometryStatement as isGeometryStatement } from "./geometry-statements.ts";
 import { SyntaxError, tokenize } from "./tokenizer.ts";
 import type {
   BodyStatement,
@@ -8,6 +9,8 @@ import type {
   TreeStatement,
 } from "../contracts/semantic.ts";
 import type {
+  AttachmentAnchor,
+  DeferredPoint,
   Point,
   SpacingPreset,
   Token,
@@ -21,6 +24,7 @@ import type {
   SourceDocument,
   SourceEndpoint,
   SourceGeometryStatement,
+  SourceMembershipStatement,
   SourceNode,
   SourceProperty,
   SourcePropertyValue,
@@ -33,9 +37,17 @@ import {
   resolveTone,
 } from "./registry.ts";
 import { validateLanguageDocument } from "./validator.ts";
-import { type ExpressionNode, CONSTANTS, parseExpression } from "./expression.ts";
-import { resolveBindings } from "./bindings.ts";
-import { advance } from "./deferred.ts";
+import {
+  type ExpressionNode,
+  evaluateValueExpression,
+  expressionRequiresGeometry,
+  freeNames,
+  formatExpression,
+  mapExpressionNames,
+  parseExpression,
+} from "./expression.ts";
+import { ANCHORS, splitAnchorName, splitGeometryName } from "./geometry-names.ts";
+import { expandBindingExpression, resolveBindingExpressions } from "./bindings.ts";
 
 function located<T extends object>(value: T, start: Token, end: Token): T & SourceNode {
   Object.defineProperty(value, "span", {
@@ -103,7 +115,7 @@ export function parseSyntax(source: string): SourceDocument {
       else if (!peek(")")) throw new SyntaxError(`expected ',' or ')' in ${label}`, source, tokens[index].offset);
     }
     take(")");
-    return { value: result as SourcePropertyValue, kind: "tuple", elementKinds: kinds };
+    return { value: result, kind: "tuple", elementKinds: kinds };
   }
 
   function selection(label: string): string[] {
@@ -170,7 +182,22 @@ export function parseSyntax(source: string): SourceDocument {
   }
 
   function property(name: string, start: Token): SourceProperty {
-    const propertyValue = value(name);
+    take("=", undefined, `expected '=' after property '${name}'`);
+    let propertyValue = value(name);
+    if (propertyValue.kind === "expression" && typeof propertyValue.value === "string") {
+      if (propertyValue.value === "true" || propertyValue.value === "false") {
+        propertyValue = { value: propertyValue.value === "true", kind: "boolean" };
+      } else if (/^[A-Za-z_][A-Za-z0-9_.-]*$/u.test(propertyValue.value)
+          && !["x", "y", "equation"].includes(name)) {
+        propertyValue = { value: propertyValue.value, kind: "identifier" };
+      } else if (!propertyValue.value.includes("$")) {
+        const node = parseExpression(propertyValue.value);
+        if (freeNames(node).size === 0 && node.kind !== "point" && node.kind !== "call") {
+          const result = evaluateValueExpression(node, {});
+          if (typeof result === "number") propertyValue = { value: result, kind: "number" };
+        }
+      }
+    }
     return located({
       type: "property",
       name,
@@ -305,12 +332,34 @@ export function parseSyntax(source: string): SourceDocument {
       // `let card = 260`. The tokenizer has already read everything after '='
       // as one expression, so the name and the expression are two tokens.
       const name = identifier(undefined, "expected a name after 'let'");
+      take("=", undefined, `expected '=' after binding '${name}'`);
       const expression = String(take("expression", undefined, `expected '=' and an expression for '${name}'`).value);
       return located({ type: "binding", name, expression }, start, tokens[index - 1]);
     }
     if (start.value === "arrange") return arrangement(start);
+    if (start.value === "attach" && !peek("=")) {
+      const moving = identifier(undefined, "expected an element anchor after 'attach'");
+      identifier("to", "expected 'to' after the moving anchor");
+      const target = String(take("expression", undefined, "expected a point expression after 'to'").value);
+      return located({ type: "attachment" as const, moving, target }, start, tokens[index - 1]);
+    }
     const geometry = geometryOperation(start);
     if (geometry) return geometry;
+
+    if (peek("identifier", "in")) {
+      take("identifier", "in");
+      take("[", undefined, `expected '[' after '${String(start.value)} in'`);
+      const from = take("expression", undefined, "expected the lower interval bound");
+      take(",", undefined, "expected ',' between interval bounds");
+      const to = take("expression", undefined, "expected the upper interval bound");
+      const end = take("]", undefined, "expected ']' after the interval");
+      return located<SourceMembershipStatement>({
+        type: "membership",
+        variable: String(start.value),
+        from: String(from.value),
+        to: String(to.value),
+      }, start, end);
+    }
 
     if (peek(":")) {
       take(":");
@@ -394,10 +443,6 @@ function isDeclaration(statement: SourceStatement): statement is SourceDeclarati
   return statement.type === "declaration";
 }
 
-function isGeometryStatement(statement: SourceStatement): statement is SourceGeometryStatement {
-  return ["alignment", "distribution", "offset", "match-size", "rotation", "snap", "layer"].includes(statement.type);
-}
-
 function isPoint(value: SourcePropertyValue | undefined): value is Point {
   return Array.isArray(value)
     && value.length === 2
@@ -412,9 +457,10 @@ function pointProperty(
   properties: ReadonlyMap<string, SourcePropertyValue>,
   name: string,
   owner: string,
-): Point | undefined {
+): DeferredPoint | undefined {
   const value = properties.get(name);
   if (value === undefined) return undefined;
+  if (typeof value === "string") return value;
   // A pair whose parts are still text is unresolved rather than malformed: it
   // names a template parameter the expander will supply, or an element's
   // geometry that does not exist until layout has run. Either way it is carried
@@ -422,9 +468,9 @@ function pointProperty(
   const parts = value as readonly unknown[];
   if (Array.isArray(value) && parts.length === 2
       && parts.every((item) => typeof item === "number" || typeof item === "string")) {
-    return value as unknown as Point;
+    return value as [number | string, number | string];
   }
-  if (!isPoint(value)) throw new Error(`${owner} property '${name}' must be a coordinate pair`);
+  if (!isPoint(value)) throw new Error(`${owner} property '${name}' must be a point`);
   return value;
 }
 
@@ -435,8 +481,22 @@ function pointListProperty(
 ): Point[] | undefined {
   const value = properties.get(name);
   if (value === undefined) return undefined;
-  if (!isPointList(value)) throw new Error(`${owner} property '${name}' must be a list of coordinate pairs`);
+  if (!isPointList(value)) throw new Error(`${owner} property '${name}' must be a list of points`);
   return value;
+}
+
+function concretePointProperty(
+  properties: ReadonlyMap<string, SourcePropertyValue>,
+  name: string,
+  owner: string,
+): Point | undefined {
+  const value = pointProperty(properties, name, owner);
+  if (value === undefined) return undefined;
+  // Sizes and asset rectangles are constant by semantic validation. Template
+  // parameters may still be present in the pre-expansion DiagramDocument, so
+  // this boundary narrows only the fields whose public semantic contract is
+  // intentionally concrete.
+  return value as Point;
 }
 
 function numberProperty(
@@ -445,6 +505,19 @@ function numberProperty(
 ): number | undefined {
   const value = properties.get(name);
   return typeof value === "number" ? value : undefined;
+}
+
+function numberListProperty(
+  properties: ReadonlyMap<string, SourcePropertyValue>,
+  name: string,
+  owner: string,
+): number[] | undefined {
+  const value = properties.get(name);
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || !value.every((item): item is number => typeof item === "number")) {
+    throw new Error(`${owner} property '${name}' must be a list of numbers`);
+  }
+  return value as number[];
 }
 
 function stringProperty(
@@ -473,11 +546,56 @@ function endpointValue(endpoint: SourceEndpoint, scopes: readonly ReadonlyMap<st
     }
   }
   resolved ??= endpoint.reference;
-  return endpoint.anchor ? `${resolved}.${endpoint.anchor}` : resolved;
+  if (!endpoint.anchor) return resolved;
+  const side = { east: "right", west: "left", north: "top", south: "bottom", center: "center" }[endpoint.anchor];
+  if (!side) throw new Error(`unknown connector anchor '${endpoint.anchor}'; use north, east, south, west, or center`);
+  return `${resolved}.${side}`;
 }
 
 function referenceValue(reference: string, scopes: readonly ReadonlyMap<string, string>[]): string {
   return endpointValue({ reference, anchor: undefined }, scopes);
+}
+
+function qualifyGeometryCoordinate(
+  value: number | string,
+  scopes: readonly ReadonlyMap<string, string>[],
+): number | string {
+  if (typeof value === "number") return value;
+  const qualified = mapExpressionNames(parseExpression(value), (name) => {
+    const reference = splitGeometryName(name) ?? splitAnchorName(name);
+    if (!reference) return name;
+    const suffix = "part" in reference ? `bounds.${reference.part}` : reference.anchor;
+    return `${referenceValue(reference.element, scopes)}.${suffix}`;
+  });
+  return formatExpression(qualified);
+}
+
+function qualifyAttachmentTarget(
+  value: string,
+  scopes: readonly ReadonlyMap<string, string>[],
+): string {
+  return formatExpression(mapExpressionNames(parseExpression(value), (name) => {
+    const scalar = splitGeometryName(name);
+    if (scalar) return `${referenceValue(scalar.element, scopes)}.bounds.${scalar.part}`;
+    const anchor = splitAnchorName(name);
+    if (anchor) return `${referenceValue(anchor.element, scopes)}.${anchor.anchor}`;
+    return referenceValue(name, scopes);
+  }));
+}
+
+function qualifyNodePosition(
+  value: DeferredPoint | undefined,
+  scopes: readonly ReadonlyMap<string, string>[],
+): DeferredPoint | undefined {
+  if (!value) return undefined;
+  if (typeof value === "string") {
+    const qualified = qualifyGeometryCoordinate(value, scopes);
+    if (typeof qualified === "number") throw new Error("node at expression must produce a point");
+    return qualified;
+  }
+  return value.map((coordinate) => (
+    qualifyGeometryCoordinate(coordinate, scopes)
+  )) as [number | string, number | string];
 }
 
 function interpolationValue(value: SourcePropertyValue | undefined): SourcePropertyValue | undefined {
@@ -493,30 +611,10 @@ function interpolationValue(value: SourcePropertyValue | undefined): SourcePrope
  */
 const DEFAULT_PLOT_TOLERANCE = 0.5;
 
-/**
- * Reads a `(start, end)` interval. Either end may be a number or one of the
- * constants the expression sublanguage defines, so a full turn reads as `tau`
- * rather than as 6.283185307179586. The constants come from that sublanguage
- * rather than a second list, so the two cannot drift apart.
- */
-function intervalProperty(
-  properties: ReadonlyMap<string, SourcePropertyValue>,
-  name: string,
-  owner: string,
-): [number, number] {
-  const value = properties.get(name);
-  if (!Array.isArray(value) || value.length !== 2) {
-    throw new Error(`${owner} ${name} must be a pair such as (0, tau)`);
-  }
-  const ends = value.map((item) => {
-    if (typeof item === "number") return item;
-    const constant = typeof item === "string" ? CONSTANTS.get(item) : undefined;
-    if (constant === undefined) {
-      throw new Error(`${owner} ${name} accepts numbers and the constants ${CONSTANTS.names.join(", ")}`);
-    }
-    return constant;
-  });
-  return [ends[0], ends[1]];
+function memberships(statement: SourceDeclaration): SourceMembershipStatement[] {
+  return statement.statements.filter(
+    (child): child is SourceMembershipStatement => child.type === "membership",
+  );
 }
 
 function codeValue(value: unknown): string {
@@ -649,7 +747,22 @@ function lowerScope(
         ownsChildren: true,
       }, statement)];
     }
-    if (statement.type === "property") return [];
+    if (statement.type === "property" || statement.type === "membership") return [];
+    if (statement.type === "attachment") {
+      const separator = statement.moving.lastIndexOf(".");
+      if (separator <= 0) throw new Error("attach expects an element anchor such as 'leaf.center'");
+      const anchor = statement.moving.slice(separator + 1);
+      if (anchor !== "origin" && !ANCHORS.includes(anchor as (typeof ANCHORS)[number])) {
+        throw new Error(`attach anchor '${anchor}' is not valid; expected origin or a compass anchor`);
+      }
+      const moving = referenceValue(statement.moving.slice(0, separator), scopes);
+      return [copySpan({
+        type: "attachment",
+        moving,
+        anchor: anchor as AttachmentAnchor,
+        target: qualifyAttachmentTarget(statement.target, scopes),
+      }, statement)];
+    }
     if (isGeometryStatement(statement)) {
       return [copySpan({
         ...statement,
@@ -761,8 +874,8 @@ function lowerScope(
         type: constructor.type,
         id,
         asset: referenceValue(asset, scopes),
-        at: pointProperty(properties, "at", `${constructor.type} '${id}'`)!,
-        size: pointProperty(properties, "size", `${constructor.type} '${id}'`)!,
+        at: concretePointProperty(properties, "at", `${constructor.type} '${id}'`)! ,
+        size: concretePointProperty(properties, "size", `${constructor.type} '${id}'`)! ,
         attributes,
       }, statement)];
     }
@@ -798,15 +911,14 @@ function lowerScope(
 
     if (constructor.type === "freedraw") {
       const pressures = properties.get("pressures");
+      const simulatePressure = properties.get("simulate-pressure");
       return [copySpan({
         type: "freedraw",
         id,
         at: pointProperty(properties, "at", `freedraw '${id}'`)!,
         points: pointListProperty(properties, "points", `freedraw '${id}'`)!,
-        pressures: Array.isArray(pressures) ? pressures.filter((value): value is number => typeof value === "number") : [],
-        simulatePressure: normalizePropertyValue(
-          properties.get("simulate-pressure") ?? (pressures === undefined),
-        ),
+        pressures: numberListProperty(properties, "pressures", `freedraw '${id}'`) ?? [],
+        simulatePressure: simulatePressure === undefined ? pressures === undefined : simulatePressure === true,
         styleDefaults,
         attributes,
       }, statement)];
@@ -816,22 +928,29 @@ function lowerScope(
       // The curve is described here and drawn later. Sampling it now would
       // freeze it before templates expand, so a parameter could never reach the
       // equations. See src/compile/plot-pass.ts.
-      const at = pointProperty(properties, "at", `plot '${id}'`)!;
-      const [from, to] = intervalProperty(properties, "domain", `plot '${id}'`);
+      const at = pointProperty(properties, "at", `plot '${id}'`);
+      const interval = memberships(statement)[0];
+      const equation = properties.has("equation") ? codeValue(properties.get("equation")) : undefined;
+      const inferredVariable = properties.has("y") && !properties.has("x") ? "x"
+        : properties.has("x") && !properties.has("y") ? "y"
+          : "x";
       // These describe the curve, not how it looks, so they must not reach the
       // style pass — which rejects any attribute it does not recognise.
       delete attributes.x;
       delete attributes.y;
-      delete attributes.domain;
+      delete attributes.equation;
       delete attributes.tolerance;
       return [copySpan({
         type: "plot",
         id,
         at,
-        x: codeValue(properties.get("x")),
-        y: codeValue(properties.get("y")),
-        from,
-        to,
+        label: statement.arguments.length ? title : undefined,
+        variable: interval?.variable ?? inferredVariable,
+        x: codeValue(properties.get("x") ?? ((interval?.variable ?? inferredVariable) === "x" ? "x" : undefined)),
+        y: codeValue(properties.get("y") ?? ((interval?.variable ?? inferredVariable) === "y" ? "y" : undefined)),
+        from: interval?.from,
+        to: interval?.to,
+        equation,
         tolerance: numberProperty(properties, "tolerance") ?? DEFAULT_PLOT_TOLERANCE,
         styleDefaults,
         attributes,
@@ -842,6 +961,31 @@ function lowerScope(
       delete attributes.align;
       delete attributes["vertical-align"];
       delete attributes.technology;
+      const planeIntervals = constructor.kind === "cartesian"
+        ? new Map(memberships(statement).map((item) => [item.variable, [item.from, item.to] as const]))
+        : undefined;
+      const plane = constructor.kind === "cartesian" ? {
+        xDomain: planeIntervals!.get("x"),
+        yDomain: planeIntervals!.get("y"),
+        xLabel: stringProperty(properties, "x-label"),
+        yLabel: stringProperty(properties, "y-label"),
+        grid: normalizePropertyValue(properties.get("grid")) === true,
+        crossZero: normalizePropertyValue(properties.get("cross-zero")) === true,
+        tickCount: numberProperty(properties, "tick-count") ?? 5,
+      } : undefined;
+      if (plane) {
+        for (const name of ["x-label", "y-label", "grid", "cross-zero", "tick-count"]) {
+          delete attributes[name];
+          delete styleDefaults[name];
+        }
+      }
+      const formulaScale = constructor.kind === "formula"
+        ? numberProperty(properties, "display-scale")
+        : undefined;
+      if (constructor.kind === "formula") {
+        delete attributes["display-scale"];
+        delete styleDefaults["display-scale"];
+      }
       if (properties.has("body") && properties.has("description")) {
         throw new Error(`node '${id}' may use body or description, not both`);
       }
@@ -867,8 +1011,10 @@ function lowerScope(
         tone: tone ?? constructor.tone,
         styleDefaults,
         attributes,
-        at: pointProperty(properties, "at", `node '${id}'`),
-        size: pointProperty(properties, "size", `node '${id}'`) ?? (constructor.kind === "junction" ? [20, 20] : undefined),
+        at: qualifyNodePosition(pointProperty(properties, "at", `node '${id}'`), scopes),
+        size: concretePointProperty(properties, "size", `node '${id}'`) ?? (constructor.kind === "junction" ? [20, 20] : undefined),
+        formulaScale,
+        plane,
         statements: [...body, ...metadata, ...textAlignment, ...verticalAlignment, ...children],
       }, statement)];
     }
@@ -946,8 +1092,7 @@ function foldBindings(document: SourceDocument): SourceDocument {
   const declared = document.diagram.statements.filter(
     (statement): statement is SourceBindingStatement => statement.type === "binding",
   );
-  const values = resolveBindings(declared.map(({ name, expression }) => ({ name, source: expression })));
-  const environment = Object.fromEntries(values);
+  const bindings = resolveBindingExpressions(declared.map(({ name, expression }) => ({ name, source: expression })));
 
   /**
    * Folds one expression. A fully bound one becomes its value; one that still
@@ -956,52 +1101,96 @@ function foldBindings(document: SourceDocument): SourceDocument {
    */
   /**
    * Names a function this pass cannot evaluate, because something later
-   * supplies it. `along_x` needs a drawn stroke, which does not exist until
+   * supplies it. Path functions need sampled geometry, which does not exist until
    * layout has run, so an expression calling one is left as written.
    */
-  const callsDeferred = (node: ExpressionNode): boolean => {
-    switch (node.kind) {
-      case "call":
-        return node.name.startsWith("along_") || node.args.some(callsDeferred);
-      case "negate": return callsDeferred(node.operand);
-      case "binary": return callsDeferred(node.left) || callsDeferred(node.right);
-      default: return false;
+  const foldExpression = (source: string): SourcePropertyValue => {
+    // The expression parser does not accept `${parameter}` markers, but a
+    // template expression may also contain document bindings. Hide the
+    // parameters behind valid, deliberately-unbound names while advancing the
+    // expression, then restore them. This lets `${width} * unit` become
+    // `${width} * 24` without pretending the template has supplied width yet.
+    const parameters: string[] = [];
+    const probe = source.replace(/\$\{([A-Za-z_][A-Za-z0-9_-]*)\}/gu, (marker) => {
+      const placeholder = `__xdraw_template_parameter_${parameters.length}`;
+      parameters.push(marker);
+      return placeholder;
+    });
+    // Path functions need sampled geometry, which does not exist until layout has
+    // run, so an expression calling one is carried on as written.
+    const expanded = expandBindingExpression(parseExpression(probe), bindings);
+    if (expanded.kind === "point") {
+      const coordinate = (node: ExpressionNode): number | string => {
+        if (freeNames(node).size || expressionRequiresGeometry(node)) {
+          return parameters.reduce(
+            (value, marker, parameterIndex) => value.replace(`__xdraw_template_parameter_${parameterIndex}`, marker),
+            formatExpression(node),
+          );
+        }
+        const value = evaluateValueExpression(node, {});
+        if (typeof value !== "number") throw new Error("point coordinates must be numbers");
+        return value;
+      };
+      return [coordinate(expanded.x), coordinate(expanded.y)] as [number | string, number | string];
     }
+    if (expressionRequiresGeometry(expanded) || freeNames(expanded).size) {
+      const formatted = formatExpression(expanded);
+      return parameters.reduce(
+        (value, marker, parameterIndex) => value.replace(`__xdraw_template_parameter_${parameterIndex}`, marker),
+        formatted,
+      );
+    }
+    const evaluated = evaluateValueExpression(expanded, {});
+    if (typeof evaluated === "number" || typeof evaluated === "boolean") return evaluated;
+    return [...evaluated] as Point;
   };
 
-  const foldExpression = (source: string): number | string => {
-    // A template supplies this one; it is not an expression yet.
-    if (source.includes("${")) return source;
-    // `along_x` needs a drawn stroke, which does not exist until layout has
-    // run, so an expression calling one is carried on as written.
-    if (callsDeferred(parseExpression(source))) return source;
-    return advance(source, values);
+  const foldedProperty = (statement: SourceProperty): SourceProperty => {
+    if (statement.valueKind === "tuple" && Array.isArray(statement.value)) {
+      const kinds = statement.elementKinds;
+      const value = statement.value.map((item, index) => {
+        const kind = kinds?.[index];
+        if (typeof item !== "string" || (kind !== "expression" && kind !== "identifier")) return item;
+        return foldExpression(item);
+      });
+      return copySpan({ ...statement, value }, statement);
+    }
+    const shouldFold = statement.valueKind === "expression"
+      || (statement.valueKind === "identifier"
+        && typeof statement.value === "string"
+        && bindings.has(statement.value));
+    if (!shouldFold) return statement;
+    const folded = foldExpression(String(statement.value));
+    if (typeof folded === "number") return copySpan({ ...statement, value: folded, valueKind: "number" }, statement);
+    if (typeof folded === "boolean") return copySpan({ ...statement, value: folded, valueKind: "boolean" }, statement);
+    if (Array.isArray(folded)) return copySpan({ ...statement, value: folded, valueKind: "tuple" }, statement);
+    return copySpan({
+      ...statement,
+      value: folded,
+      valueKind: statement.valueKind === "identifier" ? "expression" : statement.valueKind,
+    }, statement);
   };
 
   const fold = (statements: readonly SourceStatement[]): SourceStatement[] => statements
     .filter((statement) => statement.type !== "binding")
     .map((statement) => {
-      // A tuple written after '=' holds expressions rather than literals. Only
-      // an expression can put a string in a tuple — every kind that accepts one
-      // requires numbers — so a string element is one by construction.
-      if (statement.type === "property" && statement.valueKind === "tuple" && Array.isArray(statement.value)) {
-        // Only an element written as an expression or a bare name is folded. A
-        // quoted string in a tuple is a string — `domain (0, "1")` must stay a
-        // string so the validator can reject it — and folding by "is it text"
-        // silently turned it into a number.
-        const kinds = statement.elementKinds;
-        const folded = statement.value.map((item, index) => {
-          const kind = kinds?.[index];
-          if (typeof item !== "string" || (kind !== "expression" && kind !== "identifier")) return item;
-          return foldExpression(item);
-        });
-        return copySpan({ ...statement, value: folded as SourcePropertyValue }, statement);
+      if (statement.type === "property") return foldedProperty(statement);
+      if (statement.type === "membership") {
+        const from = foldExpression(String(statement.from));
+        const to = foldExpression(String(statement.to));
+        if ((typeof from !== "number" && typeof from !== "string")
+            || (typeof to !== "number" && typeof to !== "string")) {
+          throw new Error(`interval '${statement.variable}' bounds must be numbers`);
+        }
+        return copySpan({
+          ...statement,
+          from,
+          to,
+        }, statement);
       }
-      if (statement.type === "property" && statement.valueKind === "expression") {
-        const folded = foldExpression(String(statement.value));
-        return typeof folded === "number"
-          ? copySpan({ ...statement, value: folded, valueKind: "number" as const }, statement)
-          : copySpan({ ...statement, value: folded }, statement);
+      if (statement.type === "attachment") {
+        const expanded = expandBindingExpression(parseExpression(statement.target), bindings);
+        return copySpan({ ...statement, target: formatExpression(expanded) }, statement);
       }
       if (statement.type === "declaration") {
         // A template argument may name a binding — `rose (unit, 3)` — so an
@@ -1011,12 +1200,14 @@ function foldBindings(document: SourceDocument): SourceDocument {
         const args = statement.arguments.map((argument, index) => (
           statement.argumentKinds[index] === "identifier"
             && typeof argument === "string"
-            && argument in environment
-            ? environment[argument]
+            && bindings.has(argument)
+            ? foldExpression(argument)
             : argument
         ));
         const kinds = statement.argumentKinds.map((kind, index) => (
-          args[index] === statement.arguments[index] ? kind : "number" as const
+          args[index] === statement.arguments[index] ? kind
+            : typeof args[index] === "number" ? "number" as const
+              : Array.isArray(args[index]) ? "tuple" as const : "expression" as const
         ));
         return copySpan({
           ...statement,

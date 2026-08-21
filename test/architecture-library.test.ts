@@ -5,59 +5,62 @@ import {
   isArchitectureBoundaryKind,
   renderArchitectureNode,
 } from "../src/nodes/architecture.ts";
-import { compile } from "../src/compile/pipeline.ts";
+import { compilePrepared as compile } from "../src/compile/pipeline.ts";
 import { parseSource } from "../src/language/parser.ts";
+import { requireElementById } from "../test-support/assertions.ts";
+import type { NodeStatement } from "../src/contracts/semantic.ts";
+import type { FrameElement, TextElement } from "../src/contracts/render.ts";
 
 const SOURCE = `
 use "xdraw/architecture" as arch
 
 diagram "Architecture notation" {
   platform: arch.system-boundary "Order platform" {
-    arrange row { gap 120 }
-    customer: arch.person "Customer" { description "Places and tracks orders" }
-    system: arch.system "Order system" { description "Accepts and fulfils orders" }
-    external: arch.external-system "Payments" { description "Authorises card payments" }
+    arrange row { gap = 120 }
+    customer: arch.person "Customer" { description = "Places and tracks orders" }
+    system: arch.system "Order system" { description = "Accepts and fulfils orders" }
+    external: arch.external-system "Payments" { description = "Authorises card payments" }
     web: arch.container "Web application" {
-      description "Serves the customer experience"
-      technology "TypeScript"
+      description = "Serves the customer experience"
+      technology = "TypeScript"
     }
     api: arch.component "Order API" {
-      description "Coordinates order operations"
-      technology "Node.js"
+      description = "Coordinates order operations"
+      technology = "Node.js"
     }
     orders: arch.database "Orders" {
-      description "Stores order state"
-      technology "PostgreSQL"
+      description = "Stores order state"
+      technology = "PostgreSQL"
     }
     events: arch.queue "Events" {
-      description "Buffers order events"
-      technology "Kafka"
+      description = "Buffers order events"
+      technology = "Kafka"
     }
 
-    customer@right -> system@left "uses"
+    customer@east -> system@west "uses"
     system -> web "serves experience"
-    web -> orders "reads orders" { technology "SQL" }
-    orders -> events "publishes changes" { technology "Kafka protocol" }
+    web -> orders "reads orders" { technology = "SQL" }
+    orders -> events "publishes changes" { technology = "Kafka protocol" }
     api -> external "charges"
   }
 
   internals: arch.container-boundary "Order service" {
     parser: arch.component "Request parser" {
-      description "Validates incoming commands"
-      technology "TypeScript"
+      description = "Validates incoming commands"
+      technology = "TypeScript"
     }
   }
 
   runtime: arch.deployment-node "Production cluster" {
     process: arch.container "Order process" {
-      description "Runs the order service"
-      technology "Node.js"
+      description = "Runs the order service"
+      technology = "Node.js"
     }
   }
 
   domain: arch.group "Order domain" {
     catalogue: arch.system "Product catalogue" {
-      description "Owns products and prices"
+      description = "Owns products and prices"
     }
   }
 }`;
@@ -65,6 +68,7 @@ diagram "Architecture notation" {
 test("architecture constructors lower to distinct semantic kinds", () => {
   const document = parseSource(SOURCE);
   const boundary = document.statements.find((item) => item.id === "platform");
+  assert.ok(boundary?.type === "frame");
   assert.equal(boundary.type, "frame");
   assert.equal(boundary.kind, "architecture-system-boundary");
   assert.deepEqual(
@@ -84,16 +88,21 @@ test("architecture constructors lower to distinct semantic kinds", () => {
 test("architecture notation emits grouped editable Excalidraw primitives", () => {
   const drawing = compile(parseSource(SOURCE)).toJSON();
   const byId = new Map(drawing.elements.map((element) => [element.id, element]));
+  const element = (id: string) => {
+    const found = byId.get(id);
+    assert.ok(found, `missing element ${id}`);
+    return found;
+  };
 
-  assert.equal(byId.get("platform").type, "frame");
-  assert.equal(byId.get("platform.customer:head").type, "ellipse");
-  assert.equal(byId.get("platform.customer:body-line").type, "line");
-  assert.equal(byId.get("platform.system:frame").strokeWidth, 3);
-  assert.equal(byId.get("platform.external:frame").strokeStyle, "dashed");
-  assert.equal(byId.get("platform.api:tab-1").type, "rectangle");
-  assert.equal(byId.get("platform.orders:top").type, "ellipse");
-  assert.equal(byId.get("platform.orders:body-shape").type, "rectangle");
-  assert.equal(byId.get("platform.events:message-3").type, "rectangle");
+  assert.equal(element("platform").type, "frame");
+  assert.equal(element("platform.customer:head").type, "ellipse");
+  assert.equal(element("platform.customer:body-line").type, "line");
+  assert.equal(element("platform.system:frame").strokeWidth, 3);
+  assert.equal(element("platform.external:frame").strokeStyle, "dashed");
+  assert.equal(element("platform.api:tab-1").type, "rectangle");
+  assert.equal(element("platform.orders:top").type, "ellipse");
+  assert.equal(element("platform.orders:body-shape").type, "rectangle");
+  assert.equal(element("platform.events:message-3").type, "rectangle");
 
   for (const id of [
     "platform.customer:head",
@@ -102,7 +111,7 @@ test("architecture notation emits grouped editable Excalidraw primitives", () =>
     "platform.orders:top",
     "platform.events:message-1",
   ]) {
-    assert.equal(byId.get(id).frameId, "platform");
+    assert.equal(element(id).frameId, "platform");
   }
 });
 
@@ -127,21 +136,24 @@ test("connectors bind to composite architecture frames", () => {
 test("architecture metadata stays semantic and renders inside the card", () => {
   const document = parseSource(SOURCE);
   const platform = document.statements.find((item) => item.id === "platform");
+  assert.ok(platform?.type === "frame");
   const web = platform.statements.find((item) => item.id === "platform.web");
+  assert.ok(web?.type === "node");
   assert.equal(web.attributes.description, undefined);
   assert.equal(web.attributes.technology, undefined);
-  assert.equal(web.statements.find((item) => item.type === "body").value, "Serves the customer experience");
+  const bodyStatement = web.statements.find((item) => item.type === "body");
+  assert.equal(bodyStatement?.type === "body" ? bodyStatement.value : undefined, "Serves the customer experience");
+  const technology = web.statements.find((item) => item.type === "property" && item.key === "technology");
   assert.equal(
-    web.statements.find((item) => item.type === "property" && item.key === "technology").value,
+    technology?.type === "property" ? technology.value : undefined,
     "TypeScript",
   );
 
   const drawing = compile(document).toJSON();
-  const byId = new Map(drawing.elements.map((element) => [element.id, element]));
-  const frame = byId.get("platform.web:frame");
-  const title = byId.get("platform.web:title");
-  const kind = byId.get("platform.web:kind");
-  const body = byId.get("platform.web:body");
+  const frame = requireElementById(drawing.elements, "platform.web:frame");
+  const title = requireElementById(drawing.elements, "platform.web:title") as TextElement;
+  const kind = requireElementById(drawing.elements, "platform.web:kind") as TextElement;
+  const body = requireElementById(drawing.elements, "platform.web:body") as TextElement;
   assert.match(kind.text, /\[Container \| TypeScript\]/u);
   assert.ok(title.y < kind.y && kind.y < body.y);
   assert.ok(body.y + body.height <= frame.y + frame.height);
@@ -150,14 +162,19 @@ test("architecture metadata stays semantic and renders inside the card", () => {
 test("architecture boundaries communicate distinct scopes", () => {
   const drawing = compile(parseSource(SOURCE)).toJSON();
   const byId = new Map(drawing.elements.map((element) => [element.id, element]));
-  assert.equal(byId.get("platform").strokeStyle, "solid");
-  assert.equal(byId.get("internals").strokeStyle, "dashed");
-  assert.equal(byId.get("runtime").strokeWidth, 3);
-  assert.equal(byId.get("domain").strokeStyle, "dotted");
-  assert.match(byId.get("platform").name, /^Software System:/u);
-  assert.match(byId.get("internals").name, /^Container:/u);
-  assert.match(byId.get("runtime").name, /^Deployment Node:/u);
-  assert.match(byId.get("domain").name, /^Group:/u);
+  const frame = (id: string): FrameElement => {
+    const element = byId.get(id);
+    assert.ok(element?.type === "frame", `missing frame ${id}`);
+    return element;
+  };
+  assert.equal(frame("platform").strokeStyle, "solid");
+  assert.equal(frame("internals").strokeStyle, "dashed");
+  assert.equal(frame("runtime").strokeWidth, 3);
+  assert.equal(frame("domain").strokeStyle, "dotted");
+  assert.match(frame("platform").name ?? "", /^Software System:/u);
+  assert.match(frame("internals").name ?? "", /^Container:/u);
+  assert.match(frame("runtime").name ?? "", /^Deployment Node:/u);
+  assert.match(frame("domain").name ?? "", /^Group:/u);
   assert.equal(isArchitectureBoundaryKind("architecture-container-boundary"), true);
   assert.equal(isArchitectureBoundaryKind("architecture-container"), false);
 });
@@ -167,20 +184,21 @@ test("architecture glyphs stay inside explicitly compact cards", () => {
     use "xdraw/architecture" as arch
     diagram "Compact" {
       component: arch.component "Worker" {
-        description "Runs work"
-        technology "TypeScript"
+        description = "Runs work"
+        technology = "TypeScript"
       }
       queue: arch.queue "Jobs" {
-        description "Buffers work"
-        technology "Kafka"
+        description = "Buffers work"
+        technology = "Kafka"
       }
     }
   `);
   const [component, queue] = document.statements.filter((item) => item.type === "node");
-  for (const [node, bounds] of [
-    [component, { x: 20, y: 30, width: 100, height: 56 }],
-    [queue, { x: 180, y: 30, width: 100, height: 56 }],
-  ]) {
+  assert.ok(component?.type === "node" && queue?.type === "node");
+  for (const { node, bounds } of [
+    { node: component, bounds: { x: 20, y: 30, width: 100, height: 56 } },
+    { node: queue, bounds: { x: 180, y: 30, width: 100, height: 56 } },
+  ] satisfies { node: NodeStatement; bounds: { x: number; y: number; width: number; height: number } }[]) {
     const decorations = renderArchitectureNode(node, bounds).filter(
       (element) => /:(?:tab|message)-/u.test(element.id),
     );
@@ -198,7 +216,7 @@ test("relationship technology is rendered with the measured label", () => {
   const relationship = drawing.elements.find(
     (element) => element.type === "text" && element.text?.includes("[SQL]"),
   );
-  assert.ok(relationship);
+  assert.ok(relationship?.type === "text");
   assert.match(relationship.text, /reads orders\n\[SQL\]/u);
 });
 
@@ -210,7 +228,7 @@ test("architecture guidance is advisory and complete declarations are quiet", ()
     use "xdraw/architecture" as arch
     diagram "Incomplete architecture" {
       area: arch.system-boundary "Area" {
-        arrange row { gap 80 }
+        arrange row { gap = 80 }
         source: arch.container "Source"
         target: arch.database "Target"
         source -> target
@@ -229,14 +247,14 @@ test("runtime relationships independently request a protocol", () => {
     use "xdraw/architecture" as arch
     diagram "Runtime relationship" {
       source: arch.container "Source" {
-        description "Sends work"
-        technology "Node.js"
+        description = "Sends work"
+        technology = "Node.js"
       }
       target: arch.queue "Target" {
-        description "Buffers work"
-        technology "Kafka"
+        description = "Buffers work"
+        technology = "Kafka"
       }
-      source@right -> target@left "publishes"
+      source@east -> target@west "publishes"
     }
   `));
   assert.deepEqual(
@@ -248,7 +266,7 @@ test("runtime relationships independently request a protocol", () => {
 test("nodes reject ambiguous body and description content", () => {
   assert.throws(() => parseSource(`
     diagram "Ambiguous" {
-      item: rectangle "Item" { body "A"; description "B" }
+      item: rectangle "Item" { body = "A"; description = "B" }
     }
   `), /may use body or description, not both/u);
 });

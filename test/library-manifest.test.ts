@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { resolveAssets } from "../src/io/assets.ts";
-import { compileAsync } from "../src/compile/pipeline.ts";
+import { compile as compileAsync } from "../src/compile/pipeline.ts";
 import { MemoryFileSystem } from "../src/io/filesystem.ts";
 import { LibraryManifestError } from "../src/language/manifests/contracts.ts";
 import { defineLibraryManifest, manifestForIntrospection, normalizeLibraryCatalog, summarizeLibraryManifest } from "../src/language/manifests/schema.ts";
@@ -105,7 +105,11 @@ test("publishes the intended constructor vocabulary", () => {
   );
   assert.deepEqual(
     libraries.get("xdraw/math")?.constructors.map(({ name, identity }) => ({ name, identity })),
-    [{ name: "formula", identity: "named" }, { name: "plot", identity: "named" }],
+    [
+      { name: "formula", identity: "named" },
+      { name: "plane", identity: "named" },
+      { name: "plot", identity: "named" },
+    ],
   );
   assert.deepEqual(
     libraries.get("xdraw/palette")?.values.map(({ name }) => name),
@@ -241,7 +245,7 @@ test("rejects lowering values outside the compiler contract", () => {
     [
       "elementKind",
       "hexagon",
-      "must be one of architecture-component, architecture-container, architecture-container-boundary, architecture-database, architecture-deployment-node, architecture-external-system, architecture-group, architecture-person, architecture-queue, architecture-system, architecture-system-boundary, card, code, decision, ellipse, formula, frame, freedraw, icon, image, junction, lane, note, participant, section, sequence, table, text",
+      "must be one of architecture-component, architecture-container, architecture-container-boundary, architecture-database, architecture-deployment-node, architecture-external-system, architecture-group, architecture-person, architecture-queue, architecture-system, architecture-system-boundary, card, cartesian, code, decision, ellipse, formula, frame, freedraw, icon, image, junction, lane, note, participant, section, sequence, table, text",
     ],
     [
       "tone",
@@ -277,7 +281,7 @@ test("rejects endpoint property defaults without a lowering-compatible represent
     synopsis: "Attachment target.",
   });
   const defaults = constructor.defaults as Record<string, unknown>;
-  (defaults.properties as Record<string, unknown>).attach = "target@right";
+  (defaults.properties as Record<string, unknown>).attach = "target@east";
 
   const path = "manifest.constructors[0].defaults.properties.attach";
   assert.throws(

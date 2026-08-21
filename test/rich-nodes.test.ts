@@ -3,10 +3,8 @@ import test from "node:test";
 
 import { createMeasurer } from "../src/compile/measurement.ts";
 import {
-  planMeasuredRichNode,
   renderRichNode,
   richNodeFamilyName,
-  richNodePlanFor,
 } from "../src/nodes/rich-nodes.ts";
 import { createSceneGraph } from "../src/compile/scene.ts";
 import { buildSemanticIR } from "../src/language/semantic.ts";
@@ -25,6 +23,7 @@ function onlyNode(source: string): { document: ReturnType<typeof buildSemanticIR
 
 test("rich-node families are closed over supported built-in kinds", () => {
   assert.equal(richNodeFamilyName({ kind: "table", title: "Orders", statements: [] }), "table");
+  assert.equal(richNodeFamilyName({ kind: "cartesian", title: "Signals", statements: [] }), "cartesian");
   assert.equal(richNodeFamilyName({ kind: "architecture-system", title: "Billing" }), "architecture");
   assert.equal(richNodeFamilyName({ kind: "card", title: "Ordinary" }), null);
 });
@@ -41,11 +40,11 @@ test("scene visuals retain the immutable rich plan measured at their final width
   `);
   const styles = createStyleResolver(document);
   const measurer = createMeasurer(styles);
-  const measured = planMeasuredRichNode(measurer, node, 480, styles.resolveNode(node));
+  const measured = measurer.planRichNode(node, 480, styles.resolveNode(node));
   assert.ok(measured?.type === "table");
   assert.ok(Object.isFrozen(measured));
   assert.ok(Object.isFrozen(measured.columnWidths));
-  assert.equal(planMeasuredRichNode(measurer, node, 480, styles.resolveNode(node)), measured);
+  assert.equal(measurer.planRichNode(node, 480, styles.resolveNode(node)), measured);
 
   const scene = createSceneGraph(document, {
     diagramWidth: 1120,
@@ -62,7 +61,7 @@ test("scene visuals retain the immutable rich plan measured at their final width
   });
   const visual = scene.visuals[0];
   assert.equal(visual.type, "node");
-  assert.equal(richNodePlanFor(visual), measured);
+  assert.equal(visual.richPlan, measured);
 });
 
 test("table rendering consumes the supplied wrapping plan", () => {

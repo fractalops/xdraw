@@ -517,7 +517,7 @@ export function validateArchitectureUsage(
       diagnostics.warn("XD2101", `architecture element '${node.id}' should describe its responsibility`, node);
     }
     if (ARCHITECTURE_TECHNOLOGY_KINDS.has(node.kind) && !architectureTechnology(node)) {
-      diagnostics.warn("XD2102", `architecture element '${node.id}' should name its technology`, node);
+      diagnostics.warn("XD2102", `architecture element '${node.id}' should name its technology`, node, { subjects: [node.id] });
     }
   }
   for (const statement of connections) {

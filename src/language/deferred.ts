@@ -1,7 +1,7 @@
 /**
  * A value the document writes but cannot yet compute.
  *
- * `let card`, a repeat's `index`, a template parameter, and `flow.a.right` are
+ * `let card`, a repeat's `index`, a template parameter, and `flow.a.east` are
  * one idea — a name whose value someone supplies later — differing only in who
  * supplies it and when. This module is that idea, once. Each compilation stage
  * calls `advance` with the names it knows; a name nobody has supplied *yet* is
@@ -22,14 +22,17 @@
 import {
   ExpressionError,
   evaluateExpression,
+  evaluateValueExpression,
   formatExpression,
   freeNames,
   parseExpression,
   substituteNames,
+  type ExpressionValue,
 } from "./expression.ts";
 
 /** A number, or the source of a computation still waiting on a name. */
 export type Deferred = number | string;
+export type DeferredValue = ExpressionValue | string;
 
 export class UnresolvedError extends Error {
   /** The names that were never supplied. */
@@ -72,6 +75,14 @@ export function advance(value: Deferred, names: ReadonlyMap<string, number>): De
   if (outstanding.length === 0) return evaluateExpression(node, Object.fromEntries(names));
   if (outstanding.length === freeNames(node).size) return value;
   return formatExpression(substituteNames(node, names));
+}
+
+/** Advance a scalar or point expression without discarding its value kind. */
+export function advanceValue(value: DeferredValue, names: ReadonlyMap<string, number>): DeferredValue {
+  if (typeof value !== "string") return value;
+  const substituted = substituteNames(parseExpression(value), names);
+  if (freeNames(substituted).size === 0) return evaluateValueExpression(substituted, {});
+  return formatExpression(substituted);
 }
 
 /** Names a pending value is still waiting on. */

@@ -30,6 +30,8 @@ export class ExpressionError extends Error {
 
 export type ExpressionNode =
   | { readonly kind: "number"; readonly value: number }
+  | { readonly kind: "boolean"; readonly value: boolean }
+  | { readonly kind: "point"; readonly x: ExpressionNode; readonly y: ExpressionNode }
   | { readonly kind: "name"; readonly name: string; readonly offset: number }
   | { readonly kind: "negate"; readonly operand: ExpressionNode }
   | { readonly kind: "binary"; readonly operator: string; readonly left: ExpressionNode; readonly right: ExpressionNode }
@@ -39,6 +41,24 @@ export interface ExpressionFunction {
   readonly arity: number;
   apply(args: readonly number[]): number;
 }
+
+export type ExpressionValueKind = "number" | "boolean" | "point" | "path";
+
+/**
+ * A function that is well-typed before it is necessarily available.
+ *
+ * Geometry functions live in the expression language's one vocabulary, but
+ * are evaluated only after their declared requirements exist. Keeping their
+ * signatures here prevents the parser, binding resolver, and geometry planner
+ * from maintaining competing private lists.
+ */
+export interface DeferredExpressionFunction {
+  readonly parameters: readonly ExpressionValueKind[];
+  readonly result: ExpressionValueKind;
+  readonly requires: "value" | "geometry";
+}
+
+export type ExpressionValue = number | boolean | readonly [number, number];
 
 /**
  * A lookup table that is closed in both directions.
@@ -86,6 +106,61 @@ export const FUNCTIONS: ClosedTable<ExpressionFunction> = closedTable<Expression
   ["hypot", { arity: 2, apply: ([a, b]) => Math.hypot(a, b) }],
 ]);
 
+export const TYPED_FUNCTIONS: ClosedTable<DeferredExpressionFunction> = closedTable([
+  ["x", { parameters: ["point"], result: "number", requires: "value" }],
+  ["y", { parameters: ["point"], result: "number", requires: "value" }],
+  ["start", { parameters: ["path"], result: "point", requires: "geometry" }],
+  ["end", { parameters: ["path"], result: "point", requires: "geometry" }],
+  ["midpoint", { parameters: ["path"], result: "point", requires: "geometry" }],
+  ["along", { parameters: ["path", "number"], result: "point", requires: "geometry" }],
+  ["tangent", { parameters: ["path", "number"], result: "point", requires: "geometry" }],
+  ["length", { parameters: ["path"], result: "number", requires: "geometry" }],
+]);
+
+export function expressionFunctionArity(name: string): number | undefined {
+  return FUNCTIONS.get(name)?.arity ?? TYPED_FUNCTIONS.get(name)?.parameters.length;
+}
+
+/** True when evaluating the tree needs measured boxes or sampled paths. */
+export function expressionRequiresGeometry(node: ExpressionNode): boolean {
+  if (node.kind === "call") {
+    return TYPED_FUNCTIONS.get(node.name)?.requires === "geometry" || node.args.some(expressionRequiresGeometry);
+  }
+  if (node.kind === "point") return expressionRequiresGeometry(node.x) || expressionRequiresGeometry(node.y);
+  if (node.kind === "negate") return expressionRequiresGeometry(node.operand);
+  if (node.kind === "binary") return expressionRequiresGeometry(node.left) || expressionRequiresGeometry(node.right);
+  return false;
+}
+
+/**
+ * Validate the closed function vocabulary without deciding what free names
+ * mean. A later symbol pass classifies those names as constants, boxes, or
+ * paths; function spelling and arity never need to wait for that pass.
+ */
+export function validateExpressionFunctions(
+  node: ExpressionNode,
+  issues: ExpressionIssue[] = [],
+): ExpressionIssue[] {
+  if (node.kind === "call") {
+    const arity = expressionFunctionArity(node.name);
+    if (arity === undefined) {
+      issues.push({ message: `unknown function '${node.name}'`, offset: node.offset });
+    } else if (node.args.length !== arity) {
+      issues.push({ message: arityMessage(node.name, arity, node.args.length), offset: node.offset });
+    }
+    node.args.forEach((argument) => validateExpressionFunctions(argument, issues));
+  } else if (node.kind === "point") {
+    validateExpressionFunctions(node.x, issues);
+    validateExpressionFunctions(node.y, issues);
+  } else if (node.kind === "negate") {
+    validateExpressionFunctions(node.operand, issues);
+  } else if (node.kind === "binary") {
+    validateExpressionFunctions(node.left, issues);
+    validateExpressionFunctions(node.right, issues);
+  }
+  return issues;
+}
+
 export const CONSTANTS: ClosedTable<number> = closedTable<number>([
   ["pi", Math.PI],
   ["tau", Math.PI * 2],
@@ -129,11 +204,11 @@ function tokenize(source: string, prefix = false): Token[] {
       continue;
     }
     if (/[a-z_]/iu.test(character)) {
-      // A dot inside a name is part of the name — `flow.ingest.right` is one
+      // A dot inside a name is part of the name — `flow.ingest.east` is one
       // identifier naming an element's geometry, not property access. The
       // vocabulary stays closed because a name still has to be bound by
       // whoever evaluates it.
-      const match = /^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)*/iu.exec(source.slice(index));
+      const match = /^[a-z_][a-z0-9_]*(\.(?:north-east|south-east|south-west|north-west|[a-z_][a-z0-9_]*))*/iu.exec(source.slice(index));
       if (!match) throw new ExpressionError("malformed name", index);
       tokens.push({ kind: "name", value: match[0], offset: index, end: index + match[0].length });
       index += match[0].length;
@@ -168,7 +243,7 @@ export const MAXIMUM_NESTING = 64;
  * It also bounds cost: the sampler evaluates an expression once per probe, so
  * the node count is a per-sample multiplier.
  *
- * Legible expressions are far below this. The rose in the spike is 11 nodes.
+ * Ordinary authored expressions are far below this limit.
  */
 export const MAXIMUM_NODES = 512;
 
@@ -203,6 +278,40 @@ function parseFrom(source: string, tokens: Token[]): { node: ExpressionNode; con
     position += 1;
   };
 
+  const parenthesized = (): ExpressionNode => {
+    position += 1;
+    const inner = binary(0);
+    if (peek()?.kind === "punctuation" && peek()?.value === ",") {
+      position += 1;
+      const y = binary(0);
+      take(")");
+      return built({ kind: "point", x: inner, y });
+    }
+    take(")");
+    return inner;
+  };
+
+  const named = (token: Token): ExpressionNode => {
+    position += 1;
+    if (token.value === "true" || token.value === "false") {
+      return built({ kind: "boolean", value: token.value === "true" });
+    }
+    if (!(peek()?.kind === "punctuation" && peek()?.value === "(")) {
+      return built({ kind: "name", name: token.value, offset: token.offset });
+    }
+    position += 1;
+    const args: ExpressionNode[] = [];
+    if (!(peek()?.kind === "punctuation" && peek()?.value === ")")) {
+      args.push(binary(0));
+      while (peek()?.kind === "punctuation" && peek()?.value === ",") {
+        position += 1;
+        args.push(binary(0));
+      }
+    }
+    take(")");
+    return built({ kind: "call", name: token.value, args, offset: token.offset });
+  };
+
   const primary = (): ExpressionNode => {
     const token = peek();
     if (!token) throw new ExpressionError("unexpected end of expression", source.length);
@@ -216,29 +325,9 @@ function parseFrom(source: string, tokens: Token[]): { node: ExpressionNode; con
       return built({ kind: "negate", operand: binary(PRECEDENCE.get("^")!) });
     }
     if (token.kind === "punctuation" && token.value === "(") {
-      position += 1;
-      const inner = binary(0);
-      take(")");
-      return inner;
+      return parenthesized();
     }
-    if (token.kind === "name") {
-      position += 1;
-      const next = peek();
-      if (next?.kind === "punctuation" && next.value === "(") {
-        position += 1;
-        const args: ExpressionNode[] = [];
-        if (!(peek()?.kind === "punctuation" && peek()?.value === ")")) {
-          args.push(binary(0));
-          while (peek()?.kind === "punctuation" && peek()?.value === ",") {
-            position += 1;
-            args.push(binary(0));
-          }
-        }
-        take(")");
-        return built({ kind: "call", name: token.value, args, offset: token.offset });
-      }
-      return built({ kind: "name", name: token.value, offset: token.offset });
-    }
+    if (token.kind === "name") return named(token);
     throw new ExpressionError(`unexpected '${token.value}'`, token.offset);
   };
 
@@ -304,6 +393,122 @@ export interface ExpressionIssue {
   readonly offset: number;
 }
 
+export interface ExpressionTypeResult {
+  readonly kind: ExpressionValueKind | null;
+  readonly issues: readonly ExpressionIssue[];
+}
+
+type ExpressionIssueRecorder = (message: string, offset?: number) => null;
+
+function inferBinaryKind(
+  node: Extract<ExpressionNode, { kind: "binary" }>,
+  left: ExpressionValueKind,
+  right: ExpressionValueKind,
+  issue: ExpressionIssueRecorder,
+): ExpressionValueKind | null {
+  if ((node.operator === "+" || node.operator === "-") && left === right
+      && (left === "number" || left === "point")) return left;
+  if (node.operator === "*") {
+    if (left === "number" && right === "number") return "number";
+    if ((left === "point" && right === "number") || (left === "number" && right === "point")) return "point";
+  }
+  if (node.operator === "/" && right === "number" && (left === "number" || left === "point")) return left;
+  if (node.operator === "^" && left === "number" && right === "number") return "number";
+  return issue(`operator '${node.operator}' does not accept ${left} and ${right}`);
+}
+
+function inferCallKind(
+  current: Extract<ExpressionNode, { kind: "call" }>,
+  nameKind: (name: string) => ExpressionValueKind | null,
+  issue: ExpressionIssueRecorder,
+  issues: readonly ExpressionIssue[],
+): ExpressionValueKind | null {
+  const numeric = FUNCTIONS.get(current.name);
+  const typed = TYPED_FUNCTIONS.get(current.name);
+  const parameters = numeric ? Array.from({ length: numeric.arity }, () => "number" as const) : typed?.parameters;
+  if (!parameters || current.args.length !== parameters.length) {
+    current.args.forEach((argument) => inferNodeKind(argument, nameKind, issue, issues));
+    return issue(parameters
+      ? arityMessage(current.name, parameters.length, current.args.length)
+      : `unknown function '${current.name}'`, current.offset);
+  }
+  const received = current.args.map((argument) => inferNodeKind(argument, nameKind, issue, issues));
+  received.forEach((kind, index) => {
+    if (kind !== null && kind !== parameters[index]) {
+      issue(`${current.name} argument ${index + 1} must be ${parameters[index]}, received ${kind}`, current.offset);
+    }
+  });
+  return issues.length ? null : (typed?.result ?? "number");
+}
+
+function inferNodeKind(
+  current: ExpressionNode,
+  nameKind: (name: string) => ExpressionValueKind | null,
+  issue: ExpressionIssueRecorder,
+  issues: readonly ExpressionIssue[],
+): ExpressionValueKind | null {
+  if (current.kind === "number") return "number";
+  if (current.kind === "boolean") return "boolean";
+  if (current.kind === "name") {
+    if (CONSTANTS.has(current.name)) return "number";
+    return nameKind(current.name) ?? issue(`unknown name '${current.name}'`, current.offset);
+  }
+  if (current.kind === "point") {
+    const x = inferNodeKind(current.x, nameKind, issue, issues);
+    const y = inferNodeKind(current.y, nameKind, issue, issues);
+    return x === "number" && y === "number" ? "point" : issue("point coordinates must be numbers");
+  }
+  if (current.kind === "negate") {
+    const operand = inferNodeKind(current.operand, nameKind, issue, issues);
+    return operand === "number" || operand === "point" ? operand : issue("negation takes a number or point");
+  }
+  if (current.kind === "binary") {
+    const left = inferNodeKind(current.left, nameKind, issue, issues);
+    const right = inferNodeKind(current.right, nameKind, issue, issues);
+    return left === null || right === null ? null : inferBinaryKind(current, left, right, issue);
+  }
+  return inferCallKind(current, nameKind, issue, issues);
+}
+
+/**
+ * Elaborate a surface expression into one value kind.
+ *
+ * Names are classified by the caller because only it owns the symbol table;
+ * operators and functions are classified here because they are language
+ * vocabulary. This is deliberately non-evaluating, so paths can be checked
+ * before they are sampled.
+ */
+export function inferExpressionKind(
+  node: ExpressionNode,
+  nameKind: (name: string) => ExpressionValueKind | null,
+): ExpressionTypeResult {
+  const issues: ExpressionIssue[] = [];
+  const issue = (message: string, offset = 0): null => {
+    issues.push({ message, offset });
+    return null;
+  };
+  return { kind: inferNodeKind(node, nameKind, issue, issues), issues };
+}
+
+/** Canonical path identities consumed by a typed expression tree. */
+export function expressionPathReferences(node: ExpressionNode, found = new Set<string>()): Set<string> {
+  if (node.kind === "call") {
+    if (TYPED_FUNCTIONS.get(node.name)?.parameters[0] === "path" && node.args[0]?.kind === "name") {
+      found.add(node.args[0].name);
+    }
+    node.args.forEach((argument) => expressionPathReferences(argument, found));
+  } else if (node.kind === "point") {
+    expressionPathReferences(node.x, found);
+    expressionPathReferences(node.y, found);
+  } else if (node.kind === "negate") {
+    expressionPathReferences(node.operand, found);
+  } else if (node.kind === "binary") {
+    expressionPathReferences(node.left, found);
+    expressionPathReferences(node.right, found);
+  }
+  return found;
+}
+
 /**
  * Checks an expression against the closed vocabulary before it is evaluated.
  * A bad expression should be reported when the document is read, not part-way
@@ -314,28 +519,126 @@ export function validateExpression(
   bound: ReadonlySet<string>,
   issues: ExpressionIssue[] = [],
 ): ExpressionIssue[] {
-  if (node.kind === "name" && !bound.has(node.name) && !CONSTANTS.has(node.name)) {
-    issues.push({ message: `unknown name '${node.name}'`, offset: node.offset });
-  } else if (node.kind === "negate") {
-    validateExpression(node.operand, bound, issues);
-  } else if (node.kind === "binary") {
-    validateExpression(node.left, bound, issues);
-    validateExpression(node.right, bound, issues);
-  } else if (node.kind === "call") {
-    const fn = FUNCTIONS.get(node.name);
-    if (!fn) {
-      issues.push({ message: `unknown function '${node.name}'`, offset: node.offset });
-    } else if (node.args.length !== fn.arity) {
-      issues.push({ message: arityMessage(node.name, fn.arity, node.args.length), offset: node.offset });
-    }
-    for (const argument of node.args) validateExpression(argument, bound, issues);
+  const result = inferExpressionKind(node, (name) => bound.has(name) ? "number" : null);
+  issues.push(...result.issues);
+  if (!result.issues.length && result.kind !== "number") {
+    issues.push({ message: `expected a number, received ${result.kind ?? "an invalid value"}`, offset: 0 });
   }
   return issues;
 }
 
+function valueNode(value: ExpressionValue): ExpressionNode {
+  if (typeof value === "number") return { kind: "number", value };
+  if (typeof value === "boolean") return { kind: "boolean", value };
+  return {
+    kind: "point",
+    x: { kind: "number", value: value[0] },
+    y: { kind: "number", value: value[1] },
+  };
+}
+
+/** Fold value-only subtrees while leaving variables and geometry requirements structural. */
+export function foldConstantExpressions(node: ExpressionNode): ExpressionNode {
+  let folded: ExpressionNode;
+  switch (node.kind) {
+    case "point": folded = { kind: "point", x: foldConstantExpressions(node.x), y: foldConstantExpressions(node.y) }; break;
+    case "negate": folded = { kind: "negate", operand: foldConstantExpressions(node.operand) }; break;
+    case "binary": folded = {
+      ...node,
+      left: foldConstantExpressions(node.left),
+      right: foldConstantExpressions(node.right),
+    }; break;
+    case "call": folded = { ...node, args: node.args.map(foldConstantExpressions) }; break;
+    default: folded = node;
+  }
+  if (freeNames(folded).size || expressionRequiresGeometry(folded)) return folded;
+  return valueNode(evaluateValueExpression(folded, {}));
+}
+
 export function evaluateExpression(node: ExpressionNode, environment: Readonly<Record<string, number>>): number {
+  const value = evaluateValueExpression(node, environment);
+  if (typeof value !== "number") throw new ExpressionError("expected a number, received a point", 0);
+  return value;
+}
+
+function point(value: ExpressionValue): value is readonly [number, number] {
+  return Array.isArray(value);
+}
+
+function evaluatePointBinary(
+  operator: string,
+  left: ExpressionValue,
+  right: ExpressionValue,
+): ExpressionValue | null {
+  if (operator === "+" && point(left) && point(right)) return [left[0] + right[0], left[1] + right[1]];
+  if (operator === "-" && point(left) && point(right)) return [left[0] - right[0], left[1] - right[1]];
+  if (operator === "*" && point(left) && typeof right === "number") return [left[0] * right, left[1] * right];
+  if (operator === "*" && typeof left === "number" && point(right)) return [left * right[0], left * right[1]];
+  if (operator === "/" && point(left) && typeof right === "number") return [left[0] / right, left[1] / right];
+  return null;
+}
+
+function evaluateBinary(
+  node: Extract<ExpressionNode, { kind: "binary" }>,
+  environment: Readonly<Record<string, ExpressionValue>>,
+): ExpressionValue {
+  const left = evaluateValueExpression(node.left, environment);
+  const right = evaluateValueExpression(node.right, environment);
+  const pointResult = evaluatePointBinary(node.operator, left, right);
+  if (pointResult) return pointResult;
+  if (point(left) || point(right) || typeof left === "boolean" || typeof right === "boolean") {
+    const kind = typeof left === "boolean" || typeof right === "boolean" ? "boolean" : "point";
+    throw new ExpressionError(`operator '${node.operator}' does not accept those ${kind} operands`, 0);
+  }
+  if (node.operator === "+") return left + right;
+  if (node.operator === "-") return left - right;
+  if (node.operator === "*") return left * right;
+  if (node.operator === "/") return left / right;
+  return left ** right;
+}
+
+function evaluateCall(
+  node: Extract<ExpressionNode, { kind: "call" }>,
+  environment: Readonly<Record<string, ExpressionValue>>,
+): ExpressionValue {
+  const typed = TYPED_FUNCTIONS.get(node.name);
+  if (typed) {
+    if (node.args.length !== typed.parameters.length) {
+      throw new ExpressionError(arityMessage(node.name, typed.parameters.length, node.args.length), node.offset);
+    }
+    if (typed.requires === "geometry") throw new ExpressionError(`${node.name} requires sampled geometry`, node.offset);
+    const [value] = node.args.map((argument) => evaluateValueExpression(argument, environment));
+    if (!point(value)) throw new ExpressionError(`${node.name} takes a point`, node.offset);
+    return value[node.name === "x" ? 0 : 1];
+  }
+  const fn = FUNCTIONS.get(node.name);
+  if (!fn) throw new ExpressionError(`unknown function '${node.name}'`, node.offset);
+  if (node.args.length !== fn.arity) {
+    throw new ExpressionError(arityMessage(node.name, fn.arity, node.args.length), node.offset);
+  }
+  const args = node.args.map((argument) => evaluateValueExpression(argument, environment));
+  if (!args.every((value): value is number => typeof value === "number")) {
+    throw new ExpressionError(`${node.name} takes number arguments`, node.offset);
+  }
+  return fn.apply(args);
+}
+
+/** Evaluate the complete expression value language: scalars and points. */
+export function evaluateValueExpression(
+  node: ExpressionNode,
+  environment: Readonly<Record<string, ExpressionValue>>,
+): ExpressionValue {
   switch (node.kind) {
     case "number": return node.value;
+    case "boolean": return node.value;
+    case "point": {
+      const x = evaluateValueExpression(node.x, environment);
+      const y = evaluateValueExpression(node.y, environment);
+      if (typeof x !== "number" || typeof y !== "number") {
+        throw new ExpressionError("point coordinates must be numbers", 0);
+      }
+      return [x, y];
+    }
     case "name": {
       // hasOwn, not `in`: the environment is caller-supplied, so its prototype
       // is reachable too and would answer for 'toString' and 'constructor'.
@@ -344,27 +647,13 @@ export function evaluateExpression(node: ExpressionNode, environment: Readonly<R
       if (constant !== undefined) return constant;
       throw new ExpressionError(`unknown name '${node.name}'`, node.offset);
     }
-    case "negate": return -evaluateExpression(node.operand, environment);
-    case "binary": {
-      const left = evaluateExpression(node.left, environment);
-      const right = evaluateExpression(node.right, environment);
-      if (node.operator === "+") return left + right;
-      if (node.operator === "-") return left - right;
-      if (node.operator === "*") return left * right;
-      if (node.operator === "/") return left / right;
-      return left ** right;
+    case "negate": {
+      const value = evaluateValueExpression(node.operand, environment);
+      if (typeof value === "boolean") throw new ExpressionError("cannot negate a boolean", 0);
+      return point(value) ? [-value[0], -value[1]] : -value;
     }
-    case "call": {
-      const fn = FUNCTIONS.get(node.name);
-      if (!fn) throw new ExpressionError(`unknown function '${node.name}'`, node.offset);
-      // Arity is checked here as well as in the validator. The two entry points
-      // must agree: reaching `apply` with the wrong count returns NaN or drops
-      // arguments silently, which is how a wrong number reaches a coordinate.
-      if (node.args.length !== fn.arity) {
-        throw new ExpressionError(arityMessage(node.name, fn.arity, node.args.length), node.offset);
-      }
-      return fn.apply(node.args.map((argument) => evaluateExpression(argument, environment)));
-    }
+    case "binary": return evaluateBinary(node, environment);
+    case "call": return evaluateCall(node, environment);
   }
   // Unreachable for a parsed tree. A hand-built node of an unknown kind would
   // otherwise fall out of the switch and return undefined typed as number,
@@ -384,6 +673,8 @@ export function substituteNames(
 ): ExpressionNode {
   switch (node.kind) {
     case "number": return node;
+    case "boolean": return node;
+    case "point": return { kind: "point", x: substituteNames(node.x, values), y: substituteNames(node.y, values) };
     case "name": {
       const value = values.get(node.name);
       return value === undefined ? node : { kind: "number", value };
@@ -400,6 +691,31 @@ export function substituteNames(
       name: node.name,
       args: node.args.map((argument) => substituteNames(argument, values)),
       offset: node.offset,
+    };
+  }
+  return node;
+}
+
+/** Rename free names while preserving the parsed expression structure. */
+export function mapExpressionNames(
+  node: ExpressionNode,
+  rename: (name: string) => string,
+): ExpressionNode {
+  switch (node.kind) {
+    case "number": return node;
+    case "boolean": return node;
+    case "point": return { kind: "point", x: mapExpressionNames(node.x, rename), y: mapExpressionNames(node.y, rename) };
+    case "name": return CONSTANTS.has(node.name) ? node : { ...node, name: rename(node.name) };
+    case "negate": return { kind: "negate", operand: mapExpressionNames(node.operand, rename) };
+    case "binary": return {
+      kind: "binary",
+      operator: node.operator,
+      left: mapExpressionNames(node.left, rename),
+      right: mapExpressionNames(node.right, rename),
+    };
+    case "call": return {
+      ...node,
+      args: node.args.map((argument) => mapExpressionNames(argument, rename)),
     };
   }
   return node;
@@ -423,6 +739,8 @@ export function formatExpression(node: ExpressionNode): string {
     case "number": return node.value < 0 || Object.is(node.value, -0)
       ? `(-${Math.abs(node.value)})`
       : String(node.value);
+    case "boolean": return String(node.value);
+    case "point": return `(${formatExpression(node.x)}, ${formatExpression(node.y)})`;
     case "name": return node.name;
     case "negate": return `(-${formatExpression(node.operand)})`;
     case "binary": return `(${formatExpression(node.left)} ${node.operator} ${formatExpression(node.right)})`;
@@ -434,6 +752,10 @@ export function formatExpression(node: ExpressionNode): string {
 /** Identifiers an expression depends on, excluding the built-in constants. */
 export function freeNames(node: ExpressionNode, found = new Set<string>()): Set<string> {
   if (node.kind === "name" && !CONSTANTS.has(node.name)) found.add(node.name);
+  else if (node.kind === "point") {
+    freeNames(node.x, found);
+    freeNames(node.y, found);
+  }
   else if (node.kind === "negate") freeNames(node.operand, found);
   else if (node.kind === "binary") {
     freeNames(node.left, found);

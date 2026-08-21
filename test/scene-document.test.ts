@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile } from "../src/compile/pipeline.ts";
+import { compilePrepared as compile } from "../src/compile/pipeline.ts";
 import { formatSceneResource, parseSceneDocument, parseSceneResource } from "../src/io/scene-document.ts";
 
 test("scene resource addresses round-trip with readable names", () => {
@@ -42,18 +42,23 @@ test("scene documents express selective updates without JSON", () => {
   const document = parseSceneDocument(`
     scene excalidraw::default::architecture::system_overview {
       patch {
-        update api { tone warning title "API v2" }
+        update api { tone = warning; title = "API v2" }
         delete obsolete
-        add { review: rectangle "Requires review" { at (80, 80) } }
+        add { review: rectangle "Requires review" { at = (80, 80) } }
       }
     }
   `);
+  assert.equal(document.operation.type, "patch");
+  if (document.operation.type !== "patch") throw new Error("expected patch operation");
   assert.deepEqual(document.operation.updates, [{
     target: "api", properties: { tone: "warning", title: "API v2" },
   }]);
   assert.deepEqual(document.operation.deletes, ["obsolete"]);
-  assert.equal(document.operation.additions.statements[0].id, "review");
-  assert.equal(document.operation.additions.title, undefined);
+  const additions = document.operation.additions;
+  assert.ok(additions);
+  assert.equal(additions.statements[0]?.type, "node");
+  assert.equal(additions.statements[0]?.type === "node" ? additions.statements[0].id : undefined, "review");
+  assert.equal(additions.title, undefined);
 });
 
 test("scene additions support imported constructors without synthetic titles", () => {
@@ -67,8 +72,12 @@ test("scene additions support imported constructors without synthetic titles", (
       }
     }
   `);
-  const drawing = compile(document.operation.additions).toJSON();
-  assert.equal(document.operation.additions.title, undefined);
+  assert.equal(document.operation.type, "patch");
+  if (document.operation.type !== "patch") throw new Error("expected patch operation");
+  const additions = document.operation.additions;
+  assert.ok(additions);
+  const drawing = compile(additions).toJSON();
+  assert.equal(additions.title, undefined);
   assert.equal(drawing.elements.some((element) => element.id === "document:title"), false);
   assert.ok(drawing.elements.some((element) => element.id === "api:frame"));
 });
@@ -83,27 +92,31 @@ test("scene documents reject ambiguous or empty operations", () => {
     /must add, update, or delete/,
   );
   assert.throws(
-    () => parseSceneDocument("scene excalidraw::default::main::one { patch { update api { tone warning } delete api } }"),
+    () => parseSceneDocument("scene excalidraw::default::main::one { patch { update api { tone = warning } delete api } }"),
     /cannot update and delete 'api'/,
   );
 });
 
 test("scene document boundaries reject malformed external input", () => {
-  assert.throws(() => parseSceneDocument(null), /source must be a string/);
+  assert.throws(() => parseSceneDocument(null as never), /source must be a string/);
   assert.throws(
     () => formatSceneResource({ provider: "excalidraw", workspace: "", collection: "main", scene: "one" }),
     /segments must be non-empty strings/,
   );
   assert.throws(
-    () => formatSceneResource({ provider: "other", workspace: "default", collection: "main", scene: "one" }),
+    () => formatSceneResource({ provider: "other", workspace: "default", collection: "main", scene: "one" } as never),
     /unsupported scene provider 'other'/,
   );
   assert.throws(
-    () => parseSceneDocument("scene excalidraw::default::main::one { patch { update api { width wide } } }"),
+    () => parseSceneDocument("scene excalidraw::default::main::one { patch { update api { width = wide } } }"),
     /update property 'width' requires a number/,
   );
   assert.throws(
-    () => parseSceneDocument("scene excalidraw::default::main::one { patch { update api { tone urgent } } }"),
+    () => parseSceneDocument("scene excalidraw::default::main::one { patch { update api { tone = urgent } } }"),
     /unsupported tone 'urgent'/,
+  );
+  assert.throws(
+    () => parseSceneDocument("scene excalidraw::default::main::one { patch { update api { tone warning } } }"),
+    /expected '=' after update property 'tone'/,
   );
 });

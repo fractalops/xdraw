@@ -34,11 +34,11 @@ test("identity values are deterministic non-zero unsigned integers", () => {
   assert.notEqual(seedFor("node"), 0);
 });
 
-test("endpoint aliases preserve known dotted IDs and ignore inherited names", () => {
+test("normalized endpoint sides preserve known dotted IDs and ignore inherited names", () => {
   const known = new Set(["service.right"]);
 
   assert.deepEqual(splitEndpoint("service.right", known), { id: "service.right", side: undefined });
-  assert.deepEqual(splitEndpoint("service.east"), { id: "service", side: "right" });
+  assert.deepEqual(splitEndpoint("service.right"), { id: "service", side: "right" });
   assert.deepEqual(splitEndpoint("service.center"), { id: "service", side: "center" });
   assert.deepEqual(splitEndpoint("service.toString"), { id: "service.toString", side: undefined });
   assert.deepEqual(splitEndpoint("service"), { id: "service", side: undefined });
@@ -49,7 +49,7 @@ test("layout gaps prefer explicit values and resolve every spacing preset", () =
   assert.equal(layoutGap(null, 99), 99);
 
   for (const [spacing, gap] of Object.entries(SPACING_PRESETS)) {
-    assert.equal(layoutGap({ spacing }, 99), gap);
+    assert.equal(layoutGap({ spacing: spacing as keyof typeof SPACING_PRESETS }, 99), gap);
   }
 
   assert.deepEqual(ROUTING_CLEARANCE, {

@@ -1,3 +1,4 @@
+import { GEOMETRY_STATEMENT_KINDS } from "./geometry-statements.ts";
 import type { SourceLocation } from "../contracts/foundation.ts";
 import type {
   SourceConnection,
@@ -6,6 +7,7 @@ import type {
   SourceDocument,
   SourceGeometryStatement,
   SourceInvocation,
+  SourceMembershipStatement,
   SourceNode,
   SourceProperty,
   SourcePropertyValue,
@@ -14,7 +16,7 @@ import type {
 } from "../contracts/language.ts";
 import type { ConstructorArgumentManifest, ConstructorManifest, LibraryManifest, ManifestValueKind } from "./manifests/contracts.ts";
 import { BUILTIN_LIBRARY_MANIFESTS } from "./manifests/builtins.ts";
-import { CONSTANTS } from "./expression.ts";
+import { parseExpression, validateExpression } from "./expression.ts";
 
 export class LanguageValidationError extends Error {
   readonly code: string;
@@ -61,10 +63,16 @@ interface ValidationContext {
   readonly templateInvocations: TemplateInvocation[];
 }
 
-type ChildStatement = SourceDeclaration | SourceInvocation | SourceConnection | SourceGeometryStatement | Extract<SourceStatement, { type: "arrangement" }>;
+type ChildStatement = SourceDeclaration | SourceInvocation | SourceConnection | SourceGeometryStatement
+  | Extract<SourceStatement, { type: "arrangement" | "attachment" }>;
 
-const CHILD_STATEMENT_TYPES = new Set([
-  "declaration", "invocation", "connection", "arrangement", "alignment", "distribution", "offset", "match-size", "rotation", "snap",
+// Everything a container can hold that is worth checking against a library
+// manifest. `layer` is the one geometry statement left out: it names no
+// constructor and carries no properties, so there is nothing here to check.
+const CHILD_STATEMENT_TYPES = new Set<string>([
+  "declaration", "invocation", "connection", "arrangement",
+  "attachment",
+  ...GEOMETRY_STATEMENT_KINDS.filter((kind) => kind !== "layer"),
 ]);
 
 const TEMPLATE_PARAMETER_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_-]*$/u;
@@ -102,7 +110,7 @@ const CONNECTION_PROPERTIES: ReadonlyMap<string, StatementPropertySpecification>
   ["route", statementProperty("identifier", ["auto", "straight", "elbow", "curved", "line"])],
   ["start-label", statementProperty("string")],
   ["stroke", statementProperty("string")],
-  ["stroke-style", statementProperty("identifier", ["solid", "dashed"])],
+  ["stroke-style", statementProperty("identifier", ["solid", "dashed", "dotted"])],
   ["stroke-width", statementProperty("number")],
   ["style", statementProperty("identifier")],
   ["technology", statementProperty("string")],
@@ -433,6 +441,21 @@ function recordParameterUse(
   return true;
 }
 
+function tupleElementKind(expected: ManifestValueKind | null): ManifestValueKind | null {
+  if (expected === "points") return "point";
+  if (expected === "point" || expected === "numbers") return "number";
+  if (expected === "strings") return "string";
+  return expected;
+}
+
+function nestedSourceKind(value: SourcePropertyValue): SourceValueKind {
+  if (Array.isArray(value)) return "tuple";
+  if (typeof value === "string") return COMPLETE_PARAMETER_PATTERN.test(value) ? "parameter" : "string";
+  if (typeof value === "number") return "number";
+  if (typeof value === "boolean") return "boolean";
+  return "endpoint";
+}
+
 function validateParameterReferences(
   value: SourcePropertyValue,
   sourceKind: SourceValueKind,
@@ -444,9 +467,20 @@ function validateParameterReferences(
     recordParameterUse(template, completeParameterName(value, node), expected, node);
     return;
   }
-  if (!template || sourceKind !== "string" || typeof value !== "string") return;
+  if (!template) return;
+  if (Array.isArray(value)) {
+    const elementKind = tupleElementKind(expected);
+    for (const item of value) {
+      validateParameterReferences(item, nestedSourceKind(item), elementKind, template, node);
+    }
+    return;
+  }
+  if (typeof value !== "string") return;
+  // Parameters embedded in a mathematical expression are scalar inputs even
+  // when the expression as a whole produces a point.
+  const parameterKind = sourceKind === "expression" ? "number" : expected ?? "string";
   for (const match of value.matchAll(INTERPOLATED_PARAMETER_PATTERN)) {
-    recordParameterUse(template, match[1], "string", node);
+    recordParameterUse(template, match[1], parameterKind, node);
   }
 }
 
@@ -456,66 +490,131 @@ function matchesKind(
   expected: ManifestValueKind,
 ): boolean {
   if (sourceKind === "parameter") return true;
-  if (expected === "string") {
-    return (sourceKind === "string" || sourceKind === "raw-string") && typeof value === "string";
+  const tupleOf = (accepts: (item: unknown) => boolean): boolean => (
+    sourceKind === "tuple" && Array.isArray(value) && value.every(accepts)
+  );
+  switch (expected) {
+    case "string": return (sourceKind === "string" || sourceKind === "raw-string") && typeof value === "string";
+    case "raw-string": return sourceKind === "raw-string" && typeof value === "string";
+    case "expression":
+      // A fully bound expression reaches validation as its numeric value.
+      return (sourceKind === "expression" && typeof value === "string")
+        || (sourceKind === "number" && typeof value === "number");
+    case "identifier": return sourceKind === "identifier" && typeof value === "string";
+    case "number": return sourceKind === "number" && typeof value === "number";
+    case "boolean": return sourceKind === "boolean" && typeof value === "boolean";
+    case "endpoint": return sourceKind === "endpoint"
+      && typeof value === "object" && value !== null && !Array.isArray(value)
+      && "reference" in value && typeof value.reference === "string";
+    case "point": return (sourceKind === "tuple" && Array.isArray(value) && value.length === 2
+      && value.every((item) => typeof item === "number" || typeof item === "string"))
+      || (sourceKind === "expression" && typeof value === "string");
+    case "strings": return tupleOf((item) => typeof item === "string");
+    case "numbers": return tupleOf((item) => typeof item === "number"
+      || (typeof item === "string" && COMPLETE_PARAMETER_PATTERN.test(item)));
+    case "points": return tupleOf((point) => Array.isArray(point) && point.length === 2
+      && point.every((item) => typeof item === "number"
+        || (typeof item === "string" && COMPLETE_PARAMETER_PATTERN.test(item))));
   }
-  if (expected === "raw-string") return sourceKind === "raw-string" && typeof value === "string";
-  if (expected === "expression") {
-    // A number is a constant expression. The binding pass folds an expression
-    // whose names are all known down to its value, so by the time a document is
-    // validated `x = 90 - 30` is the number 60 — and refusing it here would
-    // make an expression valid only while it still had something left to
-    // compute.
-    return (sourceKind === "expression" && typeof value === "string")
-      || (sourceKind === "number" && typeof value === "number");
+}
+
+const EXPRESSION_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/u;
+
+function validateMembershipBound(
+  value: string | number,
+  membership: SourceMembershipStatement,
+  template: DocumentTemplate | null,
+): void {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) fail("invalid-interval-bound", "interval bounds must be finite", membership);
+    return;
   }
-  if (expected === "identifier") return sourceKind === "identifier" && typeof value === "string";
-  if (expected === "number") return sourceKind === "number" && typeof value === "number";
-  if (expected === "boolean") return sourceKind === "boolean" && typeof value === "boolean";
-  if (expected === "endpoint") {
-    return sourceKind === "endpoint"
-      && typeof value === "object"
-      && value !== null
-      && !Array.isArray(value)
-      && "reference" in value
-      && typeof value.reference === "string";
+  validateParameterReferences(value, "string", "number", template, membership);
+  const withoutParameters = value.replace(INTERPOLATED_PARAMETER_PATTERN, "0");
+  const issues = validateExpression(parseExpression(withoutParameters), new Set());
+  if (issues.length) fail("invalid-interval-bound", issues[0].message, membership);
+}
+
+function validateMemberships(
+  declaration: SourceDeclaration,
+  resolved: ResolvedConstructor,
+  template: DocumentTemplate | null,
+): void {
+  const entries = declaration.statements.filter(
+    (statement): statement is SourceMembershipStatement => statement.type === "membership",
+  );
+  const constructor = resolved.manifest?.name;
+  if (constructor !== "plot" && constructor !== "plane") {
+    if (entries.length) fail(
+      "membership-not-allowed",
+      `constructor '${resolved.name}' does not accept coordinate membership statements`,
+      entries[0],
+    );
+    return;
   }
-  if (expected === "pair") {
-    // An element written after '=' is an expression rather than a literal, and
-    // it is a number by the time anything reads it: either the binding pass
-    // folded it, or a template supplies its parameter before the pass that
-    // needs it runs. A parameter reaching here is legitimate for the same
-    // reason a bare `${name}` is, handled above.
-    return sourceKind === "tuple"
-      && Array.isArray(value)
-      && value.length === 2
-      && value.every((item) => typeof item === "number" || typeof item === "string");
+  for (const entry of entries) {
+    if (!EXPRESSION_NAME.test(entry.variable)) {
+      fail("invalid-independent-variable", `'${entry.variable}' is not a valid mathematical variable`, entry);
+    }
+    validateMembershipBound(entry.from, entry, template);
+    validateMembershipBound(entry.to, entry, template);
   }
-  if (expected === "strings") {
-    return sourceKind === "tuple"
-      && Array.isArray(value)
-      && value.every((item) => typeof item === "string");
+  if (constructor === "plane") {
+    validatePlaneMemberships(entries, resolved.name);
+    return;
   }
-  if (expected === "numbers") {
-    return sourceKind === "tuple"
-      && Array.isArray(value)
-      && value.every((item) => typeof item === "number");
+  validatePlotMemberships(declaration, entries, resolved.name);
+}
+
+function validatePlaneMemberships(entries: readonly SourceMembershipStatement[], name: string): void {
+  for (const coordinate of ["x", "y"] as const) {
+    const matching = entries.filter((entry) => entry.variable === coordinate);
+    if (matching.length > 1) {
+      fail("duplicate-coordinate-interval", `constructor '${name}' has duplicate '${coordinate}' intervals`, matching[1]);
+    }
   }
-  if (expected === "interval") {
-    // Either end may be written as a number or as one of the constants the
-    // expression sublanguage defines, so `(0, tau)` reads the way an interval
-    // does on paper.
-    return sourceKind === "tuple"
-      && Array.isArray(value)
-      && value.length === 2
-      && value.every((item) => typeof item === "number"
-        || (typeof item === "string" && CONSTANTS.has(item)));
+  const unexpected = entries.find((entry) => entry.variable !== "x" && entry.variable !== "y");
+  if (unexpected) fail("unexpected-coordinate-interval", `a plane accepts only x and y intervals, not '${unexpected.variable}'`, unexpected);
+}
+
+function validatePlotMemberships(
+  declaration: SourceDeclaration,
+  entries: readonly SourceMembershipStatement[],
+  name: string,
+): void {
+  const coordinates = new Set(declaration.statements
+    .filter((statement): statement is SourceProperty => statement.type === "property")
+    .map((property) => property.name));
+  if (coordinates.has("equation")) {
+    if (entries.length) fail("implicit-plot-interval", "an implicit plot uses the plane intervals and may not declare an independent-variable interval", entries[0]);
+    if (coordinates.has("x") || coordinates.has("y")) {
+      fail("implicit-plot-coordinates", "an implicit plot uses equation instead of x and y coordinate expressions", declaration);
+    }
+    return;
   }
-  return sourceKind === "tuple"
-    && Array.isArray(value)
-    && value.every((point) => Array.isArray(point)
-      && point.length === 2
-      && point.every((item) => typeof item === "number"));
+  if (entries.length > 1) {
+    fail("plot-interval-count", `constructor '${name}' accepts at most one independent-variable interval`, declaration);
+  }
+  if (entries.length === 0) {
+    if (coordinates.has("x") === coordinates.has("y")) {
+      fail(
+        "plot-interval-count",
+        `constructor '${name}' without an interval must provide exactly one of x or y so the other can be inherited from the plane`,
+        declaration,
+      );
+    }
+    return;
+  }
+  const variable = entries[0].variable;
+  for (const coordinate of ["x", "y"] as const) {
+    if (!coordinates.has(coordinate) && variable !== coordinate) {
+      fail(
+        "missing-coordinate-expression",
+        `plot over '${variable}' requires an expression for '${coordinate}'`,
+        declaration,
+      );
+    }
+  }
 }
 
 function valueDescription(value: SourcePropertyValue, kind?: SourceValueKind): string {
@@ -723,6 +822,7 @@ function childKinds(
 ): readonly string[] {
   if (child.type === "connection") return ["connection"];
   if (child.type === "arrangement") return ["arrangement"];
+  if (child.type === "attachment") return ["geometry"];
   if (child.type !== "declaration" && child.type !== "invocation") return ["geometry"];
   const resolved = resolveConstructor(child.constructor, context, child);
   if (resolved.manifest) return [resolved.manifest.lowering.semanticKind];
@@ -877,6 +977,7 @@ function validateDeclaration(
   }
   validateArguments(declaration, resolved, context, template);
   validateProperties(declaration, resolved, context, template);
+  validateMemberships(declaration, resolved, template);
   validateTreeArrangement(declaration, resolved, context);
   validateChildren(declaration, resolved, context);
 

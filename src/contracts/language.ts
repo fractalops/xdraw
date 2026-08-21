@@ -1,4 +1,4 @@
-import type { Point, SourceSpan } from "./foundation.ts";
+import type { DeferredPoint, GeometryStatementKind, Point, SourceSpan } from "./foundation.ts";
 
 export type SourceScalar = string | number | boolean;
 
@@ -7,12 +7,12 @@ export interface SourceEndpoint {
   anchor?: string;
 }
 
+/** A source value is recursive; manifests, rather than the tokenizer, decide what a tuple means. */
 export type SourcePropertyValue =
   | SourceScalar
-  | Point
-  | Point[]
-  | number[]
-  | SourceEndpoint;
+  | DeferredPoint
+  | SourceEndpoint
+  | SourcePropertyValue[];
 
 export type SourceValueKind =
   | "string"
@@ -53,13 +53,19 @@ export interface SourceArrangement extends SourceNode {
 }
 
 export interface SourceGeometryStatement extends SourceNode {
-  type: "alignment" | "distribution" | "offset" | "match-size" | "rotation" | "snap" | "layer";
+  type: GeometryStatementKind;
   references: string[];
   mode?: string;
   axis?: string;
   by?: Point;
   degrees?: number;
   grid?: number;
+}
+
+export interface SourceAttachmentStatement extends SourceNode {
+  type: "attachment";
+  moving: string;
+  target: string;
 }
 
 export interface SourceConnection extends SourceNode {
@@ -96,12 +102,22 @@ export interface SourceBindingStatement extends SourceNode {
   expression: string;
 }
 
+/** A closed interval constraint written as `x in [start, end]`. */
+export interface SourceMembershipStatement extends SourceNode {
+  type: "membership";
+  variable: string;
+  from: string | number;
+  to: string | number;
+}
+
 export type SourceStatement =
   | SourceBindingStatement
+  | SourceMembershipStatement
   | SourceProperty
   | SourceSubtitle
   | SourceArrangement
   | SourceGeometryStatement
+  | SourceAttachmentStatement
   | SourceConnection
   | SourceDeclaration
   | SourceInvocation;

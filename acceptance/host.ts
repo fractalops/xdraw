@@ -4,11 +4,11 @@ use "xdraw/palette" as palette
 
 diagram "Browser acceptance" {
   flow: process.lane "Verification flow" {
-    arrange row { gap 80 }
-    source: cards.card "XDraw source" { style palette.info }
-    preview: cards.card "Progressive preview" { style palette.warning }
-    final: cards.card "Editable canvas" { style palette.success }
-    source -> preview -> final
+    arrange row { gap = 80 }
+    source: cards.card "XDraw source" { style = palette.info }
+    preview: cards.card "Progressive preview" { style = palette.warning }
+    final: cards.card "Editable canvas" { style = palette.success }
+    source = -> preview -> final
   }
 }`;
 

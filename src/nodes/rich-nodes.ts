@@ -6,16 +6,20 @@ import {
 } from "./architecture.ts";
 import { planTable, renderTable } from "./table.ts";
 import {
+  cartesianNodeMinimumWidth,
+  planCartesianNode,
+  renderCartesianNode,
+} from "./cartesian.ts";
+import {
   formulaNodeMinimumWidth,
   planFormulaNode,
   renderFormulaNode,
 } from "./math/formula.ts";
 import type { Bounds } from "../contracts/foundation.ts";
 import type {
-  Measurer,
   NodeMeasurementTarget,
-  NodeVisual,
   ResolvedNodeStyle,
+  StyleResolver,
 } from "../contracts/layout.ts";
 import type { DrawingElement } from "../contracts/render.ts";
 import type { NodeStatement } from "../contracts/semantic.ts";
@@ -31,6 +35,7 @@ interface RichNodeFamily {
     width: number,
     style?: ResolvedNodeStyle,
     preparation?: FormulaPreparation,
+    resolver?: StyleResolver,
   ): RichNodePlan;
   render(
     node: NodeStatement,
@@ -41,6 +46,22 @@ interface RichNodeFamily {
 }
 
 const RICH_NODE_FAMILIES: readonly RichNodeFamily[] = Object.freeze([
+  Object.freeze({
+    name: "cartesian",
+    supports: (node: NodeMeasurementTarget) => node.kind === "cartesian",
+    minimumWidth: () => cartesianNodeMinimumWidth(),
+    plan: (
+      node: NodeMeasurementTarget,
+      width: number,
+      style?: ResolvedNodeStyle,
+      _preparation?: FormulaPreparation,
+      resolver?: StyleResolver,
+    ) => planCartesianNode(node, width, style, resolver),
+    render: (node: NodeStatement, bounds: Bounds, style: ResolvedNodeStyle, plan: RichNodePlan) => {
+      if (plan.type !== "cartesian") throw new Error(`cartesian node '${node.id}' received an incompatible plan`);
+      return renderCartesianNode(node, bounds, style, plan);
+    },
+  }),
   Object.freeze({
     name: "formula",
     supports: (node: NodeMeasurementTarget) => node.kind === "formula",
@@ -84,15 +105,6 @@ const RICH_NODE_FAMILIES: readonly RichNodeFamily[] = Object.freeze([
   }),
 ]);
 
-type RichNodePlanner = (
-  node: NodeMeasurementTarget,
-  width: number,
-  style?: ResolvedNodeStyle,
-) => RichNodePlan | null;
-
-const MEASURER_PLANNERS = new WeakMap<Measurer, RichNodePlanner>();
-const VISUAL_PLANS = new WeakMap<NodeVisual, RichNodePlan | null>();
-
 function familyFor(node: NodeMeasurementTarget): RichNodeFamily | undefined {
   return RICH_NODE_FAMILIES.find((family) => family.supports(node));
 }
@@ -106,29 +118,9 @@ export function planRichNode(
   width: number,
   style?: ResolvedNodeStyle,
   preparation?: FormulaPreparation,
+  resolver?: StyleResolver,
 ): RichNodePlan | null {
-  return familyFor(node)?.plan(node, width, style, preparation) ?? null;
-}
-
-export function registerRichNodePlanner(measurer: Measurer, planner: RichNodePlanner): void {
-  MEASURER_PLANNERS.set(measurer, planner);
-}
-
-export function planMeasuredRichNode(
-  measurer: Measurer,
-  node: NodeMeasurementTarget,
-  width: number,
-  style?: ResolvedNodeStyle,
-): RichNodePlan | null {
-  return (MEASURER_PLANNERS.get(measurer) ?? planRichNode)(node, width, style);
-}
-
-export function attachRichNodePlan(visual: NodeVisual, plan: RichNodePlan | null): void {
-  VISUAL_PLANS.set(visual, plan);
-}
-
-export function richNodePlanFor(visual: NodeVisual): RichNodePlan | null | undefined {
-  return VISUAL_PLANS.get(visual);
+  return familyFor(node)?.plan(node, width, style, preparation, resolver) ?? null;
 }
 
 export function renderRichNode(

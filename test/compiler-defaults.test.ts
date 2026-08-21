@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compile } from "../src/compile/pipeline.ts";
+import { compile as compilePublic, compilePrepared as compile } from "../src/compile/pipeline.ts";
 import { layoutBuiltInDocument } from "../src/layout/builtin.ts";
 import { createMeasurer } from "../src/compile/measurement.ts";
 import { createSceneGraph } from "../src/compile/scene.ts";
@@ -25,7 +25,7 @@ test("spacing presets express layout density without numeric geometry", () => {
   const drawing = (spacing: string) => compile(parseSource(`${imports}
     diagram "Spacing" {
       flow: process.lane "Flow" {
-        arrange row { spacing ${spacing} }
+        arrange row { spacing = ${spacing} }
         a: rectangle "A"
         b: rectangle "B"
       }
@@ -43,7 +43,7 @@ test("small numeric gaps report automatic correction", () => {
   const drawing = compile(parseSource(`${imports}
     diagram "Warnings" {
       flow: process.lane "Flow" {
-        arrange row { gap 8 }
+        arrange row { gap = 8 }
         a: rectangle "A"
         b: rectangle "B"
         a -> b "a connector label"
@@ -105,21 +105,21 @@ test("arranged frame notes are placed inside and move with their frame", () => {
 test("invalid numeric layout and connection values fail before rendering", () => {
   assert.throws(
     () => compile(parseSource(`${imports} diagram "Bad gap" {
-      flow: process.lane "Flow" { arrange row { gap -1 } a: rectangle "A" }
+      flow: process.lane "Flow" { arrange row { gap = -1 } a: rectangle "A" }
     }`)),
     /layout gap must be finite and non-negative/,
   );
   assert.throws(
-    () => compile(parseSource('diagram "Bad width" { a: rectangle "A"; b: rectangle "B"; a -> b { width -2 } }')),
+    () => compile(parseSource('diagram "Bad width" { a: rectangle "A"; b: rectangle "B"; a -> b { width = -2 } }')),
     /connection width must be a positive finite number/,
   );
   assert.throws(
-    () => compile(parseSource('diagram "Bad head" { a: rectangle "A"; b: rectangle "B"; a -> b { head unknown } }')),
+    () => compile(parseSource('diagram "Bad head" { a: rectangle "A"; b: rectangle "B"; a -> b { head = unknown } }')),
     /property 'head' on connection must be one of/,
   );
   for (const columns of [0, -1, 1.5]) {
     assert.throws(
-      () => compile(parseSource(`diagram "Bad columns" { arrange grid { columns ${columns} } a: rectangle "A" }`)),
+      () => compile(parseSource(`diagram "Bad columns" { arrange grid { columns = ${columns} } a: rectangle "A" }`)),
       /layout columns must be a positive integer/,
     );
   }
@@ -175,12 +175,12 @@ test("tree validation rejects children that layout would otherwise omit", () => 
 
 test("connection diagnostics use a distinct range from freedraw diagnostics", () => {
   assert.throws(
-    () => compile(parseSource('diagram "Bad width" { a: rectangle "A"; b: rectangle "B"; a -> b { width -2 } }')),
+    () => compile(parseSource('diagram "Bad width" { a: rectangle "A"; b: rectangle "B"; a -> b { width = -2 } }')),
     (error) => error instanceof DiagnosticError
       && error.diagnostics.some((item) => item.code === "XD1232"),
   );
   assert.throws(
-    () => compile(parseSource('diagram "Bad stroke" { a: freedraw { at (0, 0); points ((1, 1), (1, 1)) } }')),
+    () => compile(parseSource('diagram "Bad stroke" { a: freedraw { at = (0, 0); points = ((1, 1), (1, 1)) } }')),
     (error) => error instanceof DiagnosticError
       && error.diagnostics.some((item) => item.code === "XD1224"),
   );
@@ -202,9 +202,9 @@ test("decision branches use ordinary labeled connections", () => {
 
 test("explicit waypoints report that automatic routing is disabled", () => {
   const drawing = compile(parseSource(`diagram "Routing" {
-    a: rectangle "A" { at (100, 100) }
-    b: rectangle "B" { at (500, 100) }
-    a@right -> b@left { via ((340, 155)) }
+    a: rectangle "A" { at = (100, 100) }
+    b: rectangle "B" { at = (500, 100) }
+    a@east -> b@west { via = ((340, 155)) }
   }`));
   assert.ok(drawing.diagnostics.some((item) => item.code === "XD2003"));
   assert.ok(drawing.diagnostics.some((item) => item.code === "XD2002"));
@@ -214,9 +214,20 @@ test("connections may target annotations that are placed during rendering", () =
   const drawing = compile(parseSource(`${imports}
     diagram "Annotation connection" {
       a: rectangle "A"
-      review: annotations.note "Review" { attach a@bottom }
+      review: annotations.note "Review" { attach = a@south }
       a -> review
     }`)).toJSON();
   requireElementById(drawing.elements, "review:frame");
   assert.ok(drawing.elements.some((item) => item.type === "arrow"));
+});
+
+test("the public compiler accepts diagram documents, not arbitrary semantic stages", async () => {
+  const semantic = buildSemanticIR(parseSource(`diagram "Stage" {
+    card: template() { item: rectangle "Item" }
+    one: card()
+  }`));
+  await assert.rejects(
+    compilePublic(semantic as never),
+    /diagram document|semantic document|compiler input/u,
+  );
 });

@@ -1,14 +1,12 @@
 import { arrow, rectangle, text } from "./elements.ts";
 import { anchor, inset } from "../geometry.ts";
-import { endpointLabelBounds } from "../routing/labels.ts";
+import { endpointLabelBounds, placeConnectorLabel } from "../routing/labels.ts";
 import {
   DEFAULT_CONNECTOR_LABEL_SIZE,
   fitTextSize,
-  measureConnectorLabelWidth,
   measureTextWidth,
   wrapTextToWidth,
 } from "../text/metrics.ts";
-import { ROUTING_CLEARANCE } from "../routing/clearances.ts";
 import type { Bounds, Point } from "../contracts/foundation.ts";
 import type {
   Arrowhead,
@@ -108,6 +106,7 @@ export interface ConnectOptions {
   labelSize?: number;
   labelWidth?: number;
   labelObstacles?: Bounds[];
+  labelRoutes?: readonly ConnectorPath[];
   fontFamily?: FontFamily;
   startLabel?: string;
   endLabel?: string;
@@ -413,69 +412,22 @@ export function connect(
     });
   const elements: Array<LinearElement | TextElement> = [line];
   if (options.label) {
-    const path = options.points ?? [anchor[startSide](fromBounds), anchor[endSide](toBounds)];
-    const compactedPath = path.filter((point, index) => {
-      if (!index || index === path.length - 1) return true;
-      const previous = path[index - 1];
-      const next = path[index + 1];
-      return !((previous[0] === point[0] && point[0] === next[0])
-        || (previous[1] === point[1] && point[1] === next[1]));
+    const placement = placeConnectorLabel({
+      label: options.label,
+      path: options.points ?? [anchor[startSide](fromBounds), anchor[endSide](toBounds)],
+      fromBounds,
+      toBounds,
+      obstacles: options.labelObstacles,
+      routes: options.labelRoutes,
+      fontSize: options.labelSize,
+      fontFamily: options.fontFamily,
+      maxWidth: options.labelWidth,
     });
-    const segments = compactedPath.slice(0, -1).map((point, index) => ({
-      start: point,
-      end: compactedPath[index + 1],
-      length: Math.abs(compactedPath[index + 1][0] - point[0]) + Math.abs(compactedPath[index + 1][1] - point[1]),
-    }));
-    const longest = segments.sort((left, right) => right.length - left.length)[0];
-    const labelSize = options.labelSize ?? DEFAULT_CONNECTOR_LABEL_SIZE;
-    const desiredLabelWidth = options.labelWidth ?? measureConnectorLabelWidth(options.label, labelSize, options.fontFamily ?? 3);
-    const horizontal = longest.start[1] === longest.end[1];
-    const availableLabelWidth = horizontal ? Math.max(1, longest.length - 12) : desiredLabelWidth;
-    let labelWidth = Math.min(desiredLabelWidth, availableLabelWidth);
-    let labelValue = wrapTextToWidth(options.label, labelWidth, labelSize, options.fontFamily ?? 3);
-    let labelHeight = labelValue.split("\n").length * labelSize * 1.25;
-    const midpoint: Point = [
-      (longest.start[0] + longest.end[0]) / 2,
-      (longest.start[1] + longest.end[1]) / 2,
-    ];
-    let candidates = horizontal
-      ? [
-        { x: midpoint[0] - labelWidth / 2, y: midpoint[1] - labelHeight - 8 },
-        { x: midpoint[0] - labelWidth / 2, y: midpoint[1] + 8 },
-      ]
-      : [
-        { x: midpoint[0] - labelWidth - 8, y: midpoint[1] - labelHeight / 2 },
-        { x: midpoint[0] + 8, y: midpoint[1] - labelHeight / 2 },
-      ];
-    const intersectsEndpoint = (position: { x: number; y: number }): boolean => (
-      [fromBounds, toBounds, ...(options.labelObstacles ?? [])].some((bounds) => (
-      position.x < bounds.x + bounds.width
-      && position.x + labelWidth + ROUTING_CLEARANCE.label > bounds.x
-      && position.y < bounds.y + bounds.height
-      && position.y + labelHeight + ROUTING_CLEARANCE.label > bounds.y
-      ))
-    );
-    let position = candidates.find((candidate) => !intersectsEndpoint(candidate));
-    if (!position) {
-      labelWidth = desiredLabelWidth;
-      labelValue = wrapTextToWidth(options.label, labelWidth, labelSize, options.fontFamily ?? 3);
-      labelHeight = labelValue.split("\n").length * labelSize * 1.25;
-      candidates = horizontal
-        ? [
-          { x: midpoint[0] - labelWidth / 2, y: Math.min(fromBounds.y, toBounds.y) - labelHeight - 8 },
-          { x: midpoint[0] - labelWidth / 2, y: Math.max(fromBounds.y + fromBounds.height, toBounds.y + toBounds.height) + 8 },
-        ]
-        : [
-          { x: Math.min(fromBounds.x, toBounds.x) - labelWidth - 8, y: midpoint[1] - labelHeight / 2 },
-          { x: Math.max(fromBounds.x + fromBounds.width, toBounds.x + toBounds.width) + 8, y: midpoint[1] - labelHeight / 2 },
-        ];
-      position = candidates.find((candidate) => !intersectsEndpoint(candidate)) ?? candidates[0];
-    }
-    const label = text(`${id}:label`, position, labelValue, {
-      fontSize: labelSize,
+    const label = text(`${id}:label`, { x: placement.x, y: placement.y }, placement.text, {
+      fontSize: options.labelSize ?? DEFAULT_CONNECTOR_LABEL_SIZE,
       strokeColor: options.color ?? "#475569",
-      width: labelWidth,
-      height: labelHeight,
+      width: placement.width,
+      height: placement.height,
       textAlign: "center",
       autoResize: false,
       containerId: id,

@@ -1,8 +1,16 @@
-import { evaluateExpression, parseExpression } from "./expression.ts";
+import {
+  evaluateExpression,
+  expressionRequiresGeometry,
+  formatExpression,
+  freeNames,
+  mapExpressionNames,
+  parseExpression,
+} from "./expression.ts";
 import type {
   TemplateStatement,
   TemplateUseStatement,
   DiagramDocument,
+  PlotStatement,
   SemanticStatement,
 } from "../contracts/semantic.ts";
 
@@ -35,6 +43,43 @@ function evaluatePairPart(source: string): number {
   return value;
 }
 
+function substituteInterval(
+  values: readonly [number | string, number | string],
+  bindings: ReadonlyMap<string, unknown>,
+): [number, number] {
+  return values.map((value) => (
+    typeof value === "string" ? evaluatePairPart(substituteParameters(value, bindings)) : value
+  )) as [number, number];
+}
+
+function substitutePlaneIntervals(
+  statement: SemanticStatement,
+  bindings: ReadonlyMap<string, unknown>,
+): void {
+  if (statement.type !== "node" || !statement.plane) return;
+  statement.plane = {
+    ...statement.plane,
+    xDomain: statement.plane.xDomain ? substituteInterval(statement.plane.xDomain, bindings) : undefined,
+    yDomain: statement.plane.yDomain ? substituteInterval(statement.plane.yDomain, bindings) : undefined,
+  };
+}
+
+function substitutePlot(
+  statement: PlotStatement,
+  bindings: ReadonlyMap<string, unknown>,
+): void {
+  statement.x = substituteParameters(statement.x, bindings);
+  statement.y = substituteParameters(statement.y, bindings);
+  if (statement.equation) statement.equation = substituteParameters(statement.equation, bindings);
+  if (typeof statement.from === "string") {
+    statement.from = evaluatePairPart(substituteParameters(statement.from, bindings));
+  }
+  if (typeof statement.to === "string") {
+    statement.to = evaluatePairPart(substituteParameters(statement.to, bindings));
+  }
+  if (statement.label) statement.label = substitute(statement.label, bindings);
+}
+
 function substituteValue(value: unknown, bindings: ReadonlyMap<string, unknown>): unknown {
   if (typeof value === "string") return substitute(value, bindings);
   if (Array.isArray(value)) return value.map((item) => substituteValue(item, bindings));
@@ -63,6 +108,24 @@ function rewriteReference(value: string, ids: ReadonlySet<string>, prefix: strin
     .filter((id) => candidate === id || candidate.startsWith(`${id}.`))
     .sort((left, right) => right.length - left.length)[0];
   return localId ? `${prefix}.${candidate}${port}` : value;
+}
+
+function rewriteExpressionReferences(value: string, ids: ReadonlySet<string>, prefix: string): string {
+  return formatExpression(mapExpressionNames(parseExpression(value), (name) => (
+    rewriteReference(name, ids, prefix)
+  )));
+}
+
+function expandDeferredExpression(
+  value: string,
+  bindings: ReadonlyMap<string, unknown>,
+  ids: ReadonlySet<string>,
+  prefix: string,
+): number | string {
+  const rewritten = rewriteExpressionReferences(substituteParameters(value, bindings), ids, prefix);
+  const expression = parseExpression(rewritten);
+  if (freeNames(expression).size || expressionRequiresGeometry(expression)) return rewritten;
+  return evaluateExpression(expression, {});
 }
 
 function copyMetadata(target: SemanticStatement, source: SemanticStatement): void {
@@ -98,11 +161,15 @@ function rewriteStatement(
   // A pair written after '=' arrives as text when it mentions a parameter, so
   // it is resolved here, once the parameter has a value.
   for (const key of ["at", "size"] as const) {
-    const carrier = statement as unknown as Record<string, readonly unknown[] | undefined>;
+    const carrier = statement as unknown as Record<string, readonly unknown[] | string | undefined>;
     const value = carrier[key];
+    if (typeof value === "string") {
+      carrier[key] = rewriteExpressionReferences(substituteParameters(value, bindings), ids, prefix);
+      continue;
+    }
     if (Array.isArray(value) && value.some((item) => typeof item === "string")) {
       carrier[key] = value.map((item): unknown => (
-        typeof item === "string" ? evaluatePairPart(substituteParameters(item, bindings)) : item
+        typeof item === "string" ? expandDeferredExpression(item, bindings, ids, prefix) : item
       ));
     }
   }
@@ -116,12 +183,19 @@ function rewriteStatement(
     case "plot":
       // A curve is described rather than drawn at this point, so its equations
       // are still text and a parameter can still reach them.
-      statement.x = substituteParameters(statement.x, bindings);
-      statement.y = substituteParameters(statement.y, bindings);
+      substitutePlot(statement, bindings);
       break;
     case "connection":
       statement.nodes = statement.nodes.map((value) => rewriteReference(value, ids, prefix));
       if (statement.label) statement.label = substitute(statement.label, bindings);
+      break;
+    case "attachment":
+      statement.moving = rewriteReference(statement.moving, ids, prefix);
+      statement.target = rewriteExpressionReferences(
+        substituteParameters(statement.target, bindings),
+        ids,
+        prefix,
+      );
       break;
     case "alignment":
     case "distribution":
@@ -151,6 +225,8 @@ function rewriteStatement(
     default:
       break;
   }
+
+  substitutePlaneIntervals(statement, bindings);
 
   if (statement.statements) {
     statement.statements = statement.statements.map((child) => (

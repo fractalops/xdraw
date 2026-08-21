@@ -4,7 +4,7 @@ import test from "node:test";
 import { Drawing } from "../src/excalidraw/document.ts";
 import { arrow, frame, rectangle, text } from "../src/excalidraw/elements.ts";
 
-const box = (x, y, width = 100, height = 60) => ({ x, y, width, height });
+const box = (x: number, y: number, width = 100, height = 60) => ({ x, y, width, height });
 
 test("Drawing.add recursively flattens optional element collections", () => {
   const first = rectangle("first", box(0, 0));
@@ -64,14 +64,14 @@ test("drawing serializes stable application state, files, and non-public diagnos
     logo: {
       id: "logo",
       dataURL: "data:image/png;base64,AA==",
-      mimeType: "image/png",
+      mimeType: "image/png" as const,
       created: 1,
       lastRetrieved: 1,
     },
   };
   const diagnostics = [{
     code: "XD0001",
-    severity: "warning",
+    severity: "warning" as const,
     message: "Example",
     location: null,
   }];
@@ -92,7 +92,9 @@ test("drawing serializes stable application state, files, and non-public diagnos
   });
   assert.equal(json.files, files);
   assert.equal(plain.diagnostics, diagnostics);
+  assert.equal(plain.measurements, null);
   assert.equal(Object.keys(plain).includes("diagnostics"), false);
+  assert.equal(Object.keys(plain).includes("measurements"), false);
   assert.equal(JSON.stringify(json).includes("XD0001"), false);
 
   const framed = new Drawing().add(frame("frame", box(0, 0), "Frame")).toJSON();

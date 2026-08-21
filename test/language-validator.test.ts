@@ -192,9 +192,9 @@ test("validates constructor and template argument arity", () => {
 
 test("validates template parameter scope and declarations", () => {
   const invalidSources = [
-    ["parameter 'tone' may be used only inside a template", 'diagram "Test" { item: rectangle "Item" { style $tone } }'],
+    ["parameter 'tone' may be used only inside a template", 'diagram "Test" { item: rectangle "Item" { style = $tone } }'],
     ["template 'card' does not declare parameter 'missing'", `diagram "Test" {
-      card: template(label) { item: rectangle "Item" { style $missing } }
+      card: template(label) { item: rectangle "Item" { style = $missing } }
     }`],
     ["template 'card' does not declare parameter 'missing'", `diagram "Test" {
       card: template(label) { item: rectangle "${"${missing}"}" }
@@ -210,7 +210,7 @@ test("infers template parameter kinds and validates invocation arguments", () =>
   assert.doesNotThrow(() => validateLanguageDocument(parseSyntax(`
     diagram "Valid" {
       styled: template(label, tone, size) {
-        item: rectangle "${"${label}"}" { style $tone; font-size $size }
+        item: rectangle "${"${label}"}" { style = $tone; font-size = $size }
       }
       use: styled("Item", info, 18)
     }
@@ -222,11 +222,11 @@ test("infers template parameter kinds and validates invocation arguments", () =>
       use: labelled(42)
     }`],
     ["template 'styled' argument 'tone' expects identifier, received string", `diagram "Test" {
-      styled: template(tone) { item: rectangle "Item" { style $tone } }
+      styled: template(tone) { item: rectangle "Item" { style = $tone } }
       use: styled("info")
     }`],
     ["template 'outer' argument 'size' expects number, received string", `diagram "Test" {
-      inner: template(size) { item: rectangle "Item" { font-size $size } }
+      inner: template(size) { item: rectangle "Item" { font-size = $size } }
       outer: template(size) { item: inner($size) }
       use: outer("large")
     }`],
@@ -235,13 +235,31 @@ test("infers template parameter kinds and validates invocation arguments", () =>
   for (const [message, source] of invalidSources) {
     assert.throws(() => validateLanguageDocument(parseSyntax(source)), new RegExp(message));
   }
+
+  assert.throws(
+    () => validateLanguageDocument(parseSyntax(`diagram "Test" {
+      card: template(columns) { item: rectangle "Item" { size = (\${columns} * 10, 20) } }
+      use: card("many")
+    }`)),
+    /template 'card' argument 'columns' expects number, received string/,
+  );
+
+  assert.throws(
+    () => validateLanguageDocument(parseSyntax(`diagram "Test" {
+      stroke: template(x, y) {
+        mark: freedraw { at = (0, 0); points = ((0, 0), ($x, $y)) }
+      }
+      use: stroke("far", 20)
+    }`)),
+    /template 'stroke' argument 'x' expects number, received string/,
+  );
 });
 
 test("rejects template parameters used with conflicting kinds", () => {
   assert.throws(
     () => validateLanguageDocument(parseSyntax(`diagram "Test" {
       invalid: template(value) {
-        item: rectangle "${"${value}"}" { font-size $value }
+        item: rectangle "${"${value}"}" { font-size = $value }
       }
     }`)),
     /template 'invalid' parameter 'value' has conflicting use kinds 'string' and 'number'/,
@@ -275,8 +293,8 @@ test("accepts a manifest-declared property parsed by the generic grammar", () =>
     use "xdraw/example" as example
     diagram "Extensible properties" {
       item: example.panel "Panel" {
-        enabled true
-        telemetry-tag "request-path"
+        enabled = true
+        telemetry-tag = "request-path"
         child: rectangle "Child"
       }
     }
@@ -412,19 +430,19 @@ test("distinguishes quoted strings from identifiers", () => {
   assert.throws(() => validateLanguageDocument(source(42), manifests), /expects identifier, received number/);
 });
 
-test("rejects malformed generic tuples against pair and points manifests", () => {
+test("rejects malformed generic tuples against point and points manifests", () => {
   assert.throws(
     () => validateLanguageDocument(parseSyntax(`
       diagram "Test" {
-        stroke: freedraw { at (0, 1, 2); points ((0, 0), (10, 10)) }
+        stroke: freedraw { at = (0, 1, 2); points = ((0, 0), (10, 10)) }
       }
     `)),
-    /property 'at'.*expects pair, received number list/,
+    /property 'at'.*expects point, received number list/,
   );
   assert.throws(
     () => validateLanguageDocument(parseSyntax(`
       diagram "Test" {
-        stroke: freedraw { at (0, 0); points ((0, 0), (10, 10, 20)) }
+        stroke: freedraw { at = (0, 0); points = ((0, 0), (10, 10, 20)) }
       }
     `)),
     /property 'points'.*expects points, received point list/,
@@ -433,7 +451,7 @@ test("rejects malformed generic tuples against pair and points manifests", () =>
 
 test("rejects statements that have no valid document or nested owner", () => {
   assert.throws(
-    () => validateLanguageDocument(parseSyntax('diagram "Test" { mystery "ignored" }')),
+    () => validateLanguageDocument(parseSyntax('diagram "Test" { mystery = "ignored" }')),
     (error: unknown) => error instanceof LanguageValidationError
       && error.code === "document-property"
       && /document scope does not accept property 'mystery'/.test(error.message),
@@ -464,20 +482,20 @@ test("rejects statements that have no valid document or nested owner", () => {
 test("validates each arrangement kind against its own contract", () => {
   assert.doesNotThrow(() => validateLanguageDocument(parseSyntax(`
     diagram "Layouts" {
-      arrange grid { columns 2; gap 24; width 1400 }
-      group: group "Group" { arrange row { spacing tight } }
+      arrange grid { columns = 2; gap = 24; width = 1400 }
+      group: group "Group" { arrange row { spacing = tight } }
     }
   `)));
 
   const invalidSources = [
-    ['arrangement \'compact\' does not accept property \'root\'', 'diagram "Test" { arrange compact { root item } }'],
-    ['arrangement \'grid\' does not accept property \'direction\'', 'diagram "Test" { arrange grid { direction right } }'],
-    ['arrangement \'layered\' does not accept property \'columns\'', 'diagram "Test" { arrange layered { columns 2 } }'],
-    ['arrangement \'row\' does not accept property \'width\'', 'diagram "Test" { group: group "G" { arrange row { width 600 } } }'],
-    ['arrangement \'column\' does not accept property \'columns\'', 'diagram "Test" { group: group "G" { arrange column { columns 2 } } }'],
-    ['arrangement \'tree\' does not accept property \'gap\'', 'diagram "Test" { group: group "G" { arrange tree { root a; gap 10 }; a: rectangle "A" } }'],
-    ["property 'spacing' on arrangement 'row' must be one of tight, normal, airy", 'diagram "Test" { group: group "G" { arrange row { spacing banana } } }'],
-    ["property 'direction' on arrangement 'tree' must be one of down, right", 'diagram "Test" { group: group "G" { arrange tree { root a; direction left }; a: rectangle "A" } }'],
+    ['arrangement \'compact\' does not accept property \'root\'', 'diagram "Test" { arrange compact { root = item } }'],
+    ['arrangement \'grid\' does not accept property \'direction\'', 'diagram "Test" { arrange grid { direction = right } }'],
+    ['arrangement \'layered\' does not accept property \'columns\'', 'diagram "Test" { arrange layered { columns = 2 } }'],
+    ['arrangement \'row\' does not accept property \'width\'', 'diagram "Test" { group: group "G" { arrange row { width = 600 } } }'],
+    ['arrangement \'column\' does not accept property \'columns\'', 'diagram "Test" { group: group "G" { arrange column { columns = 2 } } }'],
+    ['arrangement \'tree\' does not accept property \'gap\'', 'diagram "Test" { group: group "G" { arrange tree { root = a; gap = 10 }; a: rectangle "A" } }'],
+    ["property 'spacing' on arrangement 'row' must be one of tight, normal, airy", 'diagram "Test" { group: group "G" { arrange row { spacing = banana } } }'],
+    ["property 'direction' on arrangement 'tree' must be one of down, right", 'diagram "Test" { group: group "G" { arrange tree { root = a; direction = left }; a: rectangle "A" } }'],
     ["unknown arrangement 'orbit'", 'diagram "Test" { arrange orbit {} }'],
   ] as const;
 
@@ -488,13 +506,13 @@ test("validates each arrangement kind against its own contract", () => {
 
 test("rejects tree arrangements in unsupported owners", () => {
   assert.throws(
-    () => validateLanguageDocument(parseSyntax('diagram "Test" { arrange tree { root item }; item: rectangle "Item" }')),
+    () => validateLanguageDocument(parseSyntax('diagram "Test" { arrange tree { root = item }; item: rectangle "Item" }')),
     /tree arrangement is not supported at diagram scope/,
   );
   assert.throws(
     () => validateLanguageDocument(parseSyntax(`diagram "Test" {
       hierarchy: template() {
-        arrange tree { root root }
+        arrange tree { root = root }
         root: rectangle "Root"
       }
     }`)),
@@ -506,7 +524,7 @@ test("rejects direct tree content that tree lowering cannot preserve", () => {
   const invalidSources = [
     ["tree arrangement in 'map' does not preserve child kind 'text'", `diagram "Test" {
       map: frame "Map" {
-        arrange tree { root root }
+        arrange tree { root = root }
         root: rectangle "Root"
         caption: text "Caption"
       }
@@ -514,20 +532,20 @@ test("rejects direct tree content that tree lowering cannot preserve", () => {
     ["tree arrangement in 'map' requires direct node declarations, not template use 'first'", `diagram "Test" {
       reusable: template(label) { item: rectangle "${"${label}"}" }
       map: frame "Map" {
-        arrange tree { root first }
+        arrange tree { root = first }
         first: reusable("First")
       }
     }`],
     ["tree arrangement in 'map' does not preserve geometry children", `diagram "Test" {
       map: frame "Map" {
-        arrange tree { root root }
+        arrange tree { root = root }
         root: rectangle "Root"
         align left(root)
       }
     }`],
     ["tree arrangement in 'map' does not preserve additional arrangements", `diagram "Test" {
       map: frame "Map" {
-        arrange tree { root root }
+        arrange tree { root = root }
         arrange row {}
         root: rectangle "Root"
       }
@@ -549,12 +567,12 @@ test("rejects connection enum values before lowering can degrade them", () => {
   `;
   const invalid = [
     ["route", "banana", "auto, straight, elbow, curved, line"],
-    ["stroke-style", "dotted", "solid, dashed"],
+    ["stroke-style", "wavy", "solid, dashed, dotted"],
     ["head", "unknown", "none, arrow, bar, dot, circle, circle_outline, triangle, triangle_outline, diamond, diamond_outline, crowfoot_one, crowfoot_many, crowfoot_one_or_many"],
   ] as const;
   for (const [propertyName, value, allowed] of invalid) {
     assert.throws(
-      () => validateLanguageDocument(parseSyntax(source(`${propertyName} ${value}`))),
+      () => validateLanguageDocument(parseSyntax(source(`${propertyName} = ${value}`))),
       new RegExp(`property '${propertyName}' on connection must be one of ${allowed}`),
     );
   }
@@ -564,13 +582,13 @@ test("resolves qualified style values through imported library manifests", () =>
   assert.doesNotThrow(() => validateLanguageDocument(parseSyntax(`
     use "xdraw/palette" as palette
     diagram "Styles" {
-      item: rectangle "Item" { style palette.info }
+      item: rectangle "Item" { style = palette.info }
     }
   `)));
   assert.throws(
     () => validateLanguageDocument(parseSyntax(`
       use "xdraw/palette" as palette
-      diagram "Styles" { item: rectangle "Item" { style palette.missing } }
+      diagram "Styles" { item: rectangle "Item" { style = palette.missing } }
     `)),
     (error: unknown) => error instanceof LanguageValidationError
       && error.code === "unknown-library-value"
@@ -578,7 +596,7 @@ test("resolves qualified style values through imported library manifests", () =>
   );
   assert.throws(
     () => validateLanguageDocument(parseSyntax(`
-      diagram "Styles" { item: rectangle "Item" { style palette.info } }
+      diagram "Styles" { item: rectangle "Item" { style = palette.info } }
     `)),
     (error: unknown) => error instanceof LanguageValidationError
       && error.code === "unknown-value-alias"
@@ -589,8 +607,8 @@ test("resolves qualified style values through imported library manifests", () =>
 test("keeps unqualified document style references valid", () => {
   assert.doesNotThrow(() => validateLanguageDocument(parseSyntax(`
     diagram "Styles" {
-      focus: style { stroke "#2563eb" }
-      item: rectangle "Item" { style focus }
+      focus: style { stroke = "#2563eb" }
+      item: rectangle "Item" { style = focus }
     }
   `)));
 });

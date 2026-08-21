@@ -20,11 +20,35 @@ export type {
   ToneColors,
   ToneName,
 } from "./excalidraw/components.ts";
-export { compile, compileAsync } from "./compile/pipeline.ts";
+export { compile } from "./compile/pipeline.ts";
 export type { CompileOptions } from "./compile/pipeline.ts";
-export { createMeasurer } from "./compile/measurement.ts";
-export { createStyleResolver } from "./compile/styles.ts";
-export { LAYERED_LAYOUT, LAYERED_LAYOUT_CAPABILITIES } from "./layout/layered.ts";
+export type {
+  AssetMeasurement,
+  CompilationMeasurements,
+  ConnectorMeasurement,
+  ConstraintMeasurement,
+  ContainerMeasurement,
+  ElementMeasurement,
+  LabelMeasurement,
+  MeasurementFormat,
+  StrokeMeasurement,
+  TextMeasurement,
+} from "./contracts/measurements.ts";
+export { invertLinearValue, planLinearAxis, planLinearScale, scaleLinearValue } from "./math/scales.ts";
+export type {
+  AxisLine,
+  AxisOrientation,
+  AxisPoint,
+  AxisTextAlign,
+  AxisVerticalAlign,
+  LinearAxisOptions,
+  LinearAxisPlan,
+  LinearAxisTick,
+  LinearScaleOptions,
+  LinearScalePlan,
+  LinearTick,
+  NumericExtent,
+} from "./math/scales.ts";
 export { parseSource as parse, parseSource, parseSyntax } from "./language/parser.ts";
 export { formatSceneResource, parseSceneDocument } from "./io/scene-document.ts";
 export type {
@@ -76,17 +100,8 @@ export type {
 } from "./contracts/render.ts";
 export { endpointLabelBounds, synchronizeEndpointLabels } from "./routing/labels.ts";
 export type { EndpointLabelSynchronization } from "./routing/labels.ts";
-export { buildSemanticIR, DiagnosticError, validateSemanticDocument } from "./language/semantic.ts";
-export {
-  assertLayoutCapabilities,
-  BUILTIN_LAYOUT_CAPABILITIES,
-  collectLayoutRequirements,
-  createLayoutAdapter,
-  createSceneGraph,
-  layoutWithAdapter,
-} from "./compile/scene.ts";
+export { DiagnosticError } from "./language/semantic.ts";
 export type {
-  AdapterRoute,
   AssetLimits,
   AssetMimeType,
   Bounds,
@@ -94,29 +109,8 @@ export type {
   EmbeddedAssetFile,
   EmbeddedAssetFiles,
   FileSystem,
-  LayoutAdapter,
-  LayoutAdapterDefinition,
-  LayoutCapabilities,
-  LayoutCapability,
-  LayoutContext,
-  LayoutOptions,
-  LayoutRequest,
-  LayoutResponse,
-  LayoutResult,
   Point,
   ResolvedAsset,
-  ResolvedFreedrawStyle,
-  ResolvedNodeStyle,
-  ResolvedTextStyle,
-  RenderableCodeStatement,
-  NodeStyleTarget,
-  SceneGraph,
-  SceneGraphOptions,
-  SceneVisual,
-  SemanticDocument,
-  SemanticStatement,
-  StyleProperties,
-  StyleResolver,
 } from "./contracts/index.ts";
 
 export type {

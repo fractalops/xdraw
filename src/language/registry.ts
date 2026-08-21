@@ -2,11 +2,8 @@ import type {
   ConstructorManifest,
   LibraryManifest,
   ManifestBorder,
-  ManifestValueKind,
 } from "./manifests/contracts.ts";
 import { BUILTIN_LIBRARY_MANIFESTS, CORE_LIBRARY_MANIFEST, STANDARD_LIBRARY_MANIFESTS } from "./manifests/builtins.ts";
-
-export type PropertyKind = "pair" | "string" | "identifier" | "number" | "points" | "numbers" | "endpoint";
 
 export interface ConstructorDefinition {
   type: "node" | "frame" | "group" | "section" | "text" | "code" | "freedraw" | "plot" | "style" | "theme"
@@ -17,45 +14,9 @@ export interface ConstructorDefinition {
   manifest: ConstructorManifest;
 }
 
-const GRAMMAR_PROPERTY_KINDS = new Map<string, PropertyKind>([
-  ["gap", "number"],
-  ["columns", "number"],
-  ["width", "number"],
-  ["spacing", "identifier"],
-  ["direction", "identifier"],
-  ["root", "identifier"],
-  ["level-gap", "number"],
-  ["sibling-gap", "number"],
-  ["route", "identifier"],
-  ["head", "identifier"],
-  ["start-label", "string"],
-  ["end-label", "string"],
-  ["via", "points"],
-  ["attach", "endpoint"],
-]);
-
-function parserKind(kind: ManifestValueKind): PropertyKind {
-  if (kind === "boolean") return "identifier";
-  if (kind === "raw-string") return "string";
-  if (kind === "interval") return "pair";
-  if (kind === "expression") return "string";
-  if (kind === "strings") return "points";
-  return kind;
-}
-
-const PROPERTY_KINDS = new Map(GRAMMAR_PROPERTY_KINDS);
-for (const manifest of BUILTIN_LIBRARY_MANIFESTS) {
-  for (const constructor of manifest.constructors) {
-    for (const property of constructor.properties) {
-      const kind = parserKind(property.kind);
-      const previous = PROPERTY_KINDS.get(property.name);
-      if (previous && previous !== kind) {
-        throw new Error(`property '${property.name}' has conflicting kinds '${previous}' and '${kind}'`);
-      }
-      PROPERTY_KINDS.set(property.name, kind);
-    }
-  }
-}
+const PROPERTY_NAMES = new Set(BUILTIN_LIBRARY_MANIFESTS.flatMap((manifest) => (
+  manifest.constructors.flatMap((constructor) => constructor.properties.map((property) => property.name))
+)));
 
 function definition(manifest: ConstructorManifest): ConstructorDefinition {
   return {
@@ -87,11 +48,7 @@ export function isHighlightLanguage(value: unknown): value is HighlightLanguage 
 }
 
 export function hasProperty(name: string): boolean {
-  return PROPERTY_KINDS.has(name);
-}
-
-export function propertyKind(name: string): PropertyKind | undefined {
-  return PROPERTY_KINDS.get(name);
+  return PROPERTY_NAMES.has(name);
 }
 
 export function listLibraryManifests(): readonly LibraryManifest[] {
