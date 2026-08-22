@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.4.0](https://github.com/fractalops/xdraw/compare/v0.3.0...v0.4.0) (2026-08-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* compile now returns a Promise, compileAsync is removed, and every property assignment requires '='.
+
+### Features
+
+* **cli:** report structured compilation measurements from check ([5c81c8b](https://github.com/fractalops/xdraw/commit/5c81c8b5ce63c90c77cc6128495c1237c3079de6))
+* **language:** add measured geometry references and directed attachments ([6d0ca15](https://github.com/fractalops/xdraw/commit/6d0ca15b4686e95bf53be03b66a5330594cf536f))
+* **layout:** solve relative placement and precision geometry as constraints ([31ad931](https://github.com/fractalops/xdraw/commit/31ad931a72d1202c3bea9147afbd943ad34ca850))
+* **math:** add coordinate planes, inferred domains, and implicit plots ([3ff4930](https://github.com/fractalops/xdraw/commit/3ff493002c9a53965f40eb4245b64bb41333d829))
+
+
+### Bug Fixes
+
+* **routing:** reserve connector label space on emitted routes ([99828c8](https://github.com/fractalops/xdraw/commit/99828c871cf3d83d69a9a619dee3635fc89eeae2))
+* say how a bound connector end follows its shape ([bbfa023](https://github.com/fractalops/xdraw/commit/bbfa023650a15a99fbf184e380cadd5d792ab1f2))
+
+
+### Code Refactoring
+
+* make compilation universally async and require explicit assignments ([ea8c2b1](https://github.com/fractalops/xdraw/commit/ea8c2b13a2d65f81e1feccd46340e247c0f2cb22))
+
 ## [0.3.0](https://github.com/fractalops/xdraw/compare/v0.2.0...v0.3.0) (2026-08-17)
 
 
